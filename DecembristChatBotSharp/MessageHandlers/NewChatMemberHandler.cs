@@ -6,14 +6,14 @@ namespace DecembristChatBotSharp.MessageHandlers;
 
 public readonly struct NewMemberHandlerParams(
     long chatId,
-    User[] users,
+    User user,
     AppConfig appConfig,
     BotClient botClient,
     Database db
 )
 {
     public long ChatId => chatId;
-    public User[] Users => users;
+    public User User => user;
     public AppConfig AppConfig => appConfig;
     public BotClient BotClient => botClient;
     public Database Db => db;
@@ -31,16 +31,15 @@ public class NewMemberHandler(
         CancellationToken cancelToken)
     {
         var chatId = parameters.ChatId;
-        var users = parameters.Users;
+        var user = parameters.User;
 
-        var sendTasks = users.Map(user => SendWelcomeMessageForUser(chatId, user, cancelToken));
-        var sendWelcomeTasks = await Task.WhenAll(sendTasks);
+        var sendWelcomeTask = await SendWelcomeMessageForUser(chatId, user, cancelToken);
         
-        return sendWelcomeTasks.Iter(either => either.Match(
+        return sendWelcomeTask.Match(
             Right: username => Log.Information("Sent welcome message to {Username}", username),
             Left: usernameEx =>
                 Log.Error(usernameEx.Ex, "Failed to send welcome message to {Username}", usernameEx.Username)
-        ));
+        );
     }
 
     private async Task<Either<UsernameEx, string>> SendWelcomeMessageForUser(

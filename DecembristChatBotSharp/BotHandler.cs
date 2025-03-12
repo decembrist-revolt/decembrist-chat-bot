@@ -16,13 +16,15 @@ public class BotHandler(AppConfig appConfig, BotClient botClient, Database db) :
         return update switch
         {
             {
-                Type: UpdateType.Message,
-                Message:
+                Type: UpdateType.ChatMember,
+                ChatMember:
                 {
-                    Chat: { Id: var chatId },
-                    NewChatMembers: { Length: > 0 } users
-                },
-            } => _newMemberHandler.Do(new NewMemberHandlerParams(chatId, users, appConfig, botClient, db), cancelToken),
+                    NewChatMember.Status: ChatMemberStatus.Member,
+                    Chat.Id: { } chatId,
+                    From: { } user,
+                    ViaJoinRequest: false
+                }
+            } => _newMemberHandler.Do(new NewMemberHandlerParams(chatId, user, appConfig, botClient, db), cancelToken),
             {
                 Type: UpdateType.Message,
                 Message:

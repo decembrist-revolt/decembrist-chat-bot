@@ -23,8 +23,6 @@ public class CaptchaHandler(
     BotClient botClient,
     Database db)
 {
-    private readonly NewMember EMPTY_NEW_MEMBER = new(0, "", 0, 0, DateTime.MinValue);
-    
     public async Task<Unit> Do(
         CaptchaHandlerParams parameters,
         CancellationToken cancelToken)
@@ -40,7 +38,7 @@ public class CaptchaHandler(
         
         var newMember = maybe.ValueUnsafe();
 
-        var tryCaptcha = TryAsync(text == appConfig.CaptchaAnswer
+        var tryCaptcha = TryAsync(IsCaptchaPassed(text)
             ? OnCaptchaPassed(telegramId, chatId, messageId, newMember, cancelToken)
             : OnCaptchaFailed(telegramId, chatId, messageId, newMember, cancelToken));
 
@@ -55,6 +53,9 @@ public class CaptchaHandler(
                 return unit;
             });
     }
+    
+    private bool IsCaptchaPassed(string text) => 
+        string.Equals(appConfig.CaptchaAnswer, text, StringComparison.CurrentCultureIgnoreCase);
 
     private Unit OnRemoveMember(bool result, long telegramId, long chatId)
     {
