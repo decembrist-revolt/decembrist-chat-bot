@@ -1,0 +1,8 @@
+{
+  "WelcomeMessage": "{0} Вы вошли в самый токсичный IT-чат в мире. Прежде чем начать травлю, пройдите капчу, напишите \"Соер лучший инженер\", у вас {1} секунд.",
+  "DatabaseFile": "decembrist.db",
+  "CheckCaptchaIntervalSeconds": 5,
+  "CaptchaTimeSeconds": 20,
+  "CaptchaAnswer": "Соер лучший инженер",
+  "JoinText": "{0} присоединился к чату"
+}
