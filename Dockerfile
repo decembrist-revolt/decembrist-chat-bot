@@ -18,4 +18,8 @@ RUN dotnet publish "DecembristChatBotSharp.csproj" -c $BUILD_CONFIGURATION -o /a
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+
+# unused
+EXPOSE 80
+
 ENTRYPOINT ["dotnet", "DecembristChatBotSharp.dll"]
