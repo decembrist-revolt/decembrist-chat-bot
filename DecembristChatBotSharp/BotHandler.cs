@@ -10,11 +10,26 @@ public class BotHandler(AppConfig appConfig, BotClient botClient, Database db) :
 {
     private readonly CaptchaHandler _captchaHandler = new(appConfig, botClient, db);
     private readonly NewMemberHandler _newMemberHandler = new(appConfig, botClient, db);
+    private readonly PrivateMessageHandler _privateMessageHandler = new(botClient);
 
     public Task HandleUpdateAsync(BotClient client, Update update, CancellationToken cancelToken)
     {
         return update switch
         {
+            {
+                Type: UpdateType.Message,
+                Message:
+                {
+                    Text: var text,
+                    Type: MessageType.Text,
+                    Chat:
+                    {
+                        Type: ChatType.Private,
+                        Id: var chatId,
+                    },
+                    From.Id: var telegramId,
+                }
+            } => _privateMessageHandler.Do(new PrivateMessageHandlerParams(chatId, telegramId, text), cancelToken),
             {
                 Type: UpdateType.ChatMember,
                 ChatMember:

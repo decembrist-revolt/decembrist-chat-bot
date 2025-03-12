@@ -19,7 +19,11 @@ public readonly struct NewMemberHandlerParams(
     public Database Db => db;
 }
 
-internal record UsernameEx(string Username, Exception Ex);
+internal readonly struct UsernameEx(string username, Exception ex)
+{
+    public string Username => username;
+    public Exception Ex => ex;
+}
 
 public class NewMemberHandler(
     AppConfig appConfig,
