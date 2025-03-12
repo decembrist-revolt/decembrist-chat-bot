@@ -22,7 +22,8 @@ var receiverOptions = new ReceiverOptions
         UpdateType.Message,
         UpdateType.ChatMember,
         UpdateType.ChatJoinRequest
-    ]
+    ],
+    Offset = int.MaxValue
 };
 
 var appConfig = AppConfig.GetInstance().Match(
