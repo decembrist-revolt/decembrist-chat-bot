@@ -6,11 +6,12 @@ using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp;
 
-public class BotHandler(AppConfig appConfig, BotClient botClient, Database db) : IUpdateHandler
+public class BotHandler(long botTelegramId, AppConfig appConfig, BotClient botClient, Database db) : IUpdateHandler
 {
     private readonly NewMemberHandler _newMemberHandler = new(appConfig, botClient, db);
     private readonly PrivateMessageHandler _privateMessageHandler = new(botClient);
     private readonly ChatMessageHandler _chatMessageHandler = new(appConfig, botClient, db);
+    private readonly ChatBotAddHandler _chatBotAddHandler = new(appConfig, botClient);
 
     public Task HandleUpdateAsync(BotClient client, Update update, CancellationToken cancelToken)
     {
@@ -20,46 +21,69 @@ public class BotHandler(AppConfig appConfig, BotClient botClient, Database db) :
                 Type: UpdateType.Message,
                 Message:
                 {
-                    Date: var date,
-                    Text: var text,
-                    Type: MessageType.Text,
-                    Chat:
-                    {
-                        Type: ChatType.Private,
-                        Id: var chatId,
-                    },
-                    From.Id: var telegramId,
-                }
-            } when IsValidUpdateDate(date) => _privateMessageHandler.Do(
-                new PrivateMessageHandlerParams(chatId, telegramId, text), cancelToken),
+                    Chat.Type: var chatType,
+                } message
+            } => chatType switch
+            {
+                ChatType.Private => HandlePrivateMessageUpdateAsync(message, cancelToken),
+                _ => HandleMessageUpdateAsync(message, cancelToken),
+            },
             {
                 Type: UpdateType.ChatMember,
                 ChatMember:
                 {
-                    Date: var date,
-                    NewChatMember.Status: ChatMemberStatus.Member,
-                    Chat.Id: { } chatId,
-                    From: { } user,
-                    ViaJoinRequest: false
-                }
-            } when IsValidUpdateDate(date) => _newMemberHandler.Do(new NewMemberHandlerParams(chatId, user),
-                cancelToken),
-            {
-                Type: UpdateType.Message,
-                Message:
-                {
-                    Date: var date,
-                    MessageId: var messageId,
-                    Chat.Id: var chatId,
-                    Text: var text,
-                    From.Id: var telegramId,
-                    Type: not MessageType.NewChatMembers and not MessageType.LeftChatMember
-                }
-            } when IsValidUpdateDate(date) => _chatMessageHandler.Do(
-                new ChatMessageHandlerParams(text ?? "", messageId, telegramId, chatId), cancelToken),
+                    Date: var date
+                } chatMember
+            } when IsValidUpdateDate(date) => HandleChatMemberUpdateAsync(chatMember, cancelToken),
             _ => Task.CompletedTask
         };
     }
+
+    private Task HandlePrivateMessageUpdateAsync(Message message, CancellationToken cancelToken) => message switch
+    {
+        // private text message
+        {
+            Text: var text,
+            Type: MessageType.Text,
+            Chat.Id: var chatId,
+            From.Id: var telegramId,
+        } => _privateMessageHandler.Do(new PrivateMessageHandlerParams(chatId, telegramId, text), cancelToken),
+        _ => Task.CompletedTask
+    };
+
+    private Task HandleMessageUpdateAsync(Message message, CancellationToken cancelToken) => message switch
+    {
+        // bot added to chat
+        {
+            Type: MessageType.NewChatMembers,
+            Chat.Id: var chatId,
+            NewChatMembers: { Length: > 0 } newChatMembers
+        } when newChatMembers.Exists(user => user.Id == botTelegramId) => _chatBotAddHandler.Do(chatId, cancelToken),
+        // new message in chat
+        {
+            Date: var date,
+            MessageId: var messageId,
+            Chat.Id: var chatId,
+            Text: var text,
+            From.Id: var telegramId,
+            Type: not MessageType.NewChatMembers and not MessageType.LeftChatMember
+        } when IsValidUpdateDate(date) => _chatMessageHandler.Do(
+            new ChatMessageHandlerParams(text ?? "", messageId, telegramId, chatId), cancelToken),
+        _ => Task.CompletedTask
+    };
+
+    private Task HandleChatMemberUpdateAsync(ChatMemberUpdated chatMember, CancellationToken cancelToken) =>
+        chatMember switch
+        {
+            // new member joined chat
+            {
+                NewChatMember.Status: ChatMemberStatus.Member,
+                Chat.Id: var chatId,
+                From: { } user,
+                ViaJoinRequest: false
+            } => _newMemberHandler.Do(new NewMemberHandlerParams(chatId, user), cancelToken),
+            _ => Task.CompletedTask
+        };
 
     public Task HandleErrorAsync(
         BotClient botClient,
