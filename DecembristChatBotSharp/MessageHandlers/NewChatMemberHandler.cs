@@ -6,17 +6,11 @@ namespace DecembristChatBotSharp.MessageHandlers;
 
 public readonly struct NewMemberHandlerParams(
     long chatId,
-    User user,
-    AppConfig appConfig,
-    BotClient botClient,
-    Database db
+    User user
 )
 {
     public long ChatId => chatId;
     public User User => user;
-    public AppConfig AppConfig => appConfig;
-    public BotClient BotClient => botClient;
-    public Database Db => db;
 }
 
 internal readonly struct UsernameEx(string username, Exception ex)
@@ -38,7 +32,7 @@ public class NewMemberHandler(
         var user = parameters.User;
 
         var sendWelcomeTask = await SendWelcomeMessageForUser(chatId, user, cancelToken);
-        
+
         return sendWelcomeTask.Match(
             Right: username => Log.Information("Sent welcome message to {Username}", username),
             Left: usernameEx =>
@@ -48,7 +42,7 @@ public class NewMemberHandler(
 
     private async Task<Either<UsernameEx, string>> SendWelcomeMessageForUser(
         long chatId,
-        User user, 
+        User user,
         CancellationToken cancelToken)
     {
         var username = Optional(user.Username).Match(
@@ -57,11 +51,11 @@ public class NewMemberHandler(
         );
 
         var welcomeText = string.Format(appConfig.WelcomeMessage, username, appConfig.CaptchaTimeSeconds);
-        var result =
-            TryAsync(botClient.SendMessage(chatId: chatId, text: welcomeText, cancellationToken: cancelToken));
-        
-        return await result
-            .Bind(message => TryAsync(db.AddNewMember(user.Id, username, chatId, message.MessageId)))
+        var result = await TryAsync(
+            botClient.SendMessage(chatId: chatId, text: welcomeText, cancellationToken: cancelToken));
+
+        return result
+            .Map(message => db.AddNewMember(user.Id, username, chatId, message.MessageId))
             .Match<Unit, Either<UsernameEx, string>>(
                 Succ: _ => Right(username),
                 Fail: ex => Left(new UsernameEx(username, ex)));

@@ -35,6 +35,14 @@ public class Database(AppConfig appConfig)
         return deleteCount == 1;
     }
 
+    public Unit UpdateNewMember(NewMember newMember)
+    {
+        var newMembers = _db.GetCollection<NewMember>(nameof(NewMember));
+        newMembers.Update(newMember);
+
+        return unit;
+    }
+
     /// <summary>
     /// Predicate for selecting a new member by chat and telegram id
     /// </summary>

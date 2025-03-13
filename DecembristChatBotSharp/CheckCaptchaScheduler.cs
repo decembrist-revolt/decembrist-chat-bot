@@ -30,7 +30,7 @@ public class CheckCaptchaScheduler(BotClient bot, AppConfig appConfig, Database 
 
     private async Task<Unit> HandleExpiredMember(NewMember newMember)
     {
-        var (telegramId, username, chatId, welcomeMessageId, _) = newMember;
+        var (telegramId, username, chatId, welcomeMessageId, _, _) = newMember;
 
         await Task.WhenAll(
             BanMember(chatId, telegramId, username),
@@ -46,7 +46,7 @@ public class CheckCaptchaScheduler(BotClient bot, AppConfig appConfig, Database 
             chatId: chatId,
             userId: telegramId,
             untilDate: DateTime.UtcNow.AddSeconds(0)
-        ));
+        ).UnitTask);
 
         return result.Match(
             Succ: _ => OnBannedUser(telegramId, username, chatId),
@@ -72,7 +72,7 @@ public class CheckCaptchaScheduler(BotClient bot, AppConfig appConfig, Database 
 
     private async Task<Unit> DeleteWelcomeMessage(long chatId, int welcomeMessageId, string username)
     {
-        var result = await TryAsync(bot.DeleteMessage(chatId, welcomeMessageId));
+        var result = await TryAsync(bot.DeleteMessage(chatId, welcomeMessageId).UnitTask);
         return result.Match(
             Succ: _ => Log.Information("Deleted welcome message for user {0} in chat {1}", username, chatId),
             Fail: ex => Log.Error(ex, "Failed to delete welcome message for user {0} in chat {1}", username, chatId)

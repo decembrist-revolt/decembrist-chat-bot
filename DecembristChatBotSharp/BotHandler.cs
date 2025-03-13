@@ -8,9 +8,9 @@ namespace DecembristChatBotSharp;
 
 public class BotHandler(AppConfig appConfig, BotClient botClient, Database db) : IUpdateHandler
 {
-    private readonly CaptchaHandler _captchaHandler = new(appConfig, botClient, db);
     private readonly NewMemberHandler _newMemberHandler = new(appConfig, botClient, db);
     private readonly PrivateMessageHandler _privateMessageHandler = new(botClient);
+    private readonly ChatMessageHandler _chatMessageHandler = new(appConfig, botClient, db);
 
     public Task HandleUpdateAsync(BotClient client, Update update, CancellationToken cancelToken)
     {
@@ -20,6 +20,7 @@ public class BotHandler(AppConfig appConfig, BotClient botClient, Database db) :
                 Type: UpdateType.Message,
                 Message:
                 {
+                    Date: var date,
                     Text: var text,
                     Type: MessageType.Text,
                     Chat:
@@ -29,35 +30,47 @@ public class BotHandler(AppConfig appConfig, BotClient botClient, Database db) :
                     },
                     From.Id: var telegramId,
                 }
-            } => _privateMessageHandler.Do(new PrivateMessageHandlerParams(chatId, telegramId, text), cancelToken),
+            } when IsValidUpdateDate(date) => _privateMessageHandler.Do(
+                new PrivateMessageHandlerParams(chatId, telegramId, text), cancelToken),
             {
                 Type: UpdateType.ChatMember,
                 ChatMember:
                 {
+                    Date: var date,
                     NewChatMember.Status: ChatMemberStatus.Member,
                     Chat.Id: { } chatId,
                     From: { } user,
                     ViaJoinRequest: false
                 }
-            } => _newMemberHandler.Do(new NewMemberHandlerParams(chatId, user, appConfig, botClient, db), cancelToken),
+            } when IsValidUpdateDate(date) => _newMemberHandler.Do(new NewMemberHandlerParams(chatId, user),
+                cancelToken),
             {
                 Type: UpdateType.Message,
                 Message:
                 {
+                    Date: var date,
                     MessageId: var messageId,
                     Chat.Id: var chatId,
-                    Text: { } text,
-                    From.Id: var telegramId
+                    Text: var text,
+                    From.Id: var telegramId,
+                    Type: not MessageType.NewChatMembers and not MessageType.LeftChatMember
                 }
-            } => _captchaHandler.Do(new CaptchaHandlerParams(text, messageId, telegramId, chatId), cancelToken),
+            } when IsValidUpdateDate(date) => _chatMessageHandler.Do(
+                new ChatMessageHandlerParams(text ?? "", messageId, telegramId, chatId), cancelToken),
             _ => Task.CompletedTask
         };
     }
 
-    public Task HandleErrorAsync(BotClient botClient, Exception exception, HandleErrorSource source,
+    public Task HandleErrorAsync(
+        BotClient botClient,
+        Exception exception,
+        HandleErrorSource source,
         CancellationToken cancellationToken)
     {
         Log.Error(exception, "Error in {Source}", source);
         return Task.CompletedTask;
     }
+
+    private bool IsValidUpdateDate(DateTime date) =>
+        date > DateTime.UtcNow.AddSeconds(-appConfig.UpdateExpirationSeconds);
 }

@@ -5,17 +5,10 @@ using Telegram.Bot;
 
 namespace DecembristChatBotSharp.MessageHandlers;
 
-public readonly struct CaptchaHandlerParams(
-    string text,
-    int messageId,
-    long telegramId,
-    long chatId
-)
+public enum Result
 {
-    public string Text => text;
-    public int MessageId => messageId;
-    public long TelegramId => telegramId;
-    public long ChatId => chatId;
+    JustMessage,
+    Captcha
 }
 
 public class CaptchaHandler(
@@ -23,8 +16,8 @@ public class CaptchaHandler(
     BotClient botClient,
     Database db)
 {
-    public async Task<Unit> Do(
-        CaptchaHandlerParams parameters,
+    public async Task<Result> Do(
+        ChatMessageHandlerParams parameters,
         CancellationToken cancelToken)
     {
         var telegramId = parameters.TelegramId;
@@ -32,45 +25,23 @@ public class CaptchaHandler(
         var messageId = parameters.MessageId;
         var text = parameters.Text;
 
-        var maybe = Try(db.GetNewMember(telegramId, chatId))
+        var maybe = Try(() => db.GetNewMember(telegramId, chatId))
             .Match(identity, Option<NewMember>.None);
-        if (maybe.IsNone) return unit;
-        
+        if (maybe.IsNone) return Result.JustMessage;
+
         var newMember = maybe.ValueUnsafe();
 
         var tryCaptcha = TryAsync(IsCaptchaPassed(text)
             ? OnCaptchaPassed(telegramId, chatId, messageId, newMember, cancelToken)
             : OnCaptchaFailed(telegramId, chatId, messageId, newMember, cancelToken));
 
-        await tryCaptcha.IfFail(ex =>
-            Log.Error(ex, "Captcha handler failed for user {0} in chat {1}", telegramId, chatId));
-
-        return Try(db.RemoveNewMember(telegramId, chatId)).Match(
-            Succ: result => OnRemoveMember(result, telegramId, chatId),
-            Fail: ex =>
-            {
-                Log.Error(ex, "Failed to remove user {0} from new members in chat {1}", telegramId, chatId);
-                return unit;
-            });
+        return await tryCaptcha.IfFail(ex =>
+                Log.Error(ex, "Captcha handler failed for user {0} in chat {1}", telegramId, chatId))
+            .Map(_ => Result.Captcha);
     }
-    
-    private bool IsCaptchaPassed(string text) => 
+
+    private bool IsCaptchaPassed(string text) =>
         string.Equals(appConfig.CaptchaAnswer, text, StringComparison.CurrentCultureIgnoreCase);
-
-    private Unit OnRemoveMember(bool result, long telegramId, long chatId)
-    {
-        if (result)
-        {
-            Log.Information("User {0} removed from new members in chat {1}", telegramId, chatId);
-        }
-        else
-        {
-            Log.Error(
-                "Failed to remove user {0} from new members in chat {1}", telegramId, chatId);
-        }
-
-        return unit;
-    }
 
     private async Task<Unit> OnCaptchaPassed(
         long telegramId,
@@ -80,12 +51,14 @@ public class CaptchaHandler(
         CancellationToken cancelToken)
     {
         var joinMessage = string.Format(appConfig.JoinText, newMember.Username);
-        var result = TryAsync(Task.WhenAll(
-            botClient.DeleteMessages(chatId, [messageId, newMember.WelcomeMessageId], cancelToken),
-            botClient.SendMessage(chatId, joinMessage, cancellationToken: cancelToken)
-        ));
+        var result = await Try(() => db.RemoveNewMember(telegramId, chatId))
+            .Map(removed => OnNewMemberRemoved(removed, telegramId, chatId))
+            .MapAsync(_ => Task.WhenAll(
+                botClient.DeleteMessages(chatId, [messageId, newMember.WelcomeMessageId], cancelToken),
+                botClient.SendMessage(chatId, joinMessage, cancellationToken: cancelToken)
+            ).UnitTask());
 
-        return await result.Match(
+        return result.Match(
             _ => Log.Information(
                 "Deleted welcome message and captcha message for user {0} in chat {1}", telegramId, chatId),
             ex => Log.Error(ex,
@@ -102,16 +75,74 @@ public class CaptchaHandler(
     {
         Log.Information("User {0} failed captcha in chat {1}", telegramId, chatId);
 
-        int[] messages = [messageId, newMember.WelcomeMessageId];
+        var trySend = await SendFailedMessage(telegramId, chatId, messageId, newMember, cancelToken);
 
-        var result = TryAsync(Task.WhenAll(
-            botClient.DeleteMessages(chatId, messages, cancelToken),
-            botClient.BanChatMember(chatId, telegramId, DateTime.UtcNow.AddSeconds(0), false, cancelToken)
-        ));
-
-        return await result.Match(
-            _ => Log.Information("Cleared user {0} in chat {1}", telegramId, chatId),
-            ex => Log.Error(ex, "Failed to clear user {0} in chat {1}", telegramId, chatId)
+        return trySend.Match(
+            isBan =>
+            {
+                var status = isBan ? "Banned" : "Failed captcha";
+                Log.Information("User {0} in chat {1} - {2}", telegramId, chatId, status);
+            },
+            ex => Log.Error(ex, "Failed to handle failed captcha for user {0} in chat {1}", telegramId, chatId)
         );
+    }
+
+    /// <returns>true if user was banned</returns>
+    private TryAsync<bool> SendFailedMessage(
+        long telegramId,
+        long chatId,
+        int messageId,
+        NewMember newMember,
+        CancellationToken cancelToken)
+    {
+        var welcomeMessageId = newMember.WelcomeMessageId;
+        var retryCount = appConfig.CaptchaRetryCount - newMember.CaptchaRetryCount;
+        newMember.CaptchaRetryCount += 1;
+
+        var isBan = retryCount == 0;
+        if (isBan)
+        {
+            return TryAsync(ClearUser)
+                .Map(_ => db.RemoveNewMember(telegramId, chatId))
+                .Map(removed => OnNewMemberRemoved(removed, telegramId, chatId))
+                .Map(_ => true);
+        }
+
+        var tryUpdate = Try(() => db.UpdateNewMember(newMember))
+            .Map(_ => OnNewMemberUpdated(telegramId, chatId));
+
+        return tryUpdate.MapAsync(_ => EditRetries()).Map(_ => false);
+
+        string GetNewWelcomeText() =>
+            string.Format(appConfig.WelcomeMessage, newMember.Username, appConfig.CaptchaTimeSeconds)
+            + "\n\n"
+            + string.Format(appConfig.CaptchaFailedText, retryCount);
+
+        Task<Unit> ClearUser() => Task.WhenAll(
+            botClient.DeleteMessages(chatId, [messageId, welcomeMessageId], cancelToken),
+            botClient.BanChatMember(chatId, telegramId, DateTime.UtcNow, false, cancelToken)
+        ).UnitTask();
+
+        Task<Unit> EditRetries() => Task.WhenAll(
+            botClient.DeleteMessage(chatId, messageId, cancelToken),
+            botClient.EditMessageText(chatId, welcomeMessageId, GetNewWelcomeText(), cancellationToken: cancelToken)
+        ).UnitTask();
+    }
+
+    private Unit OnNewMemberRemoved(bool result, long telegramId, long chatId)
+    {
+        if (result)
+            Log.Information("Deleted new member {0} in chat {1}", telegramId, chatId);
+        else
+            Log.Error("Failed to delete new member {0} in chat {1}", telegramId, chatId);
+
+        return unit;
+    }
+
+    private Unit OnNewMemberUpdated(long telegramId, long chatId)
+    {
+        Log.Information("Updated new member {0} in chat {1}", telegramId, chatId);
+
+        return unit;
     }
 }

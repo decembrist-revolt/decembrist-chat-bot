@@ -8,8 +8,11 @@ public record AppConfig(
     long CheckCaptchaIntervalSeconds,
     long CaptchaTimeSeconds,
     string CaptchaAnswer,
-    string JoinText
-)
+    string JoinText,
+    string CaptchaFailedText,
+    int CaptchaRetryCount,
+    int UpdateExpirationSeconds,
+    Dictionary<string, string> FastReply)
 {
     public static Option<AppConfig> GetInstance()
     {
