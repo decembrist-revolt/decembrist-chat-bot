@@ -13,12 +13,14 @@ public class FastReplyHandler(AppConfig appConfig, BotClient botClient)
         CancellationToken cancelToken)
     {
         var text = parameters.Text.ToLowerInvariant();
-        if (!appConfig.FastReply.TryGetValue(text, out var reply)) return unit;
-        
+        var sticker = parameters.Sticker;
+        var reply = "";
+        if (text != "" && !appConfig.FastReply.TextMessage.TryGetValue(text, out reply)) return unit;
+        else if (sticker != "" && !appConfig.FastReply.StickerMessage.TryGetValue(sticker, out reply)) return unit;
         var chatId = parameters.ChatId;
         var telegramId = parameters.TelegramId;
         var messageId = parameters.MessageId;
-        return await Reply(chatId, telegramId, messageId, reply, text, cancelToken);
+        return await Reply(chatId, telegramId, messageId, reply, text, sticker, cancelToken);
     }
 
     private async Task<Unit> Reply(
@@ -27,6 +29,7 @@ public class FastReplyHandler(AppConfig appConfig, BotClient botClient)
         int messageId,
         string reply,
         string text,
+        string sticker,
         CancellationToken cancelToken)
     {
         var replyParameters = new ReplyParameters

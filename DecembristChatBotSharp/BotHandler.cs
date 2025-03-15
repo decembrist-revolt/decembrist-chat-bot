@@ -62,10 +62,11 @@ public class BotHandler(long botTelegramId, AppConfig appConfig, BotClient botCl
             MessageId: var messageId,
             Chat.Id: var chatId,
             Text: var text,
+            Sticker: var sticker,
             From.Id: var telegramId,
             Type: not MessageType.NewChatMembers and not MessageType.LeftChatMember
         } when IsValidUpdateDate(date) => _chatMessageHandler.Do(
-            new ChatMessageHandlerParams(text ?? "", messageId, telegramId, chatId), cancelToken),
+            new ChatMessageHandlerParams(text ?? "", sticker?.FileId ?? "", messageId, telegramId, chatId), cancelToken),
         _ => Task.CompletedTask
     };
 

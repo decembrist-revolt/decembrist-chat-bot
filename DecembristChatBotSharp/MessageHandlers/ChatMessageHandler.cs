@@ -2,12 +2,14 @@
 
 public readonly struct ChatMessageHandlerParams(
     string text,
+    string sticker,
     int messageId,
     long telegramId,
     long chatId
 )
 {
     public string Text => text;
+    public string Sticker => sticker;
     public int MessageId => messageId;
     public long TelegramId => telegramId;
     public long ChatId => chatId;

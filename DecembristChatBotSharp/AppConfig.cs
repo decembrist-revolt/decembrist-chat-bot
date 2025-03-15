@@ -3,6 +3,8 @@ using Microsoft.Extensions.Configuration;
 
 namespace DecembristChatBotSharp;
 
+
+
 public record AppConfig(
     string TelegramBotToken,
     string WelcomeMessage,
@@ -15,7 +17,7 @@ public record AppConfig(
     int CaptchaRetryCount,
     int UpdateExpirationSeconds,
     AllowedChatConfig AllowedChatConfig,
-    Dictionary<string, string> FastReply,
+    FastReply FastReply,
     DateTime? DeployTime = null,
     List<long>? WhiteListIds = null)
 {
@@ -39,3 +41,9 @@ public record AllowedChatConfig(
     string WrongChatText,
     string RightChatText
 );
+
+public record FastReply(
+    Dictionary<string, string> TextMessage,
+    Dictionary<string, string> StickerMessage
+);
+
