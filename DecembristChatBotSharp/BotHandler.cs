@@ -9,7 +9,7 @@ namespace DecembristChatBotSharp;
 public class BotHandler(long botTelegramId, AppConfig appConfig, BotClient botClient, Database db) : IUpdateHandler
 {
     private readonly NewMemberHandler _newMemberHandler = new(appConfig, botClient, db);
-    private readonly PrivateMessageHandler _privateMessageHandler = new(botClient);
+    private readonly PrivateMessageHandler _privateMessageHandler = new(appConfig, botClient);
     private readonly ChatMessageHandler _chatMessageHandler = new(appConfig, botClient, db);
     private readonly ChatBotAddHandler _chatBotAddHandler = new(appConfig, botClient);
 
@@ -43,11 +43,8 @@ public class BotHandler(long botTelegramId, AppConfig appConfig, BotClient botCl
     {
         // private text message
         {
-            Text: var text,
-            Type: MessageType.Text,
-            Chat.Id: var chatId,
-            From.Id: var telegramId,
-        } => _privateMessageHandler.Do(new PrivateMessageHandlerParams(chatId, telegramId, text), cancelToken),
+            From.Id: { },
+        } => _privateMessageHandler.Do(message, cancelToken),
         _ => Task.CompletedTask
     };
 

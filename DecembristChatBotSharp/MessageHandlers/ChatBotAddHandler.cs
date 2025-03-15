@@ -10,7 +10,7 @@ public class ChatBotAddHandler(AppConfig appConfig, BotClient botClient)
         CancellationToken cancelToken)
     {
         var (allowedChatIds, wrongChatText, rightChatText) = appConfig.AllowedChatConfig;
-        return allowedChatIds.Contains(chatId)
+        return allowedChatIds?.Contains(chatId) == true
             ? await RightChatAdd(chatId, rightChatText, cancelToken)
             : await WrongChatAdd(chatId, wrongChatText, cancelToken);
     }

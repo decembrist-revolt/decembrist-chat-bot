@@ -1,23 +1,63 @@
-﻿using Telegram.Bot;
+﻿using Serilog;
+using Telegram.Bot;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.MessageHandlers;
 
-public readonly struct PrivateMessageHandlerParams(
-    long chatId,
-    long telegramId,
-    string? text
-)
+public class PrivateMessageHandler(AppConfig appConfig, BotClient botClient)
 {
-    public long ChatId => chatId;
-    public long TelegramId => telegramId;
-    public string? Text => text;
-}
+    private const string MeCommand = "/me";
+    private const string StatusCommand = "/status";
 
-public class PrivateMessageHandler(BotClient botClient)
-{
-    public async Task<Unit> Do(PrivateMessageHandlerParams parameters, CancellationToken cancelToken) =>
-        parameters.Text switch
+    public async Task<Unit> Do(Message message, CancellationToken cancelToken)
+    {
+        var chatId = message.Chat.Id;
+        var type = message.Type;
+        var telegramId = message.From!.Id;
+        var trySend = type switch
         {
-            _ => ignore(await botClient.SendMessage(parameters.ChatId, "OK", cancellationToken: cancelToken))
+            MessageType.Sticker => SendStickerFileId(chatId, message.Sticker!.FileId, cancelToken),
+            MessageType.Text when message.Text == MeCommand => SendMe(telegramId, chatId, cancelToken),
+            MessageType.Text when message.Text == StatusCommand => SendStatus(chatId, cancelToken),
+            _ => TryAsync(botClient.SendMessage(chatId, "OK", cancellationToken: cancelToken))
         };
+        return await trySend.Match(
+            message => Log.Information("Sent private {0} to {1}", message.Text?.Replace('\n', ' '), telegramId),
+            ex => Log.Error(ex, "Failed to send private message to {0}", telegramId)
+        );
+    }
+
+    private TryAsync<Message> SendStickerFileId(long chatId, string fileId, CancellationToken cancelToken)
+    {
+        var message = $"*Sticker fileId*\n\n`{fileId}`";
+        return TryAsync(botClient.SendMessage(
+            chatId,
+            message,
+            parseMode: ParseMode.MarkdownV2,
+            cancellationToken: cancelToken)
+        );
+    }
+
+    private TryAsync<Message> SendMe(long telegramId, long chatId, CancellationToken cancelToken)
+    {
+        var message = $"*Your id*\n\n`{telegramId}`";
+        return TryAsync(botClient.SendMessage(
+            chatId,
+            message,
+            parseMode: ParseMode.MarkdownV2,
+            cancellationToken: cancelToken)
+        );
+    }
+
+    private TryAsync<Message> SendStatus(long chatId, CancellationToken cancelToken)
+    {
+        var message = $"*Deploy time utc*\n\n`{appConfig.DeployTime}`";
+        return TryAsync(botClient.SendMessage(
+            chatId,
+            message,
+            parseMode: ParseMode.MarkdownV2,
+            cancellationToken: cancelToken)
+        );
+    }
 }

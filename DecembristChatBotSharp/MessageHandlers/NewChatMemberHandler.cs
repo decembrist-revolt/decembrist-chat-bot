@@ -30,6 +30,9 @@ public class NewMemberHandler(
     {
         var chatId = parameters.ChatId;
         var user = parameters.User;
+        var telegramId = user.Id;
+
+        if (appConfig.WhiteListIds?.Contains(telegramId) == true) return unit;
 
         var sendWelcomeTask = await SendWelcomeMessageForUser(chatId, user, cancelToken);
 
