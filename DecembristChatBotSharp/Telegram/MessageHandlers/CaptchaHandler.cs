@@ -3,7 +3,7 @@ using LanguageExt.UnsafeValueAccess;
 using Serilog;
 using Telegram.Bot;
 
-namespace DecembristChatBotSharp.MessageHandlers;
+namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 public enum Result
 {

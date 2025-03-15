@@ -1,7 +1,7 @@
 ﻿using Serilog;
 using Telegram.Bot;
 
-namespace DecembristChatBotSharp.MessageHandlers;
+namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 public class ChatBotAddHandler(AppConfig appConfig, BotClient botClient)
 {

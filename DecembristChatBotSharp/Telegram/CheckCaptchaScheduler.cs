@@ -4,11 +4,15 @@ using Telegram.Bot;
 
 namespace DecembristChatBotSharp;
 
-public class CheckCaptchaScheduler(BotClient bot, AppConfig appConfig, Database db)
+public class CheckCaptchaScheduler(
+    BotClient bot, 
+    AppConfig appConfig, 
+    Database db,
+    CancellationToken cancelToken)
 {
     private Timer? _timer;
 
-    public Unit Start(CancellationToken cancelToken)
+    public Unit Start()
     {
         var interval = TimeSpan.FromSeconds(appConfig.CheckCaptchaIntervalSeconds);
 

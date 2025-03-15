@@ -2,55 +2,46 @@
 global using static LanguageExt.Prelude;
 global using BotClient = Telegram.Bot.ITelegramBotClient;
 using DecembristChatBotSharp;
+using DecembristChatBotSharp.Telegram;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
-using Telegram.Bot;
-using Telegram.Bot.Polling;
-using Telegram.Bot.Types.Enums;
 
 SetLogger.Do();
 Log.Information("Starting bot");
 
-var appConfig = AppConfig.GetInstance().Match(
-    Some: config => config,
-    None: () => throw new Exception("failed to read appsettings.json")
-);
+var cancelTokenSource = new CancellationTokenSource();
 
-var bot = new TelegramBotClient(appConfig.TelegramBotToken);
-
-var receiverOptions = new ReceiverOptions
+try
 {
-    AllowedUpdates =
-    [
-        UpdateType.Message,
-        UpdateType.ChatMember,
-        UpdateType.ChatJoinRequest
-    ],
-    Offset = int.MaxValue
-};
+    var container = await DiContainer.GetInstance(cancelTokenSource);
+    Log.Information("DI Container created");
+    var botHandler = container.GetRequiredService<BotHandler>();
+    botHandler.Start();
+    var checkCaptcha = container.GetRequiredService<CheckCaptchaScheduler>();
+    checkCaptcha.Start();
 
-var cancelToken = new CancellationTokenSource();
-
-var botTelegramId = await TryAsync(bot.GetMe(cancelToken.Token))
-    .Map(botUser =>
+    Console.CancelKeyPress += (_, args) =>
     {
-        Log.Information("Bot is authorized");
-        return botUser.Id;
-    })
-    .IfFailThrow();
+        CancelGlobalToken();
+        args.Cancel = true;
+    };
 
-var db = new Database(appConfig);
-var botHandler = new BotHandler(botTelegramId, appConfig, bot, db);
-var checkCaptchaScheduler = new CheckCaptchaScheduler(bot, appConfig, db);
-bot.StartReceiving(botHandler, receiverOptions, cancelToken.Token);
-checkCaptchaScheduler.Start(cancelToken.Token);
+    AppDomain.CurrentDomain.ProcessExit += (_, _) => CancelGlobalToken();
 
-Console.CancelKeyPress += (_, args) =>
+    Log.Information("Bot started");
+}
+catch
 {
-    Log.Information("Stopping bot");
-    cancelToken.Cancel();
-    args.Cancel = true;
-};
+    CancelGlobalToken(1);
+    throw;
+}
 
-Log.Information("Started bot");
+await Task.Delay(Timeout.Infinite, cancelTokenSource.Token);
 
-await Task.Delay(Timeout.Infinite, cancelToken.Token);
+return;
+
+void CancelGlobalToken(int statusCode = 0)
+{
+    Log.Warning("Stopping bot {0}", statusCode);
+    cancelTokenSource.Cancel();
+}

@@ -3,7 +3,7 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
-namespace DecembristChatBotSharp.MessageHandlers;
+namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 public class PrivateMessageHandler(AppConfig appConfig, BotClient botClient)
 {

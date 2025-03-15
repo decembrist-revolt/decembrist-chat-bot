@@ -2,7 +2,7 @@
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
-namespace DecembristChatBotSharp.MessageHandlers;
+namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 public readonly struct NewMemberHandlerParams(
     long chatId,
