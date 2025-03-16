@@ -6,25 +6,24 @@ using Serilog;
 namespace DecembristChatBotSharp;
 
 public record AppConfig(
-    [Required(AllowEmptyStrings = false)]
+    [property:Required(AllowEmptyStrings = false)]
     string TelegramBotToken,
-    [Required(AllowEmptyStrings = false)]
+    [property:Required(AllowEmptyStrings = false)]
     string WelcomeMessage,
-    [Required(AllowEmptyStrings = false)]
+    [property:Required(AllowEmptyStrings = false)]
     string DatabaseFile,
     long CheckCaptchaIntervalSeconds,
     long CaptchaTimeSeconds,
-    [Required(AllowEmptyStrings = false)]
+    [property:Required(AllowEmptyStrings = false)]
     string CaptchaAnswer,
-    [Required(AllowEmptyStrings = false)]
+    [property:Required(AllowEmptyStrings = false)]
     string JoinText,
-    [Required(AllowEmptyStrings = false)]
+    [property:Required(AllowEmptyStrings = false)]
     string CaptchaFailedText,
     int CaptchaRetryCount,
     int UpdateExpirationSeconds,
     AllowedChatConfig AllowedChatConfig,
     Dictionary<string, string> FastReply,
-    PersistentConfig PersistentConfig,
     DateTime? DeployTime = null,
     List<long>? WhiteListIds = null)
 {
@@ -40,7 +39,8 @@ public record AppConfig(
             }!);
         
         return Try(() => configBuilder.Build())
-            .Map(config => config.Get<AppConfig>())
+            .Map(config => config.Get<AppConfig>() ?? throw new Exception("AppConfig is null"))
+            .Do(config => Validator.ValidateObject(config, new ValidationContext(config), validateAllProperties: true))
             .IfFail(ex =>
             {
                 Log.Error(ex, "Failed to read appsettings.json");
@@ -51,28 +51,8 @@ public record AppConfig(
 
 public record AllowedChatConfig(
     System.Collections.Generic.HashSet<long>? AllowedChatIds,
-    [Required(AllowEmptyStrings = false)]
+    [property:Required(AllowEmptyStrings = false)]
     string WrongChatText,
-    [Required(AllowEmptyStrings = false)]
+    [property:Required(AllowEmptyStrings = false)]
     string RightChatText
-);
-
-public record PersistentConfig(
-    bool Persistent,
-    string Source,
-    S3Config? S3Config,
-    int PersistenceLagSeconds
-);
-
-public record S3Config(
-    [Required(AllowEmptyStrings = false)]
-    string BucketName,
-    [Required(AllowEmptyStrings = false)]
-    string ServiceUrl,
-    [Required(AllowEmptyStrings = false)]
-    string Region,
-    [Required(AllowEmptyStrings = false)]
-    string AccessKey,
-    [Required(AllowEmptyStrings = false)]
-    string SecretKey
 );

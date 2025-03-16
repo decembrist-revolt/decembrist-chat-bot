@@ -2,13 +2,13 @@
 using Serilog;
 using Telegram.Bot;
 
-namespace DecembristChatBotSharp;
+namespace DecembristChatBotSharp.Telegram;
 
 public class CheckCaptchaScheduler(
     BotClient bot, 
     AppConfig appConfig, 
     Database db,
-    CancellationToken cancelToken)
+    CancellationTokenSource cancelToken)
 {
     private Timer? _timer;
 
@@ -17,9 +17,9 @@ public class CheckCaptchaScheduler(
         var interval = TimeSpan.FromSeconds(appConfig.CheckCaptchaIntervalSeconds);
 
         _timer = new Timer(
-            _ => CheckCaptcha().Wait(cancelToken), null, interval, interval);
+            _ => CheckCaptcha().Wait(cancelToken.Token), null, interval, interval);
 
-        cancelToken.Register(_ => _timer.Dispose(), null);
+        cancelToken.Token.Register(_ => _timer.Dispose(), null);
 
         return unit;
     }

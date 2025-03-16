@@ -27,18 +27,16 @@ public readonly struct StickerPayload(string fileId) : IMessagePayload
 
 public readonly struct UnknownPayload : IMessagePayload;
 
-public class ChatMessageHandler(AppConfig appConfig, BotClient botClient, Database db)
+public class ChatMessageHandler(
+    CaptchaHandler captchaHandler,
+    FastReplyHandler fastReplyHandler
+)
 {
-    private readonly CaptchaHandler _captchaHandler = new(appConfig, botClient, db);
-    private readonly FastReplyHandler _fastReplyHandler = new(appConfig, botClient);
-    
-    public async Task<Unit> Do(
-        ChatMessageHandlerParams parameters,
-        CancellationToken cancelToken)
+    public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
-        var result = await _captchaHandler.Do(parameters, cancelToken);
+        var result = await captchaHandler.Do(parameters);
         if (result == Result.Captcha) return unit;
-        
-        return await _fastReplyHandler.Do(parameters, cancelToken);
+
+        return await fastReplyHandler.Do(parameters);
     }
 }

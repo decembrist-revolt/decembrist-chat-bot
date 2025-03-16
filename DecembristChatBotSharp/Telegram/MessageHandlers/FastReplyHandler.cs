@@ -5,7 +5,7 @@ using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
-public class FastReplyHandler(AppConfig appConfig, BotClient botClient)
+public class FastReplyHandler(AppConfig appConfig, BotClient botClient, CancellationTokenSource cancelToken)
 {
     public const string DollarPrefix = "$";
     public const string StickerPrefix = $"{DollarPrefix}sticker_";
@@ -19,9 +19,7 @@ public class FastReplyHandler(AppConfig appConfig, BotClient botClient)
         .Select(x => (x.Key[StickerPrefix.Length..], x.Value))
         .ToMap();
 
-    public async Task<Unit> Do(
-        ChatMessageHandlerParams parameters,
-        CancellationToken cancelToken)
+    public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var chatId = parameters.ChatId;
         var telegramId = parameters.TelegramId;
@@ -35,7 +33,7 @@ public class FastReplyHandler(AppConfig appConfig, BotClient botClient)
         };
         return await maybeReply
             .Map(GetReplyPayload)
-            .Map(reply => TrySendReply(chatId, reply, messageId, cancelToken))
+            .Map(reply => TrySendReply(chatId, reply, messageId))
             .MapAsync(trySend => LogResult(trySend, chatId, telegramId, maybeReply.ValueUnsafe()!))
             .Value;
     }
@@ -47,19 +45,18 @@ public class FastReplyHandler(AppConfig appConfig, BotClient botClient)
     private TryAsync<Message> TrySendReply(
         long chatId,
         IMessagePayload reply,
-        int messageId,
-        CancellationToken cancellationToken) => TryAsync(reply switch
+        int messageId) => TryAsync(reply switch
     {
         StickerPayload { FileId: var fileId } => botClient.SendSticker(
             chatId,
             new InputFileId(fileId),
             replyParameters: new ReplyParameters { MessageId = messageId },
-            cancellationToken: cancellationToken),
+            cancellationToken: cancelToken.Token),
         TextPayload { Text: var text } => botClient.SendMessage(
             chatId,
             text,
             replyParameters: new ReplyParameters { MessageId = messageId },
-            cancellationToken: cancellationToken),
+            cancellationToken: cancelToken.Token),
         _ => throw new ArgumentNullException(nameof(reply))
     });
 

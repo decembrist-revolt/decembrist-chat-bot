@@ -22,11 +22,11 @@ internal readonly struct UsernameEx(string username, Exception ex)
 public class NewMemberHandler(
     AppConfig appConfig,
     BotClient botClient,
-    Database db)
+    Database db,
+    CancellationTokenSource cancelToken
+)
 {
-    public async Task<Unit> Do(
-        NewMemberHandlerParams parameters,
-        CancellationToken cancelToken)
+    public async Task<Unit> Do(NewMemberHandlerParams parameters)
     {
         var chatId = parameters.ChatId;
         var user = parameters.User;
@@ -34,7 +34,7 @@ public class NewMemberHandler(
 
         if (appConfig.WhiteListIds?.Contains(telegramId) == true) return unit;
 
-        var sendWelcomeTask = await SendWelcomeMessageForUser(chatId, user, cancelToken);
+        var sendWelcomeTask = await SendWelcomeMessageForUser(chatId, user);
 
         return sendWelcomeTask.Match(
             Right: username => Log.Information("Sent welcome message to {Username}", username),
@@ -43,10 +43,7 @@ public class NewMemberHandler(
         );
     }
 
-    private async Task<Either<UsernameEx, string>> SendWelcomeMessageForUser(
-        long chatId,
-        User user,
-        CancellationToken cancelToken)
+    private async Task<Either<UsernameEx, string>> SendWelcomeMessageForUser(long chatId, User user)
     {
         var username = Optional(user.Username).Match(
             Some: username => $"@{username}",
@@ -55,7 +52,7 @@ public class NewMemberHandler(
 
         var welcomeText = string.Format(appConfig.WelcomeMessage, username, appConfig.CaptchaTimeSeconds);
         var result = await TryAsync(
-            botClient.SendMessage(chatId: chatId, text: welcomeText, cancellationToken: cancelToken));
+            botClient.SendMessage(chatId: chatId, text: welcomeText, cancellationToken: cancelToken.Token));
 
         return result
             .Map(message => db.AddNewMember(user.Id, username, chatId, message.MessageId))

@@ -1,6 +1,4 @@
-﻿using Amazon.S3;
-using DecembristChatBotSharp.S3;
-using DecembristChatBotSharp.Telegram;
+﻿using DecembristChatBotSharp.Telegram;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
@@ -15,21 +13,14 @@ public class DiContainer
     public static async Task<ServiceProvider> GetInstance(CancellationTokenSource cancellationTokenSource)
     {
         var services = new ServiceCollection();
+        
+        services.AddSingleton(cancellationTokenSource);
 
         var appConfig = GetAppConfig();
         services.AddSingleton(appConfig);
 
-        if (appConfig.PersistentConfig.Persistent)
-        {
-            services.AddSingleton(S3Client.GetInstance);
-            services.AddSingleton<S3Service>();
-            services.AddSingleton<S3PersistenceService>();
-        }
-
         var botClient = new TelegramBotClient(appConfig.TelegramBotToken);
         services.AddSingleton<BotClient>(botClient);
-
-        services.AddSingleton(() => cancellationTokenSource.Token);
 
         var botTelegramId = await GetBotTelegramId(botClient, cancellationTokenSource.Token);
         services.AddKeyedSingleton<Func<long>>(BOT_TELEGRAM_ID, () => botTelegramId);
@@ -39,6 +30,8 @@ public class DiContainer
         services.AddSingleton<CheckCaptchaScheduler>();
         services.AddSingleton<NewMemberHandler>();
         services.AddSingleton<PrivateMessageHandler>();
+        services.AddSingleton<FastReplyHandler>();
+        services.AddSingleton<CaptchaHandler>();
         services.AddSingleton<ChatMessageHandler>();
         services.AddSingleton<ChatBotAddHandler>();
 
