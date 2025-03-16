@@ -28,7 +28,7 @@ public class CaptchaHandler(
         var payload = parameters.Payload;
 
         var maybe = await db.FindNewMember((telegramId, chatId)).Match(
-            Some,
+            identity,
             ex => OnNewMemberNotFound(ex, telegramId, chatId));
         if (maybe.IsNone) return Result.JustMessage;
 

@@ -27,10 +27,11 @@ public class NewMemberRepository(MongoDatabase db, CancellationTokenSource cance
         return TryAsync(newMembers.Find(member => member.EnterDate < olderThan).ToListAsync(cancelToken.Token));
     }
 
-    public EitherAsync<Error, NewMember> FindNewMember(NewMember.CompositeId id)
+    public EitherAsync<Error, Option<NewMember>> FindNewMember(NewMember.CompositeId id)
     {
         var newMembers = db.GetCollection<NewMember>(nameof(NewMember));
-        return TryAsync(newMembers.Find(member => member.Id == id).SingleOrDefaultAsync(cancelToken.Token)!)
+        return TryAsync(newMembers.Find(member => member.Id == id).SingleOrDefaultAsync(cancelToken.Token))
+            .Map(Optional)
             .ToEither();
     }
 
