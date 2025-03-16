@@ -1,13 +1,14 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Mongo;
 using Serilog;
 using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram;
 
 public class CheckCaptchaScheduler(
-    BotClient bot, 
-    AppConfig appConfig, 
-    Database db,
+    BotClient bot,
+    AppConfig appConfig,
+    NewMemberRepository db,
     CancellationTokenSource cancelToken)
 {
     private Timer? _timer;
@@ -27,14 +28,23 @@ public class CheckCaptchaScheduler(
     private async Task<Unit> CheckCaptcha()
     {
         var olderThanUtc = DateTime.UtcNow.AddSeconds(-appConfig.CaptchaTimeSeconds);
-        var members = db.GetNewMembers(olderThanUtc);
+        var members = await db.GetNewMembers(olderThanUtc)
+            .Match(identity, OnGetMembersFailed);
+        
         await Task.WhenAll(members.Select(HandleExpiredMember));
         return unit;
+    }
+    
+    private List<NewMember> OnGetMembersFailed(Exception ex)
+    {
+        Log.Error(ex, "Failed to get new members");
+        return [];
     }
 
     private async Task<Unit> HandleExpiredMember(NewMember newMember)
     {
-        var (telegramId, username, chatId, welcomeMessageId, _, _) = newMember;
+        var (id, username, welcomeMessageId, _, _) = newMember;
+        var (telegramId, chatId) = id;
 
         await Task.WhenAll(
             BanMember(chatId, telegramId, username),
@@ -53,8 +63,8 @@ public class CheckCaptchaScheduler(
         ).UnitTask);
 
         return result.Match(
-            Succ: _ => OnBannedUser(telegramId, username, chatId),
-            Fail: ex => Log.Error(ex, "Failed to ban user {Username} in chat {ChatId}", username, chatId)
+            _ => OnBannedUser(telegramId, username, chatId),
+            ex => Log.Error(ex, "Failed to ban user {0} in chat {1}", telegramId, chatId)
         );
     }
 
@@ -62,16 +72,21 @@ public class CheckCaptchaScheduler(
     {
         Log.Information("User {0} banned cause bad captcha in chat {1}", username, chatId);
 
-        if (db.RemoveNewMember(telegramId, chatId))
+        return db.RemoveNewMember((telegramId, chatId)).Match(
+            removed => OnRemoveSuccess(removed, telegramId),
+            ex => Log.Error(ex, "Failed to remove user {0} from new members", telegramId)).Ignore();
+    }
+
+    private void OnRemoveSuccess(bool removed, long telegramId)
+    {
+        if (removed)
         {
-            Log.Information("User {Username} removed from new members", username);
+            Log.Information("User {0} removed from new members", telegramId);
         }
         else
         {
-            Log.Error("Failed to remove user {Username} from new members", username);
+            Log.Error("Failed to remove user {0} from new members", telegramId);
         }
-
-        return unit;
     }
 
     private async Task<Unit> DeleteWelcomeMessage(long chatId, int welcomeMessageId, string username)

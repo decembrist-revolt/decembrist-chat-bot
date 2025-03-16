@@ -1,4 +1,6 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Mongo;
+using LanguageExt.Common;
 using LanguageExt.UnsafeValueAccess;
 using Serilog;
 using Telegram.Bot;
@@ -14,7 +16,7 @@ public enum Result
 public class CaptchaHandler(
     AppConfig appConfig,
     BotClient botClient,
-    Database db,
+    NewMemberRepository db,
     CancellationTokenSource cancelToken
 )
 {
@@ -25,8 +27,9 @@ public class CaptchaHandler(
         var messageId = parameters.MessageId;
         var payload = parameters.Payload;
 
-        var maybe = Try(() => db.GetNewMember(telegramId, chatId))
-            .Match(identity, Option<NewMember>.None);
+        var maybe = await db.FindNewMember((telegramId, chatId)).Match(
+            Some,
+            ex => OnNewMemberNotFound(ex, telegramId, chatId));
         if (maybe.IsNone) return Result.JustMessage;
 
         var newMember = maybe.ValueUnsafe();
@@ -40,6 +43,12 @@ public class CaptchaHandler(
             .Map(_ => Result.Captcha);
     }
 
+    private OptionNone OnNewMemberNotFound(Error error, long telegramId, long chatId)
+    {
+        Log.Error(error, "New member not found for user {0} in chat {1}", telegramId, chatId);
+        return None;
+    }
+
     private bool IsCaptchaPassed(IMessagePayload payload) =>
         payload is TextPayload { Text: var text } &&
         string.Equals(appConfig.CaptchaAnswer, text, StringComparison.CurrentCultureIgnoreCase);
@@ -51,7 +60,7 @@ public class CaptchaHandler(
         NewMember newMember)
     {
         var joinMessage = string.Format(appConfig.JoinText, newMember.Username);
-        var result = await Try(() => db.RemoveNewMember(telegramId, chatId))
+        var result = await db.RemoveNewMember((telegramId, chatId))
             .Map(removed => OnNewMemberRemoved(removed, telegramId, chatId))
             .MapAsync(_ => Task.WhenAll(
                 botClient.DeleteMessages(chatId, [messageId, newMember.WelcomeMessageId], cancelToken.Token),
@@ -94,19 +103,19 @@ public class CaptchaHandler(
         NewMember newMember)
     {
         var welcomeMessageId = newMember.WelcomeMessageId;
-        var retryCount = appConfig.CaptchaRetryCount - newMember.CaptchaRetryCount;
-        newMember.CaptchaRetryCount += 1;
+        var retryCount = newMember.CaptchaRetryCount + 1;
+        var retryRemain = appConfig.CaptchaRetryCount - newMember.CaptchaRetryCount;
 
-        var isBan = retryCount == 0;
+        var isBan = retryRemain == 0;
         if (isBan)
         {
             return TryAsync(ClearUser)
-                .Map(_ => db.RemoveNewMember(telegramId, chatId))
+                .Bind(_ => db.RemoveNewMember(newMember.Id))
                 .Map(removed => OnNewMemberRemoved(removed, telegramId, chatId))
                 .Map(_ => true);
         }
 
-        var tryUpdate = Try(() => db.UpdateNewMember(newMember))
+        var tryUpdate = Try(() => db.UpdateNewMemberRetries(newMember.Id, retryCount))
             .Map(_ => OnNewMemberUpdated(telegramId, chatId));
 
         return tryUpdate.MapAsync(_ => EditRetries()).Map(_ => false);
@@ -114,7 +123,7 @@ public class CaptchaHandler(
         string GetNewWelcomeText() =>
             string.Format(appConfig.WelcomeMessage, newMember.Username, appConfig.CaptchaTimeSeconds)
             + "\n\n"
-            + string.Format(appConfig.CaptchaFailedText, retryCount);
+            + string.Format(appConfig.CaptchaFailedText, retryRemain);
 
         Task<Unit> ClearUser() => Task.WhenAll(
             botClient.DeleteMessages(chatId, [messageId, welcomeMessageId], cancelToken.Token),

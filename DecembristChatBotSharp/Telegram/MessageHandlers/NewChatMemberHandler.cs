@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using DecembristChatBotSharp.Mongo;
+using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
@@ -22,7 +23,7 @@ internal readonly struct UsernameEx(string username, Exception ex)
 public class NewMemberHandler(
     AppConfig appConfig,
     BotClient botClient,
-    Database db,
+    NewMemberRepository db,
     CancellationTokenSource cancelToken
 )
 {
@@ -51,13 +52,15 @@ public class NewMemberHandler(
         );
 
         var welcomeText = string.Format(appConfig.WelcomeMessage, username, appConfig.CaptchaTimeSeconds);
-        var result = await TryAsync(
+        var trySend = TryAsync(
             botClient.SendMessage(chatId: chatId, text: welcomeText, cancellationToken: cancelToken.Token));
 
-        return result
-            .Map(message => db.AddNewMember(user.Id, username, chatId, message.MessageId))
-            .Match<Unit, Either<UsernameEx, string>>(
-                Succ: _ => Right(username),
-                Fail: ex => Left(new UsernameEx(username, ex)));
+        return await trySend
+            .Bind(message => db.AddNewMember(user.Id, username, chatId, message.MessageId))
+            .ToEither()
+            .BiMap(
+                _ => username,
+                ex => new UsernameEx(username, ex)
+            );
     }
 }

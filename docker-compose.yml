@@ -1,0 +1,15 @@
+﻿version: "3.8"
+
+services:
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    entrypoint: ["/bin/bash", "-c", "/mongo/myscript.sh"]
+    environment:
+      MONGO_INITDB_DATABASE: decembristChat
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./mongo/myscript.sh:/mongo/myscript.sh
+      - ./data:/data/db
+  

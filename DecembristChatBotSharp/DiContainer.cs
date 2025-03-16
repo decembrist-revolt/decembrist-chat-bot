@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Telegram;
+﻿using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Telegram;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
@@ -25,7 +26,9 @@ public class DiContainer
         var botTelegramId = await GetBotTelegramId(botClient, cancellationTokenSource.Token);
         services.AddKeyedSingleton<Func<long>>(BOT_TELEGRAM_ID, () => botTelegramId);
 
-        services.AddSingleton<Database>();
+        services.AddSingleton<MongoDatabase>();
+        services.AddSingleton<NewMemberRepository>();
+        
         services.AddSingleton<BotHandler>();
         services.AddSingleton<CheckCaptchaScheduler>();
         services.AddSingleton<NewMemberHandler>();
