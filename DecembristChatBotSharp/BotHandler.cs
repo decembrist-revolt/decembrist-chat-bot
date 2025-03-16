@@ -59,16 +59,32 @@ public class BotHandler(long botTelegramId, AppConfig appConfig, BotClient botCl
         // new message in chat
         {
             Date: var date,
-            MessageId: var messageId,
-            Chat.Id: var chatId,
-            Text: var text,
-            Sticker: var sticker,
-            From.Id: var telegramId,
-            Type: not MessageType.NewChatMembers and not MessageType.LeftChatMember
-        } when IsValidUpdateDate(date) => _chatMessageHandler.Do(
-            new ChatMessageHandlerParams(text ?? "", sticker?.FileId ?? "", messageId, telegramId, chatId), cancelToken),
+            Type: not MessageType.NewChatMembers and not MessageType.LeftChatMember,
+        } when IsValidUpdateDate(date) => HandleChatMessage(message, cancelToken),
         _ => Task.CompletedTask
     };
+
+    private async Task HandleChatMessage(Message message, CancellationToken cancelToken)
+    {
+        IMessagePayload payload = message switch
+        {
+            {
+                Text: { } text,
+                Type: MessageType.Text,
+                From.Id: { }
+            } => new TextPayload(text),
+            {
+                Sticker.FileId: { } fileId,
+                Type: MessageType.Sticker,
+            } => new StickerPayload(fileId),
+            _ => new UnknownPayload()
+        };
+        var messageId = message.MessageId;
+        var telegramId = message.From!.Id;
+        var chatId = message.Chat.Id;
+        var parameters = new ChatMessageHandlerParams(payload, messageId, telegramId, chatId);
+        await _chatMessageHandler.Do(parameters, cancelToken);
+    }
 
     private Task HandleChatMemberUpdateAsync(ChatMemberUpdated chatMember, CancellationToken cancelToken) =>
         chatMember switch

@@ -23,7 +23,7 @@ public class CaptchaHandler(
         var telegramId = parameters.TelegramId;
         var chatId = parameters.ChatId;
         var messageId = parameters.MessageId;
-        var text = parameters.Text;
+        var payload = parameters.Payload;
 
         var maybe = Try(() => db.GetNewMember(telegramId, chatId))
             .Match(identity, Option<NewMember>.None);
@@ -31,7 +31,7 @@ public class CaptchaHandler(
 
         var newMember = maybe.ValueUnsafe();
 
-        var tryCaptcha = TryAsync(IsCaptchaPassed(text)
+        var tryCaptcha = TryAsync(IsCaptchaPassed(payload)
             ? OnCaptchaPassed(telegramId, chatId, messageId, newMember, cancelToken)
             : OnCaptchaFailed(telegramId, chatId, messageId, newMember, cancelToken));
 
@@ -40,7 +40,8 @@ public class CaptchaHandler(
             .Map(_ => Result.Captcha);
     }
 
-    private bool IsCaptchaPassed(string text) =>
+    private bool IsCaptchaPassed(IMessagePayload payload) =>
+        payload is TextPayload { Text: var text } &&
         string.Equals(appConfig.CaptchaAnswer, text, StringComparison.CurrentCultureIgnoreCase);
 
     private async Task<Unit> OnCaptchaPassed(

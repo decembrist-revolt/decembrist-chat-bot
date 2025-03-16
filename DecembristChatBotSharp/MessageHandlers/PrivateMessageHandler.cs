@@ -20,6 +20,8 @@ public class PrivateMessageHandler(AppConfig appConfig, BotClient botClient)
             MessageType.Sticker => SendStickerFileId(chatId, message.Sticker!.FileId, cancelToken),
             MessageType.Text when message.Text == MeCommand => SendMe(telegramId, chatId, cancelToken),
             MessageType.Text when message.Text == StatusCommand => SendStatus(chatId, cancelToken),
+            MessageType.Text when message.Text is {} text && text.StartsWith(FastReplyHandler.StickerPrefix) => 
+                SendSticker(chatId, text[FastReplyHandler.StickerPrefix.Length..], cancelToken),
             _ => TryAsync(botClient.SendMessage(chatId, "OK", cancellationToken: cancelToken))
         };
         return await trySend.Match(
@@ -30,7 +32,7 @@ public class PrivateMessageHandler(AppConfig appConfig, BotClient botClient)
 
     private TryAsync<Message> SendStickerFileId(long chatId, string fileId, CancellationToken cancelToken)
     {
-        var message = $"*Sticker fileId*\n\n`{fileId}`";
+        var message = $"*Sticker fileId*\n\n`{FastReplyHandler.StickerPrefix}{fileId}`";
         return TryAsync(botClient.SendMessage(
             chatId,
             message,
@@ -60,4 +62,11 @@ public class PrivateMessageHandler(AppConfig appConfig, BotClient botClient)
             cancellationToken: cancelToken)
         );
     }
+    
+    private TryAsync<Message> SendSticker(long chatId, string fileId, CancellationToken cancelToken) =>
+        TryAsync(botClient.SendSticker(
+            chatId,
+            new InputFileId(fileId),
+            cancellationToken: cancelToken)
+        );
 }

@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using LanguageExt.UnsafeValueAccess;
+using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
@@ -6,75 +7,68 @@ namespace DecembristChatBotSharp.MessageHandlers;
 
 public class FastReplyHandler(AppConfig appConfig, BotClient botClient)
 {
-    private const string StickerPrefix = "$sticker:";
-    
+    public const string DollarPrefix = "$";
+    public const string StickerPrefix = $"{DollarPrefix}sticker_";
+
+    private readonly Map<string, string> _textReply = appConfig.FastReply
+        .Where(x => !x.Key.StartsWith(DollarPrefix))
+        .ToMap();
+
+    private readonly Map<string, string> _stickerReply = appConfig.FastReply
+        .Where(x => x.Key.StartsWith(StickerPrefix))
+        .Select(x => (x.Key[StickerPrefix.Length..], x.Value))
+        .ToMap();
+
     public async Task<Unit> Do(
         ChatMessageHandlerParams parameters,
         CancellationToken cancelToken)
     {
-        var text = parameters.Text.ToLowerInvariant();
-        var sticker = parameters.Sticker;
-        var reply = "";
-        if (text != "" && !appConfig.FastReply.TextMessage.TryGetValue(text, out reply)) return unit;
-        else if (sticker != "" && !appConfig.FastReply.StickerMessage.TryGetValue(sticker, out reply)) return unit;
         var chatId = parameters.ChatId;
         var telegramId = parameters.TelegramId;
         var messageId = parameters.MessageId;
-        return await Reply(chatId, telegramId, messageId, reply, text, sticker, cancelToken);
+
+        var maybeReply = parameters.Payload switch
+        {
+            TextPayload { Text: var text } => _textReply.Find(text),
+            StickerPayload { FileId: var fileId } => _stickerReply.Find(fileId),
+            _ => None
+        };
+        return await maybeReply
+            .Map(GetReplyPayload)
+            .Map(reply => TrySendReply(chatId, reply, messageId, cancelToken))
+            .MapAsync(trySend => LogResult(trySend, chatId, telegramId, maybeReply.ValueUnsafe()!))
+            .Value;
     }
 
-    private async Task<Unit> Reply(
+    private IMessagePayload GetReplyPayload(string reply) => reply.StartsWith(StickerPrefix)
+        ? new StickerPayload(reply[StickerPrefix.Length..])
+        : new TextPayload(reply);
+
+    private TryAsync<Message> TrySendReply(
         long chatId,
-        long telegramId,
+        IMessagePayload reply,
         int messageId,
-        string reply,
-        string text,
-        string sticker,
-        CancellationToken cancelToken)
+        CancellationToken cancellationToken) => TryAsync(reply switch
     {
-        var replyParameters = new ReplyParameters
-        {
-            MessageId = messageId
-        };
-
-        var tryAsync = GetReplyType(reply) switch
-        {
-            ReplyType.Text => SendMessage(chatId, reply, replyParameters, cancelToken),
-            ReplyType.Sticker => SendSticker(chatId, reply, replyParameters, cancelToken),
-            _ => TryAsyncFail<Message>(new Exception("Unknown reply type"))
-        };
-        return await tryAsync.Match(
-            _ => Log.Information("Sent fast reply to {0} text {1} in chat {2}", telegramId, text, chatId),
-            ex => Log.Error(ex, "Failed to send fast reply to {0} text {1} in chat {2}", telegramId, text, chatId)
-        );
-    }
-    
-    private ReplyType GetReplyType(string reply) => reply.StartsWith(StickerPrefix) ? ReplyType.Sticker : ReplyType.Text;
-
-    private TryAsync<Message> SendMessage(long chatId, string reply, ReplyParameters replyParameters, CancellationToken cancelToken)
-    {
-        return TryAsync(botClient.SendMessage(
-            chatId,
-            reply,
-            replyParameters: replyParameters,
-            cancellationToken: cancelToken)
-        );
-    }
-    
-    private TryAsync<Message> SendSticker(long chatId, string reply, ReplyParameters replyParameters, CancellationToken cancelToken)
-    {
-        var fileId = reply[StickerPrefix.Length..];
-        return TryAsync(botClient.SendSticker(
+        StickerPayload { FileId: var fileId } => botClient.SendSticker(
             chatId,
             new InputFileId(fileId),
-            replyParameters: replyParameters,
-            cancellationToken: cancelToken)
-        );
-    }
+            replyParameters: new ReplyParameters { MessageId = messageId },
+            cancellationToken: cancellationToken),
+        TextPayload { Text: var text } => botClient.SendMessage(
+            chatId,
+            text,
+            replyParameters: new ReplyParameters { MessageId = messageId },
+            cancellationToken: cancellationToken),
+        _ => throw new ArgumentNullException(nameof(reply))
+    });
 
-    private enum ReplyType
-    {
-        Text,
-        Sticker
-    }
+    private Task<Unit> LogResult(
+        TryAsync<Message> trySend,
+        long chatId,
+        long telegramId,
+        string payload) => trySend.Match(
+        _ => Log.Information("Sent fast reply to {0} payload {1} in chat {2}", telegramId, payload, chatId),
+        ex => Log.Error(ex, "Failed to send fast reply to {0} payload {1} in chat {2}", telegramId, payload, chatId)
+    );
 }
