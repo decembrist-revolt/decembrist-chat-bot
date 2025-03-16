@@ -3,7 +3,7 @@ using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
-namespace DecembristChatBotSharp.MessageHandlers;
+namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 public class FastReplyHandler(AppConfig appConfig, BotClient botClient)
 {

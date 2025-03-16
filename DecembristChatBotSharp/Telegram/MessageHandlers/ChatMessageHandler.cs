@@ -1,4 +1,4 @@
-﻿namespace DecembristChatBotSharp.MessageHandlers;
+﻿namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 public readonly struct ChatMessageHandlerParams(
     IMessagePayload payload,
