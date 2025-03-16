@@ -12,10 +12,11 @@ Usage:
 
 Enter plain text as value to reply with a text message.
 
-Enter `$sticker:yourFileId` as value to reply with a sticker.
+Enter `$sticker_yourFileId` as value to reply with a sticker.
 
 Commands
 --------
 1. Any sticker - Obtain sticker's fileId
 2. /me - View your own telegram id.
 3. /status - View the bot's status.
+4. Send a sticker fileId in format `$sticker_yourFileId` to show the sticker
