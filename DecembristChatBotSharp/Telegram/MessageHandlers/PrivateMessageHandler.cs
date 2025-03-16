@@ -3,26 +3,26 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
-namespace DecembristChatBotSharp.MessageHandlers;
+namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
-public class PrivateMessageHandler(AppConfig appConfig, BotClient botClient)
+public class PrivateMessageHandler(AppConfig appConfig, BotClient botClient, CancellationTokenSource cancelToken)
 {
     private const string MeCommand = "/me";
     private const string StatusCommand = "/status";
 
-    public async Task<Unit> Do(Message message, CancellationToken cancelToken)
+    public async Task<Unit> Do(Message message)
     {
         var chatId = message.Chat.Id;
         var type = message.Type;
         var telegramId = message.From!.Id;
         var trySend = type switch
         {
-            MessageType.Sticker => SendStickerFileId(chatId, message.Sticker!.FileId, cancelToken),
-            MessageType.Text when message.Text == MeCommand => SendMe(telegramId, chatId, cancelToken),
-            MessageType.Text when message.Text == StatusCommand => SendStatus(chatId, cancelToken),
+            MessageType.Sticker => SendStickerFileId(chatId, message.Sticker!.FileId),
+            MessageType.Text when message.Text == MeCommand => SendMe(telegramId, chatId),
+            MessageType.Text when message.Text == StatusCommand => SendStatus(chatId),
             MessageType.Text when message.Text is {} text && text.StartsWith(FastReplyHandler.StickerPrefix) => 
-                SendSticker(chatId, text[FastReplyHandler.StickerPrefix.Length..], cancelToken),
-            _ => TryAsync(botClient.SendMessage(chatId, "OK", cancellationToken: cancelToken))
+                SendSticker(chatId, text[FastReplyHandler.StickerPrefix.Length..]),
+            _ => TryAsync(botClient.SendMessage(chatId, "OK", cancellationToken: cancelToken.Token))
         };
         return await trySend.Match(
             message => Log.Information("Sent private {0} to {1}", message.Text?.Replace('\n', ' '), telegramId),
@@ -30,43 +30,43 @@ public class PrivateMessageHandler(AppConfig appConfig, BotClient botClient)
         );
     }
 
-    private TryAsync<Message> SendStickerFileId(long chatId, string fileId, CancellationToken cancelToken)
+    private TryAsync<Message> SendStickerFileId(long chatId, string fileId)
     {
         var message = $"*Sticker fileId*\n\n`{FastReplyHandler.StickerPrefix}{fileId}`";
         return TryAsync(botClient.SendMessage(
             chatId,
             message,
             parseMode: ParseMode.MarkdownV2,
-            cancellationToken: cancelToken)
+            cancellationToken: cancelToken.Token)
         );
     }
 
-    private TryAsync<Message> SendMe(long telegramId, long chatId, CancellationToken cancelToken)
+    private TryAsync<Message> SendMe(long telegramId, long chatId)
     {
         var message = $"*Your id*\n\n`{telegramId}`";
         return TryAsync(botClient.SendMessage(
             chatId,
             message,
             parseMode: ParseMode.MarkdownV2,
-            cancellationToken: cancelToken)
+            cancellationToken: cancelToken.Token)
         );
     }
 
-    private TryAsync<Message> SendStatus(long chatId, CancellationToken cancelToken)
+    private TryAsync<Message> SendStatus(long chatId)
     {
         var message = $"*Deploy time utc*\n\n`{appConfig.DeployTime}`";
         return TryAsync(botClient.SendMessage(
             chatId,
             message,
             parseMode: ParseMode.MarkdownV2,
-            cancellationToken: cancelToken)
+            cancellationToken: cancelToken.Token)
         );
     }
     
-    private TryAsync<Message> SendSticker(long chatId, string fileId, CancellationToken cancelToken) =>
+    private TryAsync<Message> SendSticker(long chatId, string fileId) =>
         TryAsync(botClient.SendSticker(
             chatId,
             new InputFileId(fileId),
-            cancellationToken: cancelToken)
+            cancellationToken: cancelToken.Token)
         );
 }

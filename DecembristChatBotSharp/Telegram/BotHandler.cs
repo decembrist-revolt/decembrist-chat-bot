@@ -1,19 +1,41 @@
-﻿using DecembristChatBotSharp.MessageHandlers;
+﻿using DecembristChatBotSharp.Telegram.MessageHandlers;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
+using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
-namespace DecembristChatBotSharp;
+namespace DecembristChatBotSharp.Telegram;
 
-public class BotHandler(long botTelegramId, AppConfig appConfig, BotClient botClient, Database db) : IUpdateHandler
+public class BotHandler(
+    [FromKeyedServices(DiContainer.BOT_TELEGRAM_ID)]
+    Func<long> getBotTelegramId,
+    BotClient botClient,
+    AppConfig appConfig,
+    NewMemberHandler newMemberHandler,
+    PrivateMessageHandler privateMessageHandler,
+    ChatMessageHandler chatMessageHandler,
+    ChatBotAddHandler chatBotAddHandler,
+    CancellationTokenSource cancelToken
+) : IUpdateHandler
 {
-    private readonly NewMemberHandler _newMemberHandler = new(appConfig, botClient, db);
-    private readonly PrivateMessageHandler _privateMessageHandler = new(appConfig, botClient);
-    private readonly ChatMessageHandler _chatMessageHandler = new(appConfig, botClient, db);
-    private readonly ChatBotAddHandler _chatBotAddHandler = new(appConfig, botClient);
+    public void Start()
+    {
+        var receiverOptions = new ReceiverOptions
+        {
+            AllowedUpdates =
+            [
+                UpdateType.Message,
+                UpdateType.ChatMember
+            ],
+            Offset = int.MaxValue
+        };
 
-    public Task HandleUpdateAsync(BotClient client, Update update, CancellationToken cancelToken)
+        botClient.StartReceiving(this, receiverOptions, cancelToken.Token);
+    }
+
+    public Task HandleUpdateAsync(BotClient client, Update update, CancellationToken cancellationToken)
     {
         return update switch
         {
@@ -25,8 +47,8 @@ public class BotHandler(long botTelegramId, AppConfig appConfig, BotClient botCl
                 } message
             } => chatType switch
             {
-                ChatType.Private => HandlePrivateMessageUpdateAsync(message, cancelToken),
-                _ => HandleMessageUpdateAsync(message, cancelToken),
+                ChatType.Private => HandlePrivateMessageUpdateAsync(message),
+                _ => HandleMessageUpdateAsync(message),
             },
             {
                 Type: UpdateType.ChatMember,
@@ -34,37 +56,37 @@ public class BotHandler(long botTelegramId, AppConfig appConfig, BotClient botCl
                 {
                     Date: var date
                 } chatMember
-            } when IsValidUpdateDate(date) => HandleChatMemberUpdateAsync(chatMember, cancelToken),
+            } when IsValidUpdateDate(date) => HandleChatMemberUpdateAsync(chatMember),
             _ => Task.CompletedTask
         };
     }
 
-    private Task HandlePrivateMessageUpdateAsync(Message message, CancellationToken cancelToken) => message switch
+    private Task HandlePrivateMessageUpdateAsync(Message message) => message switch
     {
         // private text message
         {
             From.Id: { },
-        } => _privateMessageHandler.Do(message, cancelToken),
+        } => privateMessageHandler.Do(message),
         _ => Task.CompletedTask
     };
 
-    private Task HandleMessageUpdateAsync(Message message, CancellationToken cancelToken) => message switch
+    private Task HandleMessageUpdateAsync(Message message) => message switch
     {
         // bot added to chat
         {
             Type: MessageType.NewChatMembers,
             Chat.Id: var chatId,
             NewChatMembers: { Length: > 0 } newChatMembers
-        } when newChatMembers.Exists(user => user.Id == botTelegramId) => _chatBotAddHandler.Do(chatId, cancelToken),
+        } when IsBotInUsers(newChatMembers) => chatBotAddHandler.Do(chatId, cancelToken.Token),
         // new message in chat
         {
             Date: var date,
             Type: not MessageType.NewChatMembers and not MessageType.LeftChatMember,
-        } when IsValidUpdateDate(date) => HandleChatMessage(message, cancelToken),
+        } when IsValidUpdateDate(date) => HandleChatMessage(message),
         _ => Task.CompletedTask
     };
 
-    private async Task HandleChatMessage(Message message, CancellationToken cancelToken)
+    private async Task HandleChatMessage(Message message)
     {
         IMessagePayload payload = message switch
         {
@@ -83,10 +105,10 @@ public class BotHandler(long botTelegramId, AppConfig appConfig, BotClient botCl
         var telegramId = message.From!.Id;
         var chatId = message.Chat.Id;
         var parameters = new ChatMessageHandlerParams(payload, messageId, telegramId, chatId);
-        await _chatMessageHandler.Do(parameters, cancelToken);
+        await chatMessageHandler.Do(parameters);
     }
 
-    private Task HandleChatMemberUpdateAsync(ChatMemberUpdated chatMember, CancellationToken cancelToken) =>
+    private Task HandleChatMemberUpdateAsync(ChatMemberUpdated chatMember) =>
         chatMember switch
         {
             // new member joined chat
@@ -95,7 +117,7 @@ public class BotHandler(long botTelegramId, AppConfig appConfig, BotClient botCl
                 Chat.Id: var chatId,
                 From: { } user,
                 ViaJoinRequest: false
-            } => _newMemberHandler.Do(new NewMemberHandlerParams(chatId, user), cancelToken),
+            } => newMemberHandler.Do(new NewMemberHandlerParams(chatId, user)),
             _ => Task.CompletedTask
         };
 
@@ -111,4 +133,7 @@ public class BotHandler(long botTelegramId, AppConfig appConfig, BotClient botCl
 
     private bool IsValidUpdateDate(DateTime date) =>
         date > DateTime.UtcNow.AddSeconds(-appConfig.UpdateExpirationSeconds);
+
+    private bool IsBotInUsers(User[]? newChatMembers) =>
+        newChatMembers?.Any(user => user.Id == getBotTelegramId()) == true;
 }

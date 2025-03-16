@@ -3,7 +3,7 @@ using LanguageExt.UnsafeValueAccess;
 using Serilog;
 using Telegram.Bot;
 
-namespace DecembristChatBotSharp.MessageHandlers;
+namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 public enum Result
 {
@@ -14,11 +14,11 @@ public enum Result
 public class CaptchaHandler(
     AppConfig appConfig,
     BotClient botClient,
-    Database db)
+    Database db,
+    CancellationTokenSource cancelToken
+)
 {
-    public async Task<Result> Do(
-        ChatMessageHandlerParams parameters,
-        CancellationToken cancelToken)
+    public async Task<Result> Do(ChatMessageHandlerParams parameters)
     {
         var telegramId = parameters.TelegramId;
         var chatId = parameters.ChatId;
@@ -32,8 +32,8 @@ public class CaptchaHandler(
         var newMember = maybe.ValueUnsafe();
 
         var tryCaptcha = TryAsync(IsCaptchaPassed(payload)
-            ? OnCaptchaPassed(telegramId, chatId, messageId, newMember, cancelToken)
-            : OnCaptchaFailed(telegramId, chatId, messageId, newMember, cancelToken));
+            ? OnCaptchaPassed(telegramId, chatId, messageId, newMember)
+            : OnCaptchaFailed(telegramId, chatId, messageId, newMember));
 
         return await tryCaptcha.IfFail(ex =>
                 Log.Error(ex, "Captcha handler failed for user {0} in chat {1}", telegramId, chatId))
@@ -48,15 +48,14 @@ public class CaptchaHandler(
         long telegramId,
         long chatId,
         int messageId,
-        NewMember newMember,
-        CancellationToken cancelToken)
+        NewMember newMember)
     {
         var joinMessage = string.Format(appConfig.JoinText, newMember.Username);
         var result = await Try(() => db.RemoveNewMember(telegramId, chatId))
             .Map(removed => OnNewMemberRemoved(removed, telegramId, chatId))
             .MapAsync(_ => Task.WhenAll(
-                botClient.DeleteMessages(chatId, [messageId, newMember.WelcomeMessageId], cancelToken),
-                botClient.SendMessage(chatId, joinMessage, cancellationToken: cancelToken)
+                botClient.DeleteMessages(chatId, [messageId, newMember.WelcomeMessageId], cancelToken.Token),
+                botClient.SendMessage(chatId, joinMessage, cancellationToken: cancelToken.Token)
             ).UnitTask());
 
         return result.Match(
@@ -71,12 +70,11 @@ public class CaptchaHandler(
         long telegramId,
         long chatId,
         int messageId,
-        NewMember newMember,
-        CancellationToken cancelToken)
+        NewMember newMember)
     {
         Log.Information("User {0} failed captcha in chat {1}", telegramId, chatId);
 
-        var trySend = await SendFailedMessage(telegramId, chatId, messageId, newMember, cancelToken);
+        var trySend = await SendFailedMessage(telegramId, chatId, messageId, newMember);
 
         return trySend.Match(
             isBan =>
@@ -93,8 +91,7 @@ public class CaptchaHandler(
         long telegramId,
         long chatId,
         int messageId,
-        NewMember newMember,
-        CancellationToken cancelToken)
+        NewMember newMember)
     {
         var welcomeMessageId = newMember.WelcomeMessageId;
         var retryCount = appConfig.CaptchaRetryCount - newMember.CaptchaRetryCount;
@@ -120,13 +117,14 @@ public class CaptchaHandler(
             + string.Format(appConfig.CaptchaFailedText, retryCount);
 
         Task<Unit> ClearUser() => Task.WhenAll(
-            botClient.DeleteMessages(chatId, [messageId, welcomeMessageId], cancelToken),
-            botClient.BanChatMember(chatId, telegramId, DateTime.UtcNow, false, cancelToken)
+            botClient.DeleteMessages(chatId, [messageId, welcomeMessageId], cancelToken.Token),
+            botClient.BanChatMember(chatId, telegramId, DateTime.UtcNow, false, cancelToken.Token)
         ).UnitTask();
 
         Task<Unit> EditRetries() => Task.WhenAll(
-            botClient.DeleteMessage(chatId, messageId, cancelToken),
-            botClient.EditMessageText(chatId, welcomeMessageId, GetNewWelcomeText(), cancellationToken: cancelToken)
+            botClient.DeleteMessage(chatId, messageId, cancelToken.Token),
+            botClient.EditMessageText(chatId, welcomeMessageId, GetNewWelcomeText(),
+                cancellationToken: cancelToken.Token)
         ).UnitTask();
     }
 
