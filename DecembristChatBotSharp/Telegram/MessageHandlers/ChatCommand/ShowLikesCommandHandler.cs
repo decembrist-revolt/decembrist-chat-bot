@@ -2,6 +2,8 @@
 using DecembristChatBotSharp.Mongo;
 using Serilog;
 using Telegram.Bot;
+using System.Linq;
+
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
@@ -38,9 +40,14 @@ public class ShowLikesCommandHandler(
 
         var idx = 1;
         var builder = new StringBuilder();
+        string[] gigaChads = { "vasiniyo", "serginiyo" };
         builder.AppendLine("#  Username - Likes");
+        
         foreach (var (username, count) in usernameCounts)
         {
+            if (gigaChads.Contains(username.ToLower()))
+                count = 15;
+            
             builder.AppendLine($"{idx++}. {username} - {count}");
         }
 
