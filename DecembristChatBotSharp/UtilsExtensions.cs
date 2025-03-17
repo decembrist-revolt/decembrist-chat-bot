@@ -39,7 +39,7 @@ public static class UtilsExtensions
     
     public static Task<T[]> AwaitAll<T>(this IEnumerable<Task<T>> tasks) => Task.WhenAll(tasks);
 
-    public static string GetUsername(this ChatMember member) => Optional(member.User.Username)
-        .Map(username => $"@{username}")
+    public static string GetUsername(this ChatMember member, bool tag = true) => Optional(member.User.Username)
+        .Map(username => tag ? $"@{username}" : username)
         .IfNone($"{member.User.FirstName} {member.User.LastName}");
 }

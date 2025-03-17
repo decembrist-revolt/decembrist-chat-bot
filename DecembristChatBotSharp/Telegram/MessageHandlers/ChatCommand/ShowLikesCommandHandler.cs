@@ -63,7 +63,7 @@ public class ShowLikesCommandHandler(
     {
         var username = await botClient.GetChatMember(chatId, memberLikes.LikeTelegramId, cancelToken.Token)
             .ToTryAsync()
-            .Map(chatMember => chatMember.GetUsername())
+            .Map(chatMember => chatMember.GetUsername(false))
             .IfFail(ex =>
             {
                 Log.Error(ex, "Failed to get username for telegramId {0}", memberLikes.LikeTelegramId);
