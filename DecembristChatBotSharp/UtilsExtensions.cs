@@ -1,8 +1,37 @@
-﻿namespace DecembristChatBotSharp;
+﻿using Serilog;
+using Telegram.Bot;
+using Telegram.Bot.Types;
+
+namespace DecembristChatBotSharp;
 
 public static class UtilsExtensions
 {
     public static Task<Unit> UnitTask(this Task task) => task.ContinueWith(_ => unit);
 
     public static Unit Ignore(this object any) => unit;
+
+    public static Task<Unit> SendMessageAndLog(
+        this BotClient botClient,
+        long chatId,
+        string message,
+        Action<Message> onSent,
+        Action<Exception> onError,
+        CancellationToken cancelToken) =>
+        botClient.SendMessage(chatId, message, cancellationToken: cancelToken).ToTryAsync().Match(onSent, onError);
+    
+    public static Task<Unit> DeleteMessageAndLog(
+        this BotClient botClient,
+        long chatId,
+        int messageId,
+        Action onDeleted,
+        Action<Exception> onError) =>
+        botClient.DeleteMessage(chatId, messageId).ToTryAsync().Match(_ => onDeleted(), onError);
+
+    public static TryAsync<T> ToTryAsync<T>(this Task<T> task) => TryAsync(task);
+    
+    public static TryAsync<Unit> ToTryAsync(this Task task) => TryAsync(async () =>
+    {
+        await task;
+        return unit;
+    });
 }

@@ -68,5 +68,8 @@ public record MongoConfig(
 
 public record CommandConfig(
     int TopLikeMemberCount,
-    int CommandIntervalSeconds
+    int CommandIntervalSeconds,
+    string LikeMessage,
+    string LikeReceiverNotSet,
+    string CommandNotReady
 );
