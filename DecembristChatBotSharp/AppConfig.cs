@@ -25,6 +25,7 @@ public record AppConfig(
     AllowedChatConfig AllowedChatConfig,
     Dictionary<string, string> FastReply,
     MongoConfig MongoConfig,
+    CommandConfig CommandConfig,
     DateTime? DeployTime = null,
     List<long>? WhiteListIds = null)
 {
@@ -63,4 +64,9 @@ public record MongoConfig(
     string ConnectionString,
     [property: Required(AllowEmptyStrings = false)]
     string DatabaseName
+);
+
+public record CommandConfig(
+    int TopLikeMemberCount,
+    int CommandIntervalSeconds
 );

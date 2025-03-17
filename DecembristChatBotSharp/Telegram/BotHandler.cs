@@ -104,7 +104,8 @@ public class BotHandler(
         var messageId = message.MessageId;
         var telegramId = message.From!.Id;
         var chatId = message.Chat.Id;
-        var parameters = new ChatMessageHandlerParams(payload, messageId, telegramId, chatId);
+        var parameters = new ChatMessageHandlerParams(
+            payload, messageId, telegramId, chatId, Optional(message.ReplyToMessage?.From?.Id));
         await chatMessageHandler.Do(parameters);
     }
 

@@ -1,6 +1,7 @@
 ﻿using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Telegram;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
+using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Telegram.Bot;
@@ -27,7 +28,12 @@ public class DiContainer
         services.AddKeyedSingleton<Func<long>>(BOT_TELEGRAM_ID, () => botTelegramId);
 
         services.AddSingleton<MongoDatabase>();
+        services.AddSingleton<IRepository, NewMemberRepository>();
+        services.AddSingleton<IRepository, MemberLikeRepository>();
+        services.AddSingleton<IRepository, CommandLockRepository>();
         services.AddSingleton<NewMemberRepository>();
+        services.AddSingleton<MemberLikeRepository>();
+        services.AddSingleton<CommandLockRepository>();
         
         services.AddSingleton<BotHandler>();
         services.AddSingleton<CheckCaptchaScheduler>();
@@ -35,8 +41,18 @@ public class DiContainer
         services.AddSingleton<PrivateMessageHandler>();
         services.AddSingleton<FastReplyHandler>();
         services.AddSingleton<CaptchaHandler>();
+        services.AddSingleton<ChatCommandHandler>();
         services.AddSingleton<ChatMessageHandler>();
         services.AddSingleton<ChatBotAddHandler>();
+        
+        services.AddSingleton<ICommandHandler, ShowLikesCommandHandler>();
+        services.AddSingleton<ICommandHandler, HelpChatCommandHandler>();
+        services.AddSingleton<ICommandHandler, LikeCommandHandler>();
+        services.AddSingleton<ShowLikesCommandHandler>();
+        services.AddSingleton<HelpChatCommandHandler>();
+        services.AddSingleton<LikeCommandHandler>();
+        services.AddSingleton(sp => 
+            new Lazy<List<ICommandHandler>>(() => [..sp.GetServices<ICommandHandler>()]));
 
         return services.BuildServiceProvider();
     }

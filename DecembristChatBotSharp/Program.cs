@@ -2,6 +2,7 @@
 global using static LanguageExt.Prelude;
 global using BotClient = Telegram.Bot.ITelegramBotClient;
 using DecembristChatBotSharp;
+using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Telegram;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
@@ -15,6 +16,8 @@ try
 {
     var container = await DiContainer.GetInstance(cancelTokenSource);
     Log.Information("DI Container created");
+    await EnsureIndexes(container);
+    Log.Information("Indexes ensured");
     var botHandler = container.GetRequiredService<BotHandler>();
     botHandler.Start();
     var checkCaptcha = container.GetRequiredService<CheckCaptchaScheduler>();
@@ -39,6 +42,12 @@ catch
 await Task.Delay(Timeout.Infinite, cancelTokenSource.Token);
 
 return;
+
+async Task EnsureIndexes(ServiceProvider container)
+{
+    var services = container.GetServices<IRepository>();
+    await Task.WhenAll(services.Map(service => service.EnsureIndexes()));
+}
 
 void CancelGlobalToken(int statusCode = 0)
 {

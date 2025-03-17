@@ -1,16 +1,20 @@
-﻿namespace DecembristChatBotSharp.Telegram.MessageHandlers;
+﻿using MongoDB.Bson;
+
+namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 public readonly struct ChatMessageHandlerParams(
     IMessagePayload payload,
     int messageId,
     long telegramId,
-    long chatId
+    long chatId,
+    Option<long> replyToTelegramId
 )
 {
     public IMessagePayload Payload => payload;
     public int MessageId => messageId;
     public long TelegramId => telegramId;
     public long ChatId => chatId;
+    public Option<long> ReplyToTelegramId => replyToTelegramId;
 }
 
 public interface IMessagePayload;
@@ -29,6 +33,7 @@ public readonly struct UnknownPayload : IMessagePayload;
 
 public class ChatMessageHandler(
     CaptchaHandler captchaHandler,
+    ChatCommandHandler chatCommandHandler,
     FastReplyHandler fastReplyHandler
 )
 {
@@ -36,6 +41,12 @@ public class ChatMessageHandler(
     {
         var result = await captchaHandler.Do(parameters);
         if (result == Result.Captcha) return unit;
+        
+        if (parameters.Payload is TextPayload { Text.Length: > 1 })
+        {
+            var commandResult = await chatCommandHandler.Do(parameters);
+            if (commandResult == CommandResult.Ok) return unit;
+        }
 
         return await fastReplyHandler.Do(parameters);
     }
