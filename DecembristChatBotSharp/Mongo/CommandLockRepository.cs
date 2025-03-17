@@ -36,7 +36,7 @@ public class CommandLockRepository(
 
         return await maybeLock
             .Filter(@lock => DateTime.UtcNow > @lock.ExpiredTime)
-            .MapAsync(_ => RemoveLock(chatId, command, arguments))
+            .MapAsync(_ => RemoveLock(chatId, command, arguments, telegramId))
             .Match(removed => !removed, () => true);
     }
 
