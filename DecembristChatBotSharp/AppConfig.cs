@@ -69,7 +69,12 @@ public record MongoConfig(
 public record CommandConfig(
     int TopLikeMemberCount,
     int CommandIntervalSeconds,
+    [property: Required(AllowEmptyStrings = false)]
     string LikeMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string LikeReceiverNotSet,
-    string CommandNotReady
+    [property: Required(AllowEmptyStrings = false)]
+    string CommandNotReady,
+    [property: Required(AllowEmptyStrings = false)]
+    string SelfLikeMessage
 );

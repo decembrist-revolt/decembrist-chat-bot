@@ -2,6 +2,7 @@
 using LanguageExt.UnsafeValueAccess;
 using Serilog;
 using Telegram.Bot;
+using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
@@ -10,6 +11,7 @@ public class LikeCommandHandler(
     CommandLockRepository lockRepository,
     MemberLikeRepository memberLikeRepository,
     BotClient botClient,
+    MessageAssistance messageAssistance,
     CancellationTokenSource cancelToken
 ) : ICommandHandler
 {
@@ -21,38 +23,39 @@ public class LikeCommandHandler(
         var chatId = parameters.ChatId;
         var telegramId = parameters.TelegramId;
         var likeToTelegramId = parameters.ReplyToTelegramId;
-        var locked = await lockRepository.TryAcquire(chatId, Command, telegramId: telegramId);
-        if (!locked)
-        {
-            return await Task.WhenAll(
-                SendCommandNotReady(chatId),
-                DeleteCommandMessage(chatId, parameters.MessageId)).UnitTask();
-        }
+        var messageId = parameters.MessageId;
 
         if (likeToTelegramId.IsNone)
         {
-            return await Task.WhenAll(
+            return await Array(
                 SendLikeReceiverNotSet(chatId),
-                DeleteCommandMessage(chatId, parameters.MessageId)).UnitTask();
+                messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
 
         var receiverTelegramId = likeToTelegramId.ValueUnsafe();
+        if (telegramId == receiverTelegramId)
+        {
+            return await Array(
+                SendSelfLikeMessage(chatId),
+                messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
+        }
+
+        var locked = await lockRepository.TryAcquire(chatId, Command, telegramId: telegramId);
+        if (!locked) return await messageAssistance.CommandNotReady(chatId, messageId, Command);
+
         if (!await SetLike(telegramId, chatId, receiverTelegramId)) return unit;
 
-        var trySend = botClient.GetChatMember(chatId, receiverTelegramId, cancelToken.Token)
+        var sendLikeMessageTask = botClient.GetChatMember(chatId, receiverTelegramId, cancelToken.Token)
             .ToTryAsync()
-            .Map(chatMember =>
-            {
-                var message = string.Format(appConfig.CommandConfig.LikeMessage, chatMember.User.FirstName);
-                return botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token);
-            }).Match(
+            .Map(chatMember => SendLikeMessage(chatId, chatMember))
+            .Match(
                 _ => Log.Information("Sent like message to chat {0}", chatId),
                 ex => Log.Error(ex, "Failed to send like message to chat {0}", chatId)
             );
-        
-        return await Task.WhenAll(
-            trySend,
-            DeleteCommandMessage(chatId, parameters.MessageId)).UnitTask();
+
+        return await Array(
+            sendLikeMessageTask,
+            messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
     }
 
     private async Task<bool> SetLike(long telegramId, long chatId, long receiverTelegramId)
@@ -77,40 +80,27 @@ public class LikeCommandHandler(
     private async Task<Unit> SendLikeReceiverNotSet(long chatId)
     {
         var message = appConfig.CommandConfig.LikeReceiverNotSet;
-        await botClient.SendMessageAndLog(chatId, message,
+        return await botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Sent like receiver not set message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send like receiver not set message to chat {0}", chatId),
             cancelToken.Token);
-
-        return unit;
     }
 
-    private async Task<Unit> SendCommandNotReady(long chatId)
+    private async Task<Unit> SendSelfLikeMessage(long chatId)
     {
-        var message = appConfig.CommandConfig.CommandNotReady;
-        await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent command not ready message to chat {0}", chatId),
-            ex => Log.Error(ex, "Failed to send command not ready message to chat {0}", chatId),
+        var message = appConfig.CommandConfig.SelfLikeMessage;
+        return await botClient.SendMessageAndLog(chatId, message,
+            _ => Log.Information("Sent self like message to chat {0}", chatId),
+            ex => Log.Error(ex, "Failed to send self like message to chat {0}", chatId),
             cancelToken.Token);
-
-        return unit;
     }
 
-    private async Task<Unit> DeleteCommandMessage(long chatId, int messageId) =>
-        await botClient.DeleteMessageAndLog(chatId, messageId,
-            () => Log.Information("Deleted like message in chat {0}", chatId),
-            ex => Log.Error(ex, "Failed to delete like message in chat {0}", chatId));
-
-    private async Task<(string username, int Count)> ToUsernameCount(long chatId, LikeTelegramToLikeCount memberLikes)
+    private async Task<Unit> SendLikeMessage(long chatId, ChatMember chatMember)
     {
-        var username = await TryAsync(botClient.GetChatMember(chatId, memberLikes.LikeTelegramId))
-            .Map(chatMember => chatMember.User.Username ?? chatMember.User.FirstName)
-            .IfFail(ex =>
-            {
-                Log.Error(ex, "Failed to get username for telegramId {0}", memberLikes.LikeTelegramId);
-                return $"Unknown, ID={memberLikes.LikeTelegramId}";
-            });
+        var username = chatMember.GetUsername();
+        var message = string.Format(appConfig.CommandConfig.LikeMessage, username);
+        await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token);
 
-        return (username, memberLikes.Count);
+        return unit;
     }
 }

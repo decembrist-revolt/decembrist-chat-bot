@@ -34,4 +34,12 @@ public static class UtilsExtensions
         await task;
         return unit;
     });
+    
+    public static Task<Unit> WhenAll(this IEnumerable<Task> tasks) => Task.WhenAll(tasks).UnitTask();
+    
+    public static Task<T[]> AwaitAll<T>(this IEnumerable<Task<T>> tasks) => Task.WhenAll(tasks);
+
+    public static string GetUsername(this ChatMember member) => Optional(member.User.Username)
+        .Map(username => $"@{username}")
+        .IfNone($"{member.User.FirstName} {member.User.LastName}");
 }

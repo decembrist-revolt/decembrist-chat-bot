@@ -53,6 +53,7 @@ public class DiContainer
         services.AddSingleton<LikeCommandHandler>();
         services.AddSingleton(sp => 
             new Lazy<List<ICommandHandler>>(() => [..sp.GetServices<ICommandHandler>()]));
+        services.AddSingleton<MessageAssistance>();
 
         return services.BuildServiceProvider();
     }
