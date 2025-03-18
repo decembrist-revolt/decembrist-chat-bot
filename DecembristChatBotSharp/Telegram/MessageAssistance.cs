@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using DecembristChatBotSharp.Telegram.MessageHandlers;
+using Serilog;
 using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram;
@@ -26,4 +27,20 @@ public class MessageAssistance(AppConfig appConfig, BotClient botClient, Cancell
         await botClient.DeleteMessageAndLog(chatId, messageId,
             () => Log.Information("Deleted {0} message in chat {1}", command, chatId),
             ex => Log.Error(ex, "Failed to delete like message in chat {0}", chatId));
+    
+    public async Task<Unit> SendAdminOnlyMessage(long chatId) =>
+        await botClient.SendMessageAndLog(chatId, appConfig.CommandConfig.AdminOnlyMessage,
+            _ => Log.Information("Sent admin only message to chat {0}", chatId),
+            ex => Log.Error(ex, "Failed to send admin only message to chat {0}", chatId),
+            cancelToken.Token);
+    
+    public async Task<Unit> SendStickerNotFound(long chatId, string fileId)
+    {
+        var stickerMessage = FastReplyHandler.StickerPrefix + fileId;
+        var message = string.Format(appConfig.CommandConfig.StickerNotFoundMessage, stickerMessage);
+        return await botClient.SendMessageAndLog(chatId, message,
+            _ => Log.Information("Sent sticker not found message to chat {0}", chatId),
+            ex => Log.Error(ex, "Failed to send sticker not found message to chat {0}", chatId),
+            cancelToken.Token);
+    }
 }

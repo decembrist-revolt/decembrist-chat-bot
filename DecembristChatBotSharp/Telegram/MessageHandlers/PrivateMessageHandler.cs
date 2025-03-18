@@ -5,7 +5,11 @@ using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
-public class PrivateMessageHandler(AppConfig appConfig, BotClient botClient, CancellationTokenSource cancelToken)
+public class PrivateMessageHandler(
+    AppConfig appConfig, 
+    BotClient botClient, 
+    MessageAssistance messageAssistance,
+    CancellationTokenSource cancelToken)
 {
     private const string MeCommand = "/me";
     private const string StatusCommand = "/status";
@@ -62,11 +66,15 @@ public class PrivateMessageHandler(AppConfig appConfig, BotClient botClient, Can
             cancellationToken: cancelToken.Token)
         );
     }
-    
+
     private TryAsync<Message> SendSticker(long chatId, string fileId) =>
         TryAsync(botClient.SendSticker(
             chatId,
-            new InputFileId(fileId),
+            fileId,
             cancellationToken: cancelToken.Token)
-        );
+        ).BiMap(TryAsync, async ex =>
+        {
+            await messageAssistance.SendStickerNotFound(chatId, fileId);
+            return TryAsync<Message>(ex);
+        }).Flatten();
 }

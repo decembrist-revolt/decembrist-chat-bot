@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using LanguageExt.UnsafeValueAccess;
+using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
@@ -34,6 +35,9 @@ public static class UtilsExtensions
         await task;
         return unit;
     });
+
+    public static TryOptionAsync<T> ToTryOption<T>(this Task<T> task) => TryOptionAsync(task);
+    
     
     public static Task<Unit> WhenAll(this IEnumerable<Task> tasks) => Task.WhenAll(tasks).UnitTask();
     

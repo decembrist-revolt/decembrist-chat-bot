@@ -34,6 +34,8 @@ public class DiContainer
         services.AddSingleton<NewMemberRepository>();
         services.AddSingleton<MemberLikeRepository>();
         services.AddSingleton<CommandLockRepository>();
+        services.AddSingleton<AdminUserRepository>();
+        services.AddSingleton<FastReplyRepository>();
         
         services.AddSingleton<BotHandler>();
         services.AddSingleton<CheckCaptchaScheduler>();
@@ -48,6 +50,8 @@ public class DiContainer
         services.AddSingleton<ICommandHandler, ShowLikesCommandHandler>();
         services.AddSingleton<ICommandHandler, HelpChatCommandHandler>();
         services.AddSingleton<ICommandHandler, LikeCommandHandler>();
+        services.AddSingleton<ICommandHandler, FastReplyCommandHandler>();
+        services.AddSingleton<FastReplyCommandHandler>();
         services.AddSingleton<ShowLikesCommandHandler>();
         services.AddSingleton<HelpChatCommandHandler>();
         services.AddSingleton<LikeCommandHandler>();

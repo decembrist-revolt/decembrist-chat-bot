@@ -77,8 +77,9 @@ public class MemberLikeRepository(
     {
         var memberLikes = GetCollection();
         var findTask = await TryAsync(memberLikes.Find(member => member.Id.TelegramId == telegramId
-                                                  && member.Id.ChatId == chatId).ToListAsync(cancelToken.Token));
-        
+                                                                 && member.Id.ChatId == chatId)
+            .ToListAsync(cancelToken.Token));
+
         return findTask.Match(identity, ex =>
         {
             Log.Error(ex, "Failed to find likes for {0} in chat {1}", telegramId, chatId);

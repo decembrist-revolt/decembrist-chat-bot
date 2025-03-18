@@ -1,23 +1,18 @@
-﻿using LanguageExt.UnsafeValueAccess;
+﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Mongo;
 using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
-public class FastReplyHandler(AppConfig appConfig, BotClient botClient, CancellationTokenSource cancelToken)
+public class FastReplyHandler(
+    FastReplyRepository db,
+    BotClient botClient,
+    CancellationTokenSource cancelToken)
 {
     public const string DollarPrefix = "$";
     public const string StickerPrefix = $"{DollarPrefix}sticker_";
-
-    private readonly Map<string, string> _textReply = appConfig.FastReply
-        .Where(x => !x.Key.StartsWith(DollarPrefix))
-        .ToMap();
-
-    private readonly Map<string, string> _stickerReply = appConfig.FastReply
-        .Where(x => x.Key.StartsWith(StickerPrefix))
-        .Select(x => (x.Key[StickerPrefix.Length..], x.Value))
-        .ToMap();
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -27,45 +22,43 @@ public class FastReplyHandler(AppConfig appConfig, BotClient botClient, Cancella
 
         var maybeReply = parameters.Payload switch
         {
-            TextPayload { Text: var text } => _textReply.Find(text),
-            StickerPayload { FileId: var fileId } => _stickerReply.Find(fileId),
+            TextPayload { Text: var text } => await db.FindOne(chatId, text, FastReplyType.Text),
+            StickerPayload { FileId: var fileId } => await db.FindOne(chatId, fileId, FastReplyType.Sticker),
             _ => None
         };
-        return await maybeReply
-            .Map(GetReplyPayload)
-            .Map(reply => TrySendReply(chatId, reply, messageId))
-            .MapAsync(trySend => LogResult(trySend, chatId, telegramId, maybeReply.ValueUnsafe()!))
-            .Value;
+
+        return await maybeReply.Match(
+            reply => HandleReply(chatId, telegramId, messageId, reply.Reply, reply.ReplyType),
+            () => Task.FromResult(unit));
     }
 
-    private IMessagePayload GetReplyPayload(string reply) => reply.StartsWith(StickerPrefix)
-        ? new StickerPayload(reply[StickerPrefix.Length..])
-        : new TextPayload(reply);
+    private Task<Unit> HandleReply(
+        long chatId,
+        long telegramId,
+        int messageId,
+        string reply,
+        FastReplyType replyType) => TrySendReply(chatId, messageId, reply, replyType)
+        .Match(
+            _ => Log.Information("Sent fast reply to {0} payload {1} in chat {2}", telegramId, reply, chatId),
+            ex => Log.Error(ex, "Failed to send fast reply to {0} payload {1} in chat {2}", telegramId, reply, chatId)
+        );
 
     private TryAsync<Message> TrySendReply(
         long chatId,
-        IMessagePayload reply,
-        int messageId) => TryAsync(reply switch
+        int messageId,
+        string reply,
+        FastReplyType type) => TryAsync(type switch
     {
-        StickerPayload { FileId: var fileId } => botClient.SendSticker(
+        FastReplyType.Sticker => botClient.SendSticker(
             chatId,
-            new InputFileId(fileId),
+            new InputFileId(reply),
             replyParameters: new ReplyParameters { MessageId = messageId },
             cancellationToken: cancelToken.Token),
-        TextPayload { Text: var text } => botClient.SendMessage(
+        FastReplyType.Text => botClient.SendMessage(
             chatId,
-            text,
+            reply,
             replyParameters: new ReplyParameters { MessageId = messageId },
             cancellationToken: cancelToken.Token),
-        _ => throw new ArgumentNullException(nameof(reply))
+        _ => throw new ArgumentNullException(nameof(type))
     });
-
-    private Task<Unit> LogResult(
-        TryAsync<Message> trySend,
-        long chatId,
-        long telegramId,
-        string payload) => trySend.Match(
-        _ => Log.Information("Sent fast reply to {0} payload {1} in chat {2}", telegramId, payload, chatId),
-        ex => Log.Error(ex, "Failed to send fast reply to {0} payload {1} in chat {2}", telegramId, payload, chatId)
-    );
 }

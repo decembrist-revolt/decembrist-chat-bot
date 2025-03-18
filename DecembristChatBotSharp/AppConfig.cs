@@ -76,5 +76,13 @@ public record CommandConfig(
     [property: Required(AllowEmptyStrings = false)]
     string CommandNotReady,
     [property: Required(AllowEmptyStrings = false)]
-    string SelfLikeMessage
+    string SelfLikeMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string AdminOnlyMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FastReplyHelpMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string StickerNotFoundMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FastReplyDuplicateMessage
 );
