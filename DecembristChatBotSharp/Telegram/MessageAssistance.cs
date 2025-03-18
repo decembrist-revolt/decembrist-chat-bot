@@ -28,10 +28,10 @@ public class MessageAssistance(AppConfig appConfig, BotClient botClient, Cancell
             () => Log.Information("Deleted {0} message in chat {1}", command, chatId),
             ex => Log.Error(ex, "Failed to delete like message in chat {0}", chatId));
     
-    public async Task<Unit> SendAdminOnlyMessage(long chatId) =>
+    public async Task<Unit> SendAdminOnlyMessage(long chatId, long telegramId) =>
         await botClient.SendMessageAndLog(chatId, appConfig.CommandConfig.AdminOnlyMessage,
-            _ => Log.Information("Sent admin only message to chat {0}", chatId),
-            ex => Log.Error(ex, "Failed to send admin only message to chat {0}", chatId),
+            _ => Log.Information("Sent admin only message to {0} chat {1}", telegramId, chatId),
+            ex => Log.Error(ex, "Failed to send admin only message to {0} chat {1}", telegramId, chatId),
             cancelToken.Token);
     
     public async Task<Unit> SendStickerNotFound(long chatId, string fileId)

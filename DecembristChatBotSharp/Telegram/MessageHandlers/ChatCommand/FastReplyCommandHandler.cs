@@ -25,7 +25,10 @@ public class FastReplyCommandHandler(
         var messageId = parameters.MessageId;
 
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        if (!await adminUserRepository.IsAdmin(telegramId)) return await messageAssistance.SendAdminOnlyMessage(chatId);
+        if (!await adminUserRepository.IsAdmin(telegramId))
+        {
+            return await messageAssistance.SendAdminOnlyMessage(chatId, telegramId);
+        }
 
         var args = text.Trim().Split("@").Skip(1).ToArray();
         if (args is not [var message, var reply])
@@ -41,7 +44,7 @@ public class FastReplyCommandHandler(
         var maybeFastReply = await CreateFastReply(chatId, message, reply, messageId);
         return await maybeFastReply.MatchAsync(fastReply => AddFastReply(chatId, fastReply), () => unit);
     }
-    
+
     private async Task<Unit> AddFastReply(long chatId, FastReply fastReply)
     {
         var result = await fastReplyRepository.AddFastReply(fastReply);
@@ -100,7 +103,6 @@ public class FastReplyCommandHandler(
             cancelToken.Token);
     }
 
-    
 
     private async Task<Unit> SendDuplicateMessage(long chatId, string text)
     {
