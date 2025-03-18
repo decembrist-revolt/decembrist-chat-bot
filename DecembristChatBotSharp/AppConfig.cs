@@ -23,7 +23,6 @@ public record AppConfig(
     int CaptchaRetryCount,
     int UpdateExpirationSeconds,
     AllowedChatConfig AllowedChatConfig,
-    Dictionary<string, string> FastReply,
     MongoConfig MongoConfig,
     CommandConfig CommandConfig,
     DateTime? DeployTime = null,
