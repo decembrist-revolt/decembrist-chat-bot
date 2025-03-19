@@ -23,8 +23,8 @@ internal readonly struct UsernameEx(string username, Exception ex)
 public class NewMemberHandler(
     AppConfig appConfig,
     BotClient botClient,
-    NewMemberRepository db,
-    WhiteListRepository whiteListDb,
+    NewMemberRepository newMemberRepository,
+    WhiteListRepository whiteListRepository,
     CancellationTokenSource cancelToken
 )
 {
@@ -34,8 +34,11 @@ public class NewMemberHandler(
         var user = parameters.User;
         var telegramId = user.Id;
 
-        if (await whiteListDb.IsWhiteListMember(telegramId))
+        if (await whiteListRepository.IsWhiteListMember(telegramId))
+        {
+            Log.Information("Whitelist member {0} joined", telegramId);
             return unit;
+        }
 
         var sendWelcomeTask = await SendWelcomeMessageForUser(chatId, user);
 
@@ -58,7 +61,7 @@ public class NewMemberHandler(
             botClient.SendMessage(chatId: chatId, text: welcomeText, cancellationToken: cancelToken.Token));
 
         return await trySend
-            .Bind(message => db.AddNewMember(user.Id, username, chatId, message.MessageId))
+            .Bind(message => newMemberRepository.AddNewMember(user.Id, username, chatId, message.MessageId))
             .ToEither()
             .BiMap(
                 _ => username,

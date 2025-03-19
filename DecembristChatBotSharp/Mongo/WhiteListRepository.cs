@@ -13,7 +13,7 @@ public class WhiteListRepository(
         var collection = GetCollection();
 
         return await collection
-            .Find(member => member.Id == telegramId)
+            .Find(member => member.TelegramId == telegramId)
             .AnyAsync(cancelToken.Token)
             .ToTryAsync()
             .Match(identity, ex =>
@@ -23,6 +23,6 @@ public class WhiteListRepository(
             });
     }
 
-    private IMongoCollection<WhiteListMember> GetCollection() =>
+    private IMongoCollection<WhiteListMember> GetCollection() => 
         db.GetCollection<WhiteListMember>(nameof(WhiteListMember));
 }
