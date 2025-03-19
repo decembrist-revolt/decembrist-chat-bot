@@ -25,6 +25,7 @@ public record AppConfig(
     AllowedChatConfig AllowedChatConfig,
     MongoConfig MongoConfig,
     CommandConfig CommandConfig,
+    RedditConfig RedditConfig,
     DateTime? DeployTime = null,
     List<long>? WhiteListIds = null)
 {
@@ -84,4 +85,21 @@ public record CommandConfig(
     string StickerNotFoundMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FastReplyDuplicateMessage
+);
+
+public record RedditConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string ClientId,
+    [property: Required(AllowEmptyStrings = false)]
+    string ClientSecret,
+    [property: Required(AllowEmptyStrings = false)]
+    string RedditHost,
+    [property: Required(AllowEmptyStrings = false)]
+    string RedditApiHost,
+    [property: Required] int PostLimit,
+    [property: Required(AllowEmptyStrings = false)]
+    string UserAgent,
+    [property: Required] string[] Subreddits,
+    [property: Required(AllowEmptyStrings = false)] 
+    string RedditErrorMessage
 );

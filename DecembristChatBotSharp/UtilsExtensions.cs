@@ -1,7 +1,7 @@
-﻿using LanguageExt.UnsafeValueAccess;
-using Serilog;
+﻿using System.Text.RegularExpressions;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp;
 
@@ -19,6 +19,18 @@ public static class UtilsExtensions
         Action<Exception> onError,
         CancellationToken cancelToken) =>
         botClient.SendMessage(chatId, message, cancellationToken: cancelToken).ToTryAsync().Match(onSent, onError);
+    
+    public static Task<Unit> SendMessageAndLog(
+        this BotClient botClient,
+        long chatId,
+        string message,
+        ParseMode parseMode,
+        Action<Message> onSent,
+        Action<Exception> onError,
+        CancellationToken cancelToken) =>
+        botClient.SendMessage(chatId, message, parseMode: parseMode, cancellationToken: cancelToken)
+            .ToTryAsync()
+            .Match(onSent, onError);
     
     public static Task<Unit> DeleteMessageAndLog(
         this BotClient botClient,
@@ -46,4 +58,7 @@ public static class UtilsExtensions
     public static string GetUsername(this ChatMember member, bool tag = true) => Optional(member.User.Username)
         .Map(username => tag ? $"@{username}" : username)
         .IfNone($"{member.User.FirstName} {member.User.LastName}");
+    
+    public static string EscapeMarkdown(this string text) => 
+        Regex.Replace(text, @"([\\_\*\[\]\(\)\~\`\>\#\+\-\=\|\{\}\.\!])", @"\$1");
 }

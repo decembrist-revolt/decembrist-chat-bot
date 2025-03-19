@@ -9,14 +9,13 @@ public class FastReplyCommandHandler(
     AppConfig appConfig,
     AdminUserRepository adminUserRepository,
     FastReplyRepository fastReplyRepository,
-    CommandLockRepository lockRepository,
     BotClient botClient,
     MessageAssistance messageAssistance,
     CancellationTokenSource cancelToken
 ) : ICommandHandler
 {
     public string Command => "/fastreply@";
-    public string Description => "Reply with this command to give the user a like";
+    public string Description => "Creates new fast reply option '/fastreply' for help";
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -37,9 +36,6 @@ public class FastReplyCommandHandler(
                 SendFastReplyHelp(chatId),
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
-
-        var locked = await lockRepository.TryAcquire(chatId, Command, telegramId: telegramId);
-        if (!locked) return await messageAssistance.CommandNotReady(chatId, messageId, Command);
 
         var maybeFastReply = await CreateFastReply(chatId, message, reply, messageId);
         return await maybeFastReply.MatchAsync(fastReply => AddFastReply(chatId, fastReply), () => unit);

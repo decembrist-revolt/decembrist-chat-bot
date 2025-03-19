@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Reddit;
 using DecembristChatBotSharp.Telegram;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
@@ -27,6 +28,8 @@ public class DiContainer
         var botTelegramId = await GetBotTelegramId(botClient, cancellationTokenSource.Token);
         services.AddKeyedSingleton<Func<long>>(BOT_TELEGRAM_ID, () => botTelegramId);
 
+        services.AddSingleton<RedditService>();
+
         services.AddSingleton<MongoDatabase>();
         services.AddSingleton<IRepository, NewMemberRepository>();
         services.AddSingleton<IRepository, MemberLikeRepository>();
@@ -51,10 +54,12 @@ public class DiContainer
         services.AddSingleton<ICommandHandler, HelpChatCommandHandler>();
         services.AddSingleton<ICommandHandler, LikeCommandHandler>();
         services.AddSingleton<ICommandHandler, FastReplyCommandHandler>();
+        services.AddSingleton<ICommandHandler, RandomMemeCommandHandler>();
         services.AddSingleton<FastReplyCommandHandler>();
         services.AddSingleton<ShowLikesCommandHandler>();
         services.AddSingleton<HelpChatCommandHandler>();
         services.AddSingleton<LikeCommandHandler>();
+        services.AddSingleton<RandomMemeCommandHandler>();
         services.AddSingleton(sp => 
             new Lazy<List<ICommandHandler>>(() => [..sp.GetServices<ICommandHandler>()]));
         services.AddSingleton<MessageAssistance>();
