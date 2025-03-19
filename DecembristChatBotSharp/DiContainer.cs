@@ -15,7 +15,7 @@ public class DiContainer
     public static async Task<ServiceProvider> GetInstance(CancellationTokenSource cancellationTokenSource)
     {
         var services = new ServiceCollection();
-        
+
         services.AddSingleton(cancellationTokenSource);
 
         var appConfig = GetAppConfig();
@@ -34,9 +34,10 @@ public class DiContainer
         services.AddSingleton<NewMemberRepository>();
         services.AddSingleton<MemberLikeRepository>();
         services.AddSingleton<CommandLockRepository>();
+        services.AddSingleton<WhiteListRepository>();
         services.AddSingleton<AdminUserRepository>();
         services.AddSingleton<FastReplyRepository>();
-        
+
         services.AddSingleton<BotHandler>();
         services.AddSingleton<CheckCaptchaScheduler>();
         services.AddSingleton<NewMemberHandler>();
@@ -46,7 +47,7 @@ public class DiContainer
         services.AddSingleton<ChatCommandHandler>();
         services.AddSingleton<ChatMessageHandler>();
         services.AddSingleton<ChatBotAddHandler>();
-        
+
         services.AddSingleton<ICommandHandler, ShowLikesCommandHandler>();
         services.AddSingleton<ICommandHandler, HelpChatCommandHandler>();
         services.AddSingleton<ICommandHandler, LikeCommandHandler>();
@@ -55,7 +56,7 @@ public class DiContainer
         services.AddSingleton<ShowLikesCommandHandler>();
         services.AddSingleton<HelpChatCommandHandler>();
         services.AddSingleton<LikeCommandHandler>();
-        services.AddSingleton(sp => 
+        services.AddSingleton(sp =>
             new Lazy<List<ICommandHandler>>(() => [..sp.GetServices<ICommandHandler>()]));
         services.AddSingleton<MessageAssistance>();
 
