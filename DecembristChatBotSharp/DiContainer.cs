@@ -37,9 +37,10 @@ public class DiContainer
         services.AddSingleton<NewMemberRepository>();
         services.AddSingleton<MemberLikeRepository>();
         services.AddSingleton<CommandLockRepository>();
+        services.AddSingleton<WhiteListRepository>();
         services.AddSingleton<AdminUserRepository>();
         services.AddSingleton<FastReplyRepository>();
-        
+
         services.AddSingleton<BotHandler>();
         services.AddSingleton<CheckCaptchaScheduler>();
         services.AddSingleton<NewMemberHandler>();

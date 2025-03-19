@@ -24,6 +24,7 @@ public class NewMemberHandler(
     AppConfig appConfig,
     BotClient botClient,
     NewMemberRepository db,
+    WhiteListRepository whiteListDb,
     CancellationTokenSource cancelToken
 )
 {
@@ -33,7 +34,8 @@ public class NewMemberHandler(
         var user = parameters.User;
         var telegramId = user.Id;
 
-        if (appConfig.WhiteListIds?.Contains(telegramId) == true) return unit;
+        if (await whiteListDb.IsWhiteListMember(telegramId))
+            return unit;
 
         var sendWelcomeTask = await SendWelcomeMessageForUser(chatId, user);
 
