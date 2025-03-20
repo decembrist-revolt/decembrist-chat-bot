@@ -111,5 +111,7 @@ public record BanConfig(
     [property: Required(AllowEmptyStrings = false)]
     string BanNoReasonMessage,
     [property: Required(AllowEmptyStrings = false)]
-    string BanReceiverNotSetMessage
+    string BanReceiverNotSetMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string BanAdditionMessage
 );

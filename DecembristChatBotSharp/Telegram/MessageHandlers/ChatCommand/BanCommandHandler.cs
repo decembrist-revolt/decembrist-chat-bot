@@ -57,6 +57,10 @@ public class BanCommandHandler(
         if (string.IsNullOrEmpty(arg)) arg = banConfig.BanNoReasonMessage;
         arg = Regex.Replace(arg, @"\s+", " ");
         var message = string.Format(banConfig.BanMessage, banUsername, arg);
+        var rand = new Random();
+        
+        // 1/10 chance to send addition ban message
+        if (rand.Next(10) == 0) message = message + "\n" + banConfig.BanAdditionMessage;
 
         return await Array(SendBanMessage(chatId, telegramId, message, arg),
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
