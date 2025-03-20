@@ -66,6 +66,7 @@ public class DiContainer
         services.AddSingleton(sp => 
             new Lazy<List<ICommandHandler>>(() => [..sp.GetServices<ICommandHandler>()]));
         services.AddSingleton<MessageAssistance>();
+        services.AddSingleton<WrongCommandHandler>();
 
         return services.BuildServiceProvider();
     }

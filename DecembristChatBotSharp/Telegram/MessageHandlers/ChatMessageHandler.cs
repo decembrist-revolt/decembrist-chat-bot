@@ -34,7 +34,8 @@ public readonly struct UnknownPayload : IMessagePayload;
 public class ChatMessageHandler(
     CaptchaHandler captchaHandler,
     ChatCommandHandler chatCommandHandler,
-    FastReplyHandler fastReplyHandler
+    FastReplyHandler fastReplyHandler,
+    WrongCommandHandler wrongCommandHandler
 )
 {
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
@@ -42,10 +43,15 @@ public class ChatMessageHandler(
         var result = await captchaHandler.Do(parameters);
         if (result == Result.Captcha) return unit;
         
-        if (parameters.Payload is TextPayload { Text.Length: > 1 })
+        if (parameters.Payload is TextPayload { Text.Length: > 1, Text: var text })
         {
             var commandResult = await chatCommandHandler.Do(parameters);
             if (commandResult == CommandResult.Ok) return unit;
+
+            if (await wrongCommandHandler.Do(parameters.ChatId, text, parameters.MessageId))
+            {
+                return unit;
+            }
         }
 
         return await fastReplyHandler.Do(parameters);
