@@ -56,6 +56,13 @@ public class BanCommandHandler(
         var banConfig = appConfig.CommandConfig.BanConfig;
         if (string.IsNullOrEmpty(arg)) arg = banConfig.BanNoReasonMessage;
         arg = Regex.Replace(arg, @"\s+", " ");
+        if (arg.Length > banConfig.ReasonLengthLimit)
+        {
+            return await Array(
+                SendToLongReasonMessage(chatId, telegramId),
+                messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
+        }
+        
         var message = string.Format(banConfig.BanMessage, banUsername, arg);
         var rand = new Random();
         
@@ -89,6 +96,17 @@ public class BanCommandHandler(
         return await botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Sent like receiver not set message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send like receiver not set message to chat {0}", chatId),
+            cancelToken.Token);
+    }
+    
+    private async Task<Unit> SendToLongReasonMessage(long chatId, long telegramId)
+    {
+        var banConfig = appConfig.CommandConfig.BanConfig;
+        var message = string.Format(banConfig.ReasonLengthErrorMessage, banConfig.ReasonLengthLimit);
+        return await botClient.SendMessageAndLog(chatId, message,
+            _ => Log.Information("Sent ban reason too long message to chat {0}", chatId),
+            ex => Log.Error(ex,
+                "Failed to send ban reason too long message to chat {0}", chatId),
             cancelToken.Token);
     }
 }
