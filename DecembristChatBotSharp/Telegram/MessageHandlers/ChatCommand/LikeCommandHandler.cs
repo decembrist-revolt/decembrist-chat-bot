@@ -12,6 +12,7 @@ public class LikeCommandHandler(
     MemberLikeRepository memberLikeRepository,
     BotClient botClient,
     MessageAssistance messageAssistance,
+    ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken
 ) : ICommandHandler
 {
@@ -47,7 +48,7 @@ public class LikeCommandHandler(
 
         var sendLikeMessageTask = botClient.GetChatMember(chatId, receiverTelegramId, cancelToken.Token)
             .ToTryAsync()
-            .Map(chatMember => SendLikeMessage(chatId, chatMember))
+            .Bind(chatMember => SendLikeMessage(chatId, chatMember).ToTryAsync())
             .Match(
                 _ => Log.Information("Sent like message to chat {0}", chatId),
                 ex => Log.Error(ex, "Failed to send like message to chat {0}", chatId)
@@ -81,7 +82,11 @@ public class LikeCommandHandler(
     {
         var message = appConfig.CommandConfig.LikeReceiverNotSet;
         return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent like receiver not set message to chat {0}", chatId),
+            message =>
+            {
+                Log.Information("Sent like receiver not set message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
             ex => Log.Error(ex, "Failed to send like receiver not set message to chat {0}", chatId),
             cancelToken.Token);
     }
@@ -90,7 +95,11 @@ public class LikeCommandHandler(
     {
         var message = appConfig.CommandConfig.SelfLikeMessage;
         return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent self like message to chat {0}", chatId),
+            message =>
+            {
+                Log.Information("Sent self like message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
             ex => Log.Error(ex, "Failed to send self like message to chat {0}", chatId),
             cancelToken.Token);
     }

@@ -8,6 +8,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 public class HelpChatCommandHandler(
     CommandLockRepository lockRepository,
     BotClient botClient,
+    ExpiredMessageRepository expiredMessageRepository,
     Lazy<List<ICommandHandler>> commandHandlers) : ICommandHandler
 {
     public string Command => "/help";
@@ -30,8 +31,12 @@ public class HelpChatCommandHandler(
             builder.AppendLine($"{handler.Command} - {handler.Description}");
         }
 
-        return await TryAsync(botClient.SendMessage(chatId, builder.ToString())).Match(
-            _ => Log.Information("Sent help message to chat {0}", chatId),
+        return await botClient.SendMessage(chatId, builder.ToString()).ToTryAsync().Match(
+            message =>
+            {
+                Log.Information("Sent help message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
             ex => Log.Error(ex, "Failed to send help message to chat {0}", chatId)
         );
     }

@@ -43,8 +43,8 @@ public class NewMemberHandler(
         var sendWelcomeTask = await SendWelcomeMessageForUser(chatId, user);
 
         return sendWelcomeTask.Match(
-            Right: username => Log.Information("Sent welcome message to {Username}", username),
-            Left: usernameEx =>
+            username => Log.Information("Sent welcome message to {Username}", username),
+            usernameEx =>
                 Log.Error(usernameEx.Ex, "Failed to send welcome message to {Username}", usernameEx.Username)
         );
     }

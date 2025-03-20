@@ -10,6 +10,7 @@ public class BanCommandHandler(
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
     BotClient botClient,
+    ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public string Command => "/ban";
@@ -94,7 +95,11 @@ public class BanCommandHandler(
     {
         var message = appConfig.CommandConfig.BanConfig.BanReceiverNotSetMessage;
         return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent like receiver not set message to chat {0}", chatId),
+            message =>
+            {
+                Log.Information("Sent like receiver not set message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
             ex => Log.Error(ex, "Failed to send like receiver not set message to chat {0}", chatId),
             cancelToken.Token);
     }
@@ -104,7 +109,11 @@ public class BanCommandHandler(
         var banConfig = appConfig.CommandConfig.BanConfig;
         var message = string.Format(banConfig.ReasonLengthErrorMessage, banConfig.ReasonLengthLimit);
         return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent ban reason too long message to chat {0}", chatId),
+            message =>
+            {
+                Log.Information("Sent ban reason too long message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
             ex => Log.Error(ex,
                 "Failed to send ban reason too long message to chat {0}", chatId),
             cancelToken.Token);

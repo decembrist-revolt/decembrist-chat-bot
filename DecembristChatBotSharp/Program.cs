@@ -22,6 +22,8 @@ try
     botHandler.Start();
     var checkCaptcha = container.GetRequiredService<CheckCaptchaScheduler>();
     checkCaptcha.Start();
+    var expiredMessageService = container.GetRequiredService<ExpiredMessageService>();
+    expiredMessageService.Start();
 
     Console.CancelKeyPress += (_, args) =>
     {

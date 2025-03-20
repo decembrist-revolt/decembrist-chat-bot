@@ -11,6 +11,7 @@ public class RandomMemeCommandHandler(
     AdminUserRepository adminUserRepository,
     MessageAssistance messageAssistance,
     BotClient botClient,
+    ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public string Command => "/randommeme";
@@ -48,7 +49,11 @@ public class RandomMemeCommandHandler(
     {
         var message = appConfig.RedditConfig.RedditErrorMessage;
         return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent reddit error message to chat {0}", chatId),
+            message =>
+            {
+                Log.Information("Sent reddit error message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
             ex => Log.Error(ex, "Failed to send reddit error message to chat {0}", chatId),
             cancelToken.Token);
     }

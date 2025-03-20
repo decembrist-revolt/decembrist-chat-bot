@@ -29,17 +29,23 @@ public class DiContainer
         services.AddKeyedSingleton<Func<long>>(BOT_TELEGRAM_ID, () => botTelegramId);
 
         services.AddSingleton<RedditService>();
+        services.AddSingleton<ExpiredMessageService>();
 
         services.AddSingleton<MongoDatabase>();
         services.AddSingleton<IRepository, NewMemberRepository>();
         services.AddSingleton<IRepository, MemberLikeRepository>();
         services.AddSingleton<IRepository, CommandLockRepository>();
+        services.AddSingleton<IRepository, ExpiredMessageRepository>();
+        services.AddSingleton<IRepository, FastReplyRepository>();
+        services.AddSingleton<IRepository, AdminUserRepository>();
+        services.AddSingleton<IRepository, WhiteListRepository>();
         services.AddSingleton<NewMemberRepository>();
         services.AddSingleton<MemberLikeRepository>();
         services.AddSingleton<CommandLockRepository>();
         services.AddSingleton<WhiteListRepository>();
         services.AddSingleton<AdminUserRepository>();
         services.AddSingleton<FastReplyRepository>();
+        services.AddSingleton<ExpiredMessageRepository>();
 
         services.AddSingleton<BotHandler>();
         services.AddSingleton<CheckCaptchaScheduler>();

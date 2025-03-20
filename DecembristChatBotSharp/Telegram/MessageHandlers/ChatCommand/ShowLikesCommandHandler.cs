@@ -6,11 +6,11 @@ using Telegram.Bot;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 public class ShowLikesCommandHandler(
-    AppConfig appConfig,
     CommandLockRepository lockRepository,
     MemberLikeRepository memberLikeRepository,
     BotClient botClient,
     MessageAssistance messageAssistance,
+    ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken
 ) : ICommandHandler
 {
@@ -20,9 +20,9 @@ public class ShowLikesCommandHandler(
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var chatId = parameters.ChatId;
-        var locked = await lockRepository.TryAcquire(chatId, Command);
         var messageId = parameters.MessageId;
         
+        var locked = await lockRepository.TryAcquire(chatId, Command);
         if (!locked) return await messageAssistance.CommandNotReady(chatId, messageId, Command);
         
         Log.Information("Processing show likes command in chat {0}", chatId);
@@ -38,6 +38,7 @@ public class ShowLikesCommandHandler(
         var usernameCounts = usernameCountChunks.Flatten();
 
         await SendLikes(chatId, usernameCounts);
+        expiredMessageRepository.QueueMessage(chatId, messageId);
 
         return unit;
     }
@@ -53,7 +54,11 @@ public class ShowLikesCommandHandler(
         }
 
         await botClient.SendMessageAndLog(chatId, builder.ToString(),
-            _ => Log.Information("Sent top likes message to chat {0}", chatId),
+            message =>
+            {
+                Log.Information("Sent top likes message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
             ex => Log.Error(ex, "Failed to send top likes message to chat {0}", chatId),
             cancelToken.Token
         );

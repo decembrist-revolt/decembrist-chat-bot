@@ -11,6 +11,7 @@ public class FastReplyCommandHandler(
     FastReplyRepository fastReplyRepository,
     BotClient botClient,
     MessageAssistance messageAssistance,
+    ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken
 ) : ICommandHandler
 {
@@ -94,7 +95,11 @@ public class FastReplyCommandHandler(
     {
         var message = appConfig.CommandConfig.FastReplyHelpMessage;
         return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent fast reply help message to chat {0}", chatId),
+            message =>
+            {
+                Log.Information("Sent fast reply help message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
             ex => Log.Error(ex, "Failed to send fast reply help message to chat {0}", chatId),
             cancelToken.Token);
     }
@@ -104,7 +109,11 @@ public class FastReplyCommandHandler(
     {
         var message = string.Format(appConfig.CommandConfig.FastReplyDuplicateMessage, text);
         return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent fast reply duplicate message to chat {0}", chatId),
+            message =>
+            {
+                Log.Information("Sent fast reply duplicate message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
             ex => Log.Error(ex, "Failed to send fast reply duplicate message to chat {0}", chatId),
             cancelToken.Token);
     }

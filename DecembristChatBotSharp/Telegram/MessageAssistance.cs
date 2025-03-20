@@ -1,10 +1,14 @@
-﻿using DecembristChatBotSharp.Telegram.MessageHandlers;
+﻿using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Serilog;
-using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram;
 
-public class MessageAssistance(AppConfig appConfig, BotClient botClient, CancellationTokenSource cancelToken)
+public class MessageAssistance(
+    AppConfig appConfig, 
+    BotClient botClient, 
+    ExpiredMessageRepository expiredMessageRepository,
+    CancellationTokenSource cancelToken)
 {
     public async Task<Unit> CommandNotReady(
         long chatId,
@@ -18,7 +22,11 @@ public class MessageAssistance(AppConfig appConfig, BotClient botClient, Cancell
         var interval = appConfig.CommandConfig.CommandIntervalSeconds;
         var message = string.Format(appConfig.CommandConfig.CommandNotReady, command, interval);
         return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent command not ready message to chat {0}", chatId),
+            message =>
+            {
+                Log.Information("Sent command not ready message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
             ex => Log.Error(ex, "Failed to send command not ready message to chat {0}", chatId),
             cancelToken.Token);
     }
@@ -30,7 +38,11 @@ public class MessageAssistance(AppConfig appConfig, BotClient botClient, Cancell
     
     public async Task<Unit> SendAdminOnlyMessage(long chatId, long telegramId) =>
         await botClient.SendMessageAndLog(chatId, appConfig.CommandConfig.AdminOnlyMessage,
-            _ => Log.Information("Sent admin only message to {0} chat {1}", telegramId, chatId),
+            message =>
+            {
+                Log.Information("Sent admin only message to {0} chat {1}", telegramId, chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
             ex => Log.Error(ex, "Failed to send admin only message to {0} chat {1}", telegramId, chatId),
             cancelToken.Token);
     
@@ -39,7 +51,11 @@ public class MessageAssistance(AppConfig appConfig, BotClient botClient, Cancell
         var stickerMessage = FastReplyHandler.StickerPrefix + fileId;
         var message = string.Format(appConfig.CommandConfig.StickerNotFoundMessage, stickerMessage);
         return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent sticker not found message to chat {0}", chatId),
+            message =>
+            {
+                Log.Information("Sent sticker not found message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
             ex => Log.Error(ex, "Failed to send sticker not found message to chat {0}", chatId),
             cancelToken.Token);
     }

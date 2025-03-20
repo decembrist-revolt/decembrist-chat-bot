@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using DecembristChatBotSharp.Mongo;
 using Serilog;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
@@ -7,6 +8,7 @@ public class WrongCommandHandler(
     AppConfig appConfig,
     BotClient botClient,
     MessageAssistance messageAssistance,
+    ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken
 )
 {
@@ -23,11 +25,13 @@ public class WrongCommandHandler(
         return true;
     }
 
-    private async Task SendWrongCommandMessage(long chatId, string message)
-    {
+    private async Task<Unit> SendWrongCommandMessage(long chatId, string message) =>
         await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent wrong command message to chat {0}", chatId),
+            message =>
+            {
+                Log.Information("Sent wrong command message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
             ex => Log.Error(ex, "Failed to send wrong command message to chat {0}", chatId),
             cancelToken.Token);
-    }
 }
