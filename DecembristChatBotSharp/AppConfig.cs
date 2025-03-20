@@ -84,7 +84,8 @@ public record CommandConfig(
     [property: Required(AllowEmptyStrings = false)]
     string StickerNotFoundMessage,
     [property: Required(AllowEmptyStrings = false)]
-    string FastReplyDuplicateMessage
+    string FastReplyDuplicateMessage,
+    BanConfig BanConfig
 );
 
 public record RedditConfig(
@@ -102,4 +103,13 @@ public record RedditConfig(
     [property: Required] string[] Subreddits,
     [property: Required(AllowEmptyStrings = false)] 
     string RedditErrorMessage
+);
+
+public record BanConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string BanMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string BanNoReasonMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string BanReceiverNotSetMessage
 );

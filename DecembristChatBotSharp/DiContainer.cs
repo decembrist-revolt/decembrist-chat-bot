@@ -56,11 +56,13 @@ public class DiContainer
         services.AddSingleton<ICommandHandler, LikeCommandHandler>();
         services.AddSingleton<ICommandHandler, FastReplyCommandHandler>();
         services.AddSingleton<ICommandHandler, RandomMemeCommandHandler>();
+        services.AddSingleton<ICommandHandler, BanCommandHandler>();
         services.AddSingleton<FastReplyCommandHandler>();
         services.AddSingleton<ShowLikesCommandHandler>();
         services.AddSingleton<HelpChatCommandHandler>();
         services.AddSingleton<LikeCommandHandler>();
         services.AddSingleton<RandomMemeCommandHandler>();
+        services.AddSingleton<BanCommandHandler>();
         services.AddSingleton(sp => 
             new Lazy<List<ICommandHandler>>(() => [..sp.GetServices<ICommandHandler>()]));
         services.AddSingleton<MessageAssistance>();
