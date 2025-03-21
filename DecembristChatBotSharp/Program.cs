@@ -16,8 +16,6 @@ var cancelTokenSource = new CancellationTokenSource();
 try
 {
     var container = await DiContainer.GetInstance(cancelTokenSource);
-    Console.WriteLine(container.WhatDoIHave());
-    Console.WriteLine(container.WhatDidIScan());
     Log.Information("DI Container created");
     await EnsureIndexes(container);
     Log.Information("Indexes ensured");
