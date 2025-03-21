@@ -4,6 +4,7 @@ global using BotClient = Telegram.Bot.ITelegramBotClient;
 using DecembristChatBotSharp;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Telegram;
+using Lamar;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
@@ -15,6 +16,8 @@ var cancelTokenSource = new CancellationTokenSource();
 try
 {
     var container = await DiContainer.GetInstance(cancelTokenSource);
+    Console.WriteLine(container.WhatDoIHave());
+    Console.WriteLine(container.WhatDidIScan());
     Log.Information("DI Container created");
     await EnsureIndexes(container);
     Log.Information("Indexes ensured");
@@ -45,7 +48,7 @@ await Task.Delay(Timeout.Infinite, cancelTokenSource.Token);
 
 return;
 
-async Task EnsureIndexes(ServiceProvider container)
+async Task EnsureIndexes(Container container)
 {
     var services = container.GetServices<IRepository>();
     await Task.WhenAll(services.Map(service => service.EnsureIndexes()));

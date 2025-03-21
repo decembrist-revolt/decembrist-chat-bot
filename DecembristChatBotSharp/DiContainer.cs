@@ -16,68 +16,52 @@ public class DiContainer
 {
     public const string BOT_TELEGRAM_ID = "BotTelegramId";
 
-    public static async Task<ServiceProvider> GetInstance(CancellationTokenSource cancellationTokenSource)
+    public static async Task<Container> GetInstance(CancellationTokenSource cancellationTokenSource)
     {
-        var services = new ServiceCollection();
+        var registry = new ServiceRegistry();
 
-        services.AddSingleton(cancellationTokenSource);
+        registry.AddSingleton(cancellationTokenSource);
 
         var appConfig = GetAppConfig();
-        services.AddSingleton(appConfig);
+        registry.AddSingleton(appConfig);
 
         var botClient = new TelegramBotClient(appConfig.TelegramBotToken);
-        services.AddSingleton<BotClient>(botClient);
+        registry.AddSingleton<BotClient>(botClient);
 
         var botTelegramId = await GetBotTelegramId(botClient, cancellationTokenSource.Token);
-        services.AddKeyedSingleton<Func<long>>(BOT_TELEGRAM_ID, () => botTelegramId);
+        registry.AddKeyedSingleton<Func<long>>(BOT_TELEGRAM_ID, () => botTelegramId);
 
-        services.AddSingleton<RedditService>();
-        services.AddSingleton<ExpiredMessageService>();
+        registry.AddSingleton<RedditService>();
+        registry.AddSingleton<ExpiredMessageService>();
 
-        services.AddSingleton<MongoDatabase>();
-        services.AddSingleton<IRepository, NewMemberRepository>();
-        services.AddSingleton<IRepository, MemberLikeRepository>();
-        services.AddSingleton<IRepository, CommandLockRepository>();
-        services.AddSingleton<IRepository, ExpiredMessageRepository>();
-        services.AddSingleton<IRepository, FastReplyRepository>();
-        services.AddSingleton<IRepository, AdminUserRepository>();
-        services.AddSingleton<IRepository, WhiteListRepository>();
-        services.AddSingleton<NewMemberRepository>();
-        services.AddSingleton<MemberLikeRepository>();
-        services.AddSingleton<CommandLockRepository>();
-        services.AddSingleton<WhiteListRepository>();
-        services.AddSingleton<AdminUserRepository>();
-        services.AddSingleton<FastReplyRepository>();
-        services.AddSingleton<ExpiredMessageRepository>();
+        registry.AddSingleton<MongoDatabase>();
+        registry.Scan(s =>
+        {
+            s.TheCallingAssembly();
+            //для регистрации по I[Name] [Name] s.WithDefaultConventions(lifetime: ServiceLifetime.Singleton);
 
-        services.AddSingleton<BotHandler>();
-        services.AddSingleton<CheckCaptchaScheduler>();
-        services.AddSingleton<NewMemberHandler>();
-        services.AddSingleton<PrivateMessageHandler>();
-        services.AddSingleton<FastReplyHandler>();
-        services.AddSingleton<CaptchaHandler>();
-        services.AddSingleton<ChatCommandHandler>();
-        services.AddSingleton<ChatMessageHandler>();
-        services.AddSingleton<ChatBotAddHandler>();
+            s.Convention<SingletonConvention<IRepository>>();
 
-        services.AddSingleton<ICommandHandler, ShowLikesCommandHandler>();
-        services.AddSingleton<ICommandHandler, HelpChatCommandHandler>();
-        services.AddSingleton<ICommandHandler, LikeCommandHandler>();
-        services.AddSingleton<ICommandHandler, FastReplyCommandHandler>();
-        services.AddSingleton<ICommandHandler, RandomMemeCommandHandler>();
-        services.AddSingleton<ICommandHandler, BanCommandHandler>();
-        services.AddSingleton<FastReplyCommandHandler>();
-        services.AddSingleton<ShowLikesCommandHandler>();
-        services.AddSingleton<HelpChatCommandHandler>();
-        services.AddSingleton<LikeCommandHandler>();
-        services.AddSingleton<RandomMemeCommandHandler>();
-        services.AddSingleton<BanCommandHandler>();
-        services.AddSingleton(sp =>
+            registry.AddSingleton<ICommandHandler, ShowLikesCommandHandler>();
+            s.Convention<SingletonConvention<ICommandHandler>>();
+        });
+
+        registry.AddSingleton<BotHandler>();
+        registry.AddSingleton<CheckCaptchaScheduler>();
+        registry.AddSingleton<NewMemberHandler>();
+        registry.AddSingleton<PrivateMessageHandler>();
+        registry.AddSingleton<FastReplyHandler>();
+        registry.AddSingleton<CaptchaHandler>();
+        registry.AddSingleton<ChatCommandHandler>();
+        registry.AddSingleton<ChatMessageHandler>();
+        registry.AddSingleton<ChatBotAddHandler>();
+        registry.AddSingleton<WrongCommandHandler>();
+
+        registry.AddSingleton(sp =>
             new Lazy<List<ICommandHandler>>(() => [..sp.GetServices<ICommandHandler>()]));
-        services.AddSingleton<MessageAssistance>();
-        services.AddSingleton<WrongCommandHandler>();
+        registry.AddSingleton<MessageAssistance>();
 
-        return services.BuildServiceProvider();
+        return new Container(registry);
     }
 
     private static AppConfig GetAppConfig() => AppConfig.GetInstance().Match(
