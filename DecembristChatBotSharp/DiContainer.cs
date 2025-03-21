@@ -43,7 +43,7 @@ public class DiContainer
             s.Convention<SingletonConvention<IRepository>>();
 
             registry.AddSingleton<ICommandHandler, ShowLikesCommandHandler>();
-            s.Convention<SingletonConvention<ICommandHandler>>();
+            s.AddAllTypesOf<ICommandHandler>(ServiceLifetime.Singleton);
         });
 
         registry.AddSingleton<BotHandler>();
