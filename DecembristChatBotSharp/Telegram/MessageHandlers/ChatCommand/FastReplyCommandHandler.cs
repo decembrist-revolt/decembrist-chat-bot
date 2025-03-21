@@ -11,6 +11,7 @@ public class FastReplyCommandHandler(
     AppConfig appConfig,
     AdminUserRepository adminUserRepository,
     FastReplyRepository fastReplyRepository,
+    MemberItemRepository memberItemRepository,
     BotClient botClient,
     MessageAssistance messageAssistance,
     ExpiredMessageRepository expiredMessageRepository,
@@ -29,30 +30,44 @@ public class FastReplyCommandHandler(
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
         if (!await adminUserRepository.IsAdmin(telegramId))
         {
-            return await messageAssistance.SendAdminOnlyMessage(chatId, telegramId);
+            if (!await memberItemRepository.RemoveMemberItem(telegramId, chatId, MemberItemType.FastReply))
+            {
+                return await messageAssistance.SendNoItems(chatId);
+            }
         }
 
         var args = text.Trim().Split("@").Skip(1).ToArray();
         if (args is not [var message, var reply])
         {
             return await Array(
+                AddItemBack(chatId, telegramId),
                 SendFastReplyHelp(chatId),
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
 
         var maybeFastReply = await CreateFastReply(chatId, message, reply, messageId);
-        return await maybeFastReply.MatchAsync(fastReply => AddFastReply(chatId, fastReply), () => unit);
+        return await maybeFastReply.MatchAsync(
+            fastReply => AddFastReply(chatId, telegramId, messageId, fastReply),
+            () => AddItemBack(chatId, telegramId));
     }
 
-    private async Task<Unit> AddFastReply(long chatId, FastReply fastReply)
+    private async Task<Unit> AddFastReply(long chatId, long telegramId, int messageId, FastReply fastReply)
     {
         var result = await fastReplyRepository.AddFastReply(fastReply);
         return result switch
         {
-            FastReplyRepository.InsertResult.Duplicate => await SendDuplicateMessage(chatId, fastReply.Id.Message),
-            _ => unit
+            FastReplyRepository.InsertResult.Duplicate => await Array(
+                expiredMessageRepository.QueueMessage(chatId, messageId),
+                SendDuplicateMessage(chatId, fastReply.Id.Message),
+                AddItemBack(chatId, telegramId)).WhenAll(),
+            FastReplyRepository.InsertResult.Failed => await AddItemBack(chatId, telegramId),
+            _ => await Array(SendNewFastReply(chatId, fastReply.Id.Message, fastReply.Reply),
+                expiredMessageRepository.QueueMessage(chatId, messageId)).WhenAll()
         };
     }
+
+    private Task<Unit> AddItemBack(long chatId, long telegramId) =>
+        memberItemRepository.AddMemberItem(telegramId, chatId, MemberItemType.FastReply).UnitTask();
 
     private async Task<Option<FastReply>> CreateFastReply(long chatId, string message, string reply, int messageId)
     {
@@ -91,6 +106,21 @@ public class FastReplyCommandHandler(
         }
 
         return true;
+    }
+
+    private async Task<Unit> SendNewFastReply(long chatId, string message, string reply)
+    {
+        Log.Information("New fast reply {0} -> {1} in chat {2}", message, reply, chatId);
+
+        var replyMessage = string.Format(appConfig.CommandConfig.NewFastReplyMessage, message, reply);
+        return await botClient.SendMessageAndLog(chatId, replyMessage,
+            message =>
+            {
+                Log.Information("Sent new fast reply message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
+            ex => Log.Error(ex, "Failed to send new fast reply message to chat {0}", chatId),
+            cancelToken.Token);
     }
 
     private async Task<Unit> SendFastReplyHelp(long chatId)

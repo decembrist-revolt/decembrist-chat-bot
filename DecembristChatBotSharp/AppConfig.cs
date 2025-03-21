@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using DecembristChatBotSharp.Entity;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 
@@ -26,6 +27,7 @@ public record AppConfig(
     MongoConfig MongoConfig,
     CommandConfig CommandConfig,
     RedditConfig RedditConfig,
+    ItemConfig ItemConfig,
     DateTime? DeployTime = null,
     List<long>? WhiteListIds = null)
 {
@@ -84,6 +86,8 @@ public record CommandConfig(
     [property: Required(AllowEmptyStrings = false)]
     string StickerNotFoundMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string NewFastReplyMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string FastReplyDuplicateMessage,
     BanConfig BanConfig,
     [property: Required(AllowEmptyStrings = false)]
@@ -103,7 +107,7 @@ public record RedditConfig(
     [property: Required(AllowEmptyStrings = false)]
     string UserAgent,
     [property: Required] string[] Subreddits,
-    [property: Required(AllowEmptyStrings = false)] 
+    [property: Required(AllowEmptyStrings = false)]
     string RedditErrorMessage
 );
 
@@ -119,4 +123,14 @@ public record BanConfig(
     int ReasonLengthLimit,
     [property: Required(AllowEmptyStrings = false)]
     string ReasonLengthErrorMessage
+);
+
+public record ItemConfig(
+    Dictionary<MemberItemType, double> ItemChance,
+    [property: Required(AllowEmptyStrings = false)]
+    string NoItemsMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string GetItemMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FailedToOpenBoxMessage
 );

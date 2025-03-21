@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Reddit;
 using Lamar;
 using Serilog;
@@ -9,6 +10,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 [Singleton]
 public class RandomMemeCommandHandler(
     AppConfig appConfig,
+    MemberItemRepository memberItemRepository,
     RedditService redditService,
     AdminUserRepository adminUserRepository,
     MessageAssistance messageAssistance,
@@ -27,16 +29,23 @@ public class RandomMemeCommandHandler(
 
         if (!await adminUserRepository.IsAdmin(telegramId))
         {
-            return await messageAssistance.SendAdminOnlyMessage(chatId, telegramId);
+            if (!await memberItemRepository.RemoveMemberItem(telegramId, chatId, MemberItemType.RedditMeme))
+            {
+                return await messageAssistance.SendNoItems(chatId);
+            }
         }
 
         var maybeMeme = await redditService.GetRandomMeme();
         if (maybeMeme.IsNone) maybeMeme = await redditService.GetRandomMeme();
-        if (maybeMeme.IsNone) return await SendRedditErrorMessage(chatId);
+        if (maybeMeme.IsNone)
+        {
+            await Array(SendRedditErrorMessage(chatId),
+                memberItemRepository.AddMemberItem(telegramId, chatId, MemberItemType.RedditMeme).UnitTask()).WhenAll();
+        }
 
         return await maybeMeme.IfSomeAsync(meme => SendMemeAndDeleteSource(chatId, messageId, meme));
     }
-    
+
     private Task<Unit> SendMemeAndDeleteSource(long chatId, int messageId, RedditRandomMeme meme)
     {
         var message = $"{meme.Url.EscapeMarkdown()}\n[Источник]({meme.Permalink.EscapeMarkdown()})";
