@@ -3,6 +3,9 @@ using DecembristChatBotSharp.Reddit;
 using DecembristChatBotSharp.Telegram;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
+using JasperFx.Core.TypeScanning;
+using Lamar;
+using Lamar.Scanning.Conventions;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Telegram.Bot;
@@ -16,7 +19,7 @@ public class DiContainer
     public static async Task<ServiceProvider> GetInstance(CancellationTokenSource cancellationTokenSource)
     {
         var services = new ServiceCollection();
-        
+
         services.AddSingleton(cancellationTokenSource);
 
         var appConfig = GetAppConfig();
@@ -56,7 +59,7 @@ public class DiContainer
         services.AddSingleton<ChatCommandHandler>();
         services.AddSingleton<ChatMessageHandler>();
         services.AddSingleton<ChatBotAddHandler>();
-        
+
         services.AddSingleton<ICommandHandler, ShowLikesCommandHandler>();
         services.AddSingleton<ICommandHandler, HelpChatCommandHandler>();
         services.AddSingleton<ICommandHandler, LikeCommandHandler>();
@@ -69,7 +72,7 @@ public class DiContainer
         services.AddSingleton<LikeCommandHandler>();
         services.AddSingleton<RandomMemeCommandHandler>();
         services.AddSingleton<BanCommandHandler>();
-        services.AddSingleton(sp => 
+        services.AddSingleton(sp =>
             new Lazy<List<ICommandHandler>>(() => [..sp.GetServices<ICommandHandler>()]));
         services.AddSingleton<MessageAssistance>();
         services.AddSingleton<WrongCommandHandler>();
@@ -95,6 +98,21 @@ public class DiContainer
         {
             Log.Error(ex, "Failed to get bot user");
             throw ex;
+        }
+    }
+}
+
+public class SingletonConvention<T> : IRegistrationConvention
+{
+    public void ScanTypes(TypeSet types, ServiceRegistry registry)
+    {
+        var serviceTypes = types.FindTypes(TypeClassification.Concretes | TypeClassification.Closed)
+            .Where(t => t.GetInterfaces().Contains(typeof(T)));
+
+        foreach (var type in serviceTypes)
+        {
+            registry.For(typeof(T)).Use(type).Singleton();
+            registry.For(type).Use(type).Singleton();
         }
     }
 }
