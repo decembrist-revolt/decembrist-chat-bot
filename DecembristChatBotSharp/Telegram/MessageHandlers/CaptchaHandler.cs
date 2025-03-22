@@ -1,5 +1,6 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using Lamar;
 using LanguageExt.Common;
 using LanguageExt.UnsafeValueAccess;
 using Serilog;
@@ -13,6 +14,7 @@ public enum Result
     Captcha
 }
 
+[Singleton]
 public class CaptchaHandler(
     AppConfig appConfig,
     BotClient botClient,

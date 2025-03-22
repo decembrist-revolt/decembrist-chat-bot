@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using Lamar;
 using Serilog;
 using static System.Net.HttpStatusCode;
 
@@ -32,6 +33,7 @@ internal record RedditAuthResponse(
 
 public record RedditRandomMeme(string Permalink, string Url);
 
+[Singleton]
 public class RedditService(AppConfig appConfig)
 {
     private const string AuthUrl = "/api/v1/access_token";
@@ -47,7 +49,11 @@ public class RedditService(AppConfig appConfig)
 
     public async Task<Option<RedditRandomMeme>> GetRandomMeme()
     {
-        if (!_isAuthenticated && !await Authenticate()) return None;
+        if (!_isAuthenticated && !await Authenticate())
+        {
+            _isAuthenticated = false;
+            return None;
+        }
 
         var redditConfig = appConfig.RedditConfig;
 
@@ -186,6 +192,7 @@ public class RedditService(AppConfig appConfig)
 
         if (message.StatusCode is Unauthorized or Forbidden)
         {
+            _isAuthenticated = false;
             Log.Error("Error while authenticating Reddit API: {0}", message.ReasonPhrase);
         }
         else

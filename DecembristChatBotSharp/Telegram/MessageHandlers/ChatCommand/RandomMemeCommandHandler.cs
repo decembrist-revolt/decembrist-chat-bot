@@ -1,10 +1,12 @@
 ﻿using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Reddit;
+using Lamar;
 using Serilog;
 using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
+[Singleton]
 public class RandomMemeCommandHandler(
     AppConfig appConfig,
     RedditService redditService,

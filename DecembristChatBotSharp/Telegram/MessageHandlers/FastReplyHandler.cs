@@ -1,11 +1,13 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using Lamar;
 using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
+[Singleton]
 public class FastReplyHandler(
     FastReplyRepository db,
     BotClient botClient,

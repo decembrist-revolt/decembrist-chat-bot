@@ -1,9 +1,11 @@
 ﻿using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Mongo;
+using Lamar;
 using Serilog;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
+[Singleton]
 public class WrongCommandHandler(
     AppConfig appConfig,
     BotClient botClient,

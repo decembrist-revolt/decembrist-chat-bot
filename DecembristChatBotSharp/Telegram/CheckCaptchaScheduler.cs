@@ -1,10 +1,12 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using Lamar;
 using Serilog;
 using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram;
 
+[Singleton]
 public class CheckCaptchaScheduler(
     BotClient bot,
     AppConfig appConfig,

@@ -1,16 +1,17 @@
 ﻿using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
+using Lamar;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
-public class ChatCommandHandler(IEnumerable<ICommandHandler> handlers)
+[Singleton]
+public class ChatCommandHandler(Lazy<IList<ICommandHandler>> handlers)
 {
     public async Task<CommandResult> Do(ChatMessageHandlerParams parameters)
     {
         var command = parameters.Payload is TextPayload { Text: var text }
             ? text
             : throw new Exception("Payload is not a text payload");
-        var maybeHandler = 
-            Optional(handlers.Filter(handler => command.StartsWith(handler.Command)).FirstOrDefault());
+        var maybeHandler = handlers.Value.Find(handler => MatchCommand(command, handler));
 
         return await maybeHandler
             .MapAsync(handler => handler.Do(parameters))
@@ -19,6 +20,11 @@ public class ChatCommandHandler(IEnumerable<ICommandHandler> handlers)
                 () => CommandResult.None
             );
     }
+    
+    private bool MatchCommand(string command, ICommandHandler handler) => 
+        command == handler.Command
+        || command.StartsWith(handler.Command + ' ') 
+        || command.StartsWith(handler.Command + '@');
 }
 
 public enum CommandResult

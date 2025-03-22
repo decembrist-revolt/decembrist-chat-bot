@@ -1,9 +1,11 @@
 ﻿using DecembristChatBotSharp.Entity;
+using Lamar;
 using LanguageExt.Common;
 using MongoDB.Driver;
 
 namespace DecembristChatBotSharp.Mongo;
 
+[Singleton]
 public class NewMemberRepository(MongoDatabase db, CancellationTokenSource cancelToken) : IRepository
 {
     public TryAsync<Unit> AddNewMember(long telegramId, string username, long chatId, int welcomeMessageId)

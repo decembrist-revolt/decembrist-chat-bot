@@ -1,8 +1,10 @@
-﻿using Serilog;
+﻿using Lamar;
+using Serilog;
 using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
+[Singleton]
 public class ChatBotAddHandler(AppConfig appConfig, BotClient botClient)
 {
     public async Task<Unit> Do(

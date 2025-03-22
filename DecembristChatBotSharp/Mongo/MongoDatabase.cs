@@ -1,8 +1,10 @@
-﻿using MongoDB.Driver;
+﻿using Lamar;
+using MongoDB.Driver;
 
 namespace DecembristChatBotSharp.Mongo;
 
-public class MongoDatabase(AppConfig appConfig)
+[Singleton]
+public class MongoDatabase(AppConfig appConfig, Lazy<IList<IRepository>> repositories)
 {
     private readonly MongoClient _client = new(appConfig.MongoConfig.ConnectionString);
 
@@ -10,4 +12,7 @@ public class MongoDatabase(AppConfig appConfig)
 
     public IMongoCollection<T> GetCollection<T>(string collectionName) =>
         GetDatabase().GetCollection<T>(collectionName);
+
+    public async Task EnsureIndexes() =>
+        await repositories.Value.Map(repository => repository.EnsureIndexes()).WhenAll();
 }

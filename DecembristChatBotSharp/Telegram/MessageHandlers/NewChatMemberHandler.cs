@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Mongo;
+using Lamar;
 using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -20,6 +21,7 @@ internal readonly struct UsernameEx(string username, Exception ex)
     public Exception Ex => ex;
 }
 
+[Singleton]
 public class NewMemberHandler(
     AppConfig appConfig,
     BotClient botClient,

@@ -1,6 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
-using LanguageExt.Common;
-using MongoDB.Bson;
+using Lamar;
 using MongoDB.Driver;
 using Serilog;
 
@@ -8,6 +7,7 @@ namespace DecembristChatBotSharp.Mongo;
 
 public record LikeTelegramToLikeCount(long LikeTelegramId, int Count);
 
+[Singleton]
 public class MemberLikeRepository(
     AppConfig appConfig,
     MongoDatabase db,

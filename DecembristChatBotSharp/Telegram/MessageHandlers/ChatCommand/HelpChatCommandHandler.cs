@@ -1,15 +1,17 @@
 ﻿using System.Text;
 using DecembristChatBotSharp.Mongo;
+using Lamar;
 using Serilog;
 using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
+[Singleton]
 public class HelpChatCommandHandler(
     CommandLockRepository lockRepository,
     BotClient botClient,
     ExpiredMessageRepository expiredMessageRepository,
-    Lazy<List<ICommandHandler>> commandHandlers) : ICommandHandler
+    Lazy<IList<ICommandHandler>> commandHandlers) : ICommandHandler
 {
     public string Command => "/help";
     public string Description => "Help";

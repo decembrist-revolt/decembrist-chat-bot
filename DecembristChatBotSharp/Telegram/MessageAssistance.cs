@@ -1,9 +1,11 @@
 ﻿using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
+using Lamar;
 using Serilog;
 
 namespace DecembristChatBotSharp.Telegram;
 
+[Singleton]
 public class MessageAssistance(
     AppConfig appConfig, 
     BotClient botClient, 
