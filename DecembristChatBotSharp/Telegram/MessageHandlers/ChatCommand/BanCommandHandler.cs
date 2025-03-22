@@ -1,10 +1,12 @@
 ﻿using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Mongo;
+using Lamar;
 using Serilog;
 using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
+[Singleton]
 public class BanCommandHandler(
     AppConfig appConfig,
     MessageAssistance messageAssistance,

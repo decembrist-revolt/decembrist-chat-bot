@@ -1,4 +1,4 @@
-﻿using MongoDB.Bson;
+﻿using Lamar;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
@@ -31,6 +31,7 @@ public readonly struct StickerPayload(string fileId) : IMessagePayload
 
 public readonly struct UnknownPayload : IMessagePayload;
 
+[Singleton]
 public class ChatMessageHandler(
     CaptchaHandler captchaHandler,
     ChatCommandHandler chatCommandHandler,

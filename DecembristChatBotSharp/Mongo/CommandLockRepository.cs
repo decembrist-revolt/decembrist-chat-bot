@@ -1,11 +1,12 @@
 ﻿using DecembristChatBotSharp.Entity;
+using Lamar;
 using LanguageExt.UnsafeValueAccess;
 using MongoDB.Driver;
 using Serilog;
-using Optional = LanguageExt.Optional;
 
 namespace DecembristChatBotSharp.Mongo;
 
+[Singleton]
 public class CommandLockRepository(
     AppConfig appConfig,
     MongoDatabase db,
@@ -21,7 +22,7 @@ public class CommandLockRepository(
                                && @lock.Id.Arguments == arguments
                                && @lock.Id.TelegramId == telegramId)
                 .SingleOrDefaultAsync(cancelToken.Token))
-            .Map(@lock => Optional(@lock))
+            .Map(Optional)
             .ToEither();
 
         if (errorOrOption.IsLeft)

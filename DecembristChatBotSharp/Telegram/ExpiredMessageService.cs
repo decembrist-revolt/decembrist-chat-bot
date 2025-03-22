@@ -1,9 +1,11 @@
 ﻿using DecembristChatBotSharp.Mongo;
+using Lamar;
 using Serilog;
 using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram;
 
+[Singleton]
 public class ExpiredMessageService(
     AppConfig appConfig,
     ExpiredMessageRepository repository, 

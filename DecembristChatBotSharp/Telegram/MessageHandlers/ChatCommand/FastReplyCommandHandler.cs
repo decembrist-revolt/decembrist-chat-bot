@@ -1,10 +1,12 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using Lamar;
 using Serilog;
 using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
+[Singleton]
 public class FastReplyCommandHandler(
     AppConfig appConfig,
     AdminUserRepository adminUserRepository,
@@ -15,7 +17,7 @@ public class FastReplyCommandHandler(
     CancellationTokenSource cancelToken
 ) : ICommandHandler
 {
-    public string Command => "/fastreply@";
+    public string Command => "/fastreply";
     public string Description => "Creates new fast reply option '/fastreply' for help";
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

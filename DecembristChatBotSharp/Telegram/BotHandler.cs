@@ -1,4 +1,6 @@
-﻿using DecembristChatBotSharp.Telegram.MessageHandlers;
+﻿using DecembristChatBotSharp.DI;
+using DecembristChatBotSharp.Telegram.MessageHandlers;
+using Lamar;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Telegram.Bot;
@@ -8,6 +10,7 @@ using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Telegram;
 
+[Singleton]
 public class BotHandler(
     [FromKeyedServices(DiContainer.BOT_TELEGRAM_ID)]
     Func<long> getBotTelegramId,

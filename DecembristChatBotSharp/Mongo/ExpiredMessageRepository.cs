@@ -1,9 +1,11 @@
 ﻿using DecembristChatBotSharp.Entity;
+using Lamar;
 using MongoDB.Driver;
 using Serilog;
 
 namespace DecembristChatBotSharp.Mongo;
 
+[Singleton]
 public class ExpiredMessageRepository(
     AppConfig appConfig,
     MongoDatabase db,

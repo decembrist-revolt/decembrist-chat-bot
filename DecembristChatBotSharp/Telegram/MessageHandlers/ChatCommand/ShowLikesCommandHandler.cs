@@ -1,10 +1,12 @@
 ﻿using System.Text;
 using DecembristChatBotSharp.Mongo;
+using Lamar;
 using Serilog;
 using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
+[Singleton]
 public class ShowLikesCommandHandler(
     CommandLockRepository lockRepository,
     MemberLikeRepository memberLikeRepository,

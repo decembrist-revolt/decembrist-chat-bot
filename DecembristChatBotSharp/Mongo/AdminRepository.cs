@@ -1,10 +1,11 @@
 ﻿using DecembristChatBotSharp.Entity;
-using LanguageExt.Common;
+using Lamar;
 using MongoDB.Driver;
 using Serilog;
 
 namespace DecembristChatBotSharp.Mongo;
 
+[Singleton]
 public class AdminUserRepository(
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository

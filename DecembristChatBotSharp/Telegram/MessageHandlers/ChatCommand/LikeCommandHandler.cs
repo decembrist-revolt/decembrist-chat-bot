@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Mongo;
+using Lamar;
 using LanguageExt.UnsafeValueAccess;
 using Serilog;
 using Telegram.Bot;
@@ -6,6 +7,7 @@ using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
+[Singleton]
 public class LikeCommandHandler(
     AppConfig appConfig,
     CommandLockRepository lockRepository,

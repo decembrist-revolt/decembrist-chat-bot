@@ -2,6 +2,7 @@
 global using static LanguageExt.Prelude;
 global using BotClient = Telegram.Bot.ITelegramBotClient;
 using DecembristChatBotSharp;
+using DecembristChatBotSharp.DI;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Telegram;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +17,7 @@ try
 {
     var container = await DiContainer.GetInstance(cancelTokenSource);
     Log.Information("DI Container created");
-    await EnsureIndexes(container);
+    await container.GetRequiredService<MongoDatabase>().EnsureIndexes();
     Log.Information("Indexes ensured");
     var botHandler = container.GetRequiredService<BotHandler>();
     botHandler.Start();
@@ -24,6 +25,8 @@ try
     checkCaptcha.Start();
     var expiredMessageService = container.GetRequiredService<ExpiredMessageService>();
     expiredMessageService.Start();
+    // Log.Information(container.WhatDidIScan());
+    // Log.Information(container.WhatDoIHave());
 
     Console.CancelKeyPress += (_, args) =>
     {
@@ -44,12 +47,6 @@ catch
 await Task.Delay(Timeout.Infinite, cancelTokenSource.Token);
 
 return;
-
-async Task EnsureIndexes(ServiceProvider container)
-{
-    var services = container.GetServices<IRepository>();
-    await Task.WhenAll(services.Map(service => service.EnsureIndexes()));
-}
 
 void CancelGlobalToken(int statusCode = 0)
 {
