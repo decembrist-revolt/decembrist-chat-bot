@@ -15,7 +15,7 @@ public class MongoDatabase(AppConfig appConfig, Lazy<IList<IRepository>> reposit
 
     public IMongoCollection<T> GetCollection<T>(string collectionName) =>
         GetDatabase().GetCollection<T>(collectionName);
-    
+
     public async Task<Unit> CheckConnection()
     {
         var timeout = appConfig.MongoConfig.ConnectionCheckTimeoutSeconds;
@@ -23,13 +23,11 @@ public class MongoDatabase(AppConfig appConfig, Lazy<IList<IRepository>> reposit
 
         return await _client.ListDatabaseNamesAsync(cancelToken.Token)
             .ToTryAsync()
-            .IfFail(LogAndThrow);
-
-        static void LogAndThrow(Exception ex)
-        {
-            Log.Error(ex, "Failed to connect to MongoDB");
-            throw ex;
-        }
+            .IfFail(static void (ex) =>
+            {
+                Log.Error(ex, "Timeout check connection to MongoDB");
+                throw ex;
+            });
     }
 
     public async Task EnsureIndexes() =>

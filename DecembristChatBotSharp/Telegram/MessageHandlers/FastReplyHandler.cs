@@ -29,38 +29,31 @@ public class FastReplyHandler(
             _ => None
         };
 
-        return await maybeReply.Match(
-            reply => HandleReply(chatId, telegramId, messageId, reply.Reply, reply.ReplyType),
-            () => Task.FromResult(unit));
+        var trySend = 
+            from reply in maybeReply.ToTryOptionAsync()
+            from message in SendReply(reply, chatId, messageId).ToTryOption()
+            select fun(() => 
+                Log.Information("Sent fast reply to {0} payload {1} in chat {2}", telegramId, reply.Reply, chatId));
+        
+        return await trySend.IfFail(ex => 
+            Log.Error(ex, "Failed to send fast reply to {0} payload {1} in chat {2}", telegramId, maybeReply, chatId));
     }
 
-    private Task<Unit> HandleReply(
-        long chatId,
-        long telegramId,
-        int messageId,
-        string reply,
-        FastReplyType replyType) => TrySendReply(chatId, messageId, reply, replyType)
-        .Match(
-            _ => Log.Information("Sent fast reply to {0} payload {1} in chat {2}", telegramId, reply, chatId),
-            ex => Log.Error(ex, "Failed to send fast reply to {0} payload {1} in chat {2}", telegramId, reply, chatId)
-        );
+    private Task<Message> SendReply(FastReply reply, long chatId, int messageId) =>
+        reply.ReplyType switch
+        {
+            FastReplyType.Sticker => botClient.SendSticker(
+                chatId,
+                new InputFileId(reply.Reply),
+                replyParameters: new ReplyParameters { MessageId = messageId },
+                cancellationToken: cancelToken.Token),
 
-    private TryAsync<Message> TrySendReply(
-        long chatId,
-        int messageId,
-        string reply,
-        FastReplyType type) => TryAsync(type switch
-    {
-        FastReplyType.Sticker => botClient.SendSticker(
-            chatId,
-            new InputFileId(reply),
-            replyParameters: new ReplyParameters { MessageId = messageId },
-            cancellationToken: cancelToken.Token),
-        FastReplyType.Text => botClient.SendMessage(
-            chatId,
-            reply,
-            replyParameters: new ReplyParameters { MessageId = messageId },
-            cancellationToken: cancelToken.Token),
-        _ => throw new ArgumentNullException(nameof(type))
-    });
+            FastReplyType.Text => botClient.SendMessage(
+                chatId,
+                reply.Reply,
+                replyParameters: new ReplyParameters { MessageId = messageId },
+                cancellationToken: cancelToken.Token),
+
+            _ => throw new ArgumentException($"Unsupported reply type: {reply.ReplyType}")
+        };
 }
