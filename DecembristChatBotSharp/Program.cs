@@ -17,7 +17,9 @@ try
 {
     var container = await DiContainer.GetInstance(cancelTokenSource);
     Log.Information("DI Container created");
-    await container.GetRequiredService<MongoDatabase>().EnsureIndexes();
+    var mongoDatabase = container.GetRequiredService<MongoDatabase>();
+    await mongoDatabase.CheckConnection();
+    await mongoDatabase.EnsureIndexes();
     Log.Information("Indexes ensured");
     var botHandler = container.GetRequiredService<BotHandler>();
     botHandler.Start();

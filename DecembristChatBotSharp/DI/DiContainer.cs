@@ -1,16 +1,16 @@
 ﻿using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Lamar;
+using LanguageExt.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Telegram.Bot;
+using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.DI;
 
 public class DiContainer
 {
-    public const string BOT_TELEGRAM_ID = "BotTelegramId";
-
     public static async Task<Container> GetInstance(CancellationTokenSource cancellationTokenSource)
     {
         var registry = new ServiceRegistry();
@@ -23,9 +23,9 @@ public class DiContainer
         var botClient = new TelegramBotClient(appConfig.TelegramBotToken);
         registry.AddSingleton<BotClient>(botClient);
 
-        var botTelegramId = await GetBotTelegramId(botClient, cancellationTokenSource.Token);
-        registry.AddKeyedSingleton<Func<long>>(BOT_TELEGRAM_ID, () => botTelegramId);
-        
+        var botUser = await GetBotUser(botClient, cancellationTokenSource.Token);
+        registry.AddSingleton(botUser);
+
         registry.Scan(s =>
         {
             s.TheCallingAssembly();
@@ -42,16 +42,15 @@ public class DiContainer
         () => throw new Exception("failed to read appsettings.json")
     );
 
-    private static Task<long> GetBotTelegramId(TelegramBotClient botClient, CancellationToken cancelToken)
+    private static async Task<User> GetBotUser(TelegramBotClient botClient, CancellationToken cancelToken)
     {
-        return TryAsync(botClient.GetMe(cancelToken))
-            .Map(botUser =>
-            {
-                Log.Information("Bot is authorized");
-                return botUser.Id;
-            }).IfFail(IfFail);
+        return await 
+            from botUser in botClient.GetMe(cancelToken).ToTryAsync()
+                .Do(_ => Log.Information("Bot is authorized"))
+                .IfFail(IfFail)
+            select botUser;
 
-        long IfFail(Exception ex)
+        User IfFail(Exception ex)
         {
             Log.Error(ex, "Failed to get bot user");
             throw ex;

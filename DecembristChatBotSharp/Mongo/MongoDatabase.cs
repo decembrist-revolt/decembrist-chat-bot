@@ -1,5 +1,6 @@
 ﻿using Lamar;
 using MongoDB.Driver;
+using Serilog;
 
 namespace DecembristChatBotSharp.Mongo;
 
@@ -14,6 +15,22 @@ public class MongoDatabase(AppConfig appConfig, Lazy<IList<IRepository>> reposit
 
     public IMongoCollection<T> GetCollection<T>(string collectionName) =>
         GetDatabase().GetCollection<T>(collectionName);
+    
+    public async Task<Unit> CheckConnection()
+    {
+        var timeout = appConfig.MongoConfig.ConnectionCheckTimeoutSeconds;
+        using var cancelToken = new CancellationTokenSource(TimeSpan.FromSeconds(timeout));
+
+        return await _client.ListDatabaseNamesAsync(cancelToken.Token)
+            .ToTryAsync()
+            .IfFail(LogAndThrow);
+
+        static void LogAndThrow(Exception ex)
+        {
+            Log.Error(ex, "Failed to connect to MongoDB");
+            throw ex;
+        }
+    }
 
     public async Task EnsureIndexes() =>
         await repositories.Value.Map(repository => repository.EnsureIndexes()).WhenAll();

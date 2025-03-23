@@ -12,8 +12,7 @@ namespace DecembristChatBotSharp.Telegram;
 
 [Singleton]
 public class BotHandler(
-    [FromKeyedServices(DiContainer.BOT_TELEGRAM_ID)]
-    Func<long> getBotTelegramId,
+    User botUser,
     BotClient botClient,
     AppConfig appConfig,
     NewMemberHandler newMemberHandler,
@@ -139,5 +138,5 @@ public class BotHandler(
         date > DateTime.UtcNow.AddSeconds(-appConfig.UpdateExpirationSeconds);
 
     private bool IsBotInUsers(User[]? newChatMembers) =>
-        newChatMembers?.Any(user => user.Id == getBotTelegramId()) == true;
+        newChatMembers?.Any(user => user.Id == botUser.Id) == true;
 }

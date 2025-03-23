@@ -1,13 +1,16 @@
 ﻿using System.Text;
+using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
+using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public class HelpChatCommandHandler(
+    MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
     BotClient botClient,
     ExpiredMessageRepository expiredMessageRepository,
@@ -16,30 +19,84 @@ public class HelpChatCommandHandler(
     public string Command => "/help";
     public string Description => "Help";
 
+    private Map<string, string>? _commandDescriptions;
+
+    private Map<string, string> CommandDescriptions => _commandDescriptions ??= commandHandlers.Value
+        .Map(handler => (handler.Command, handler.Description))
+        .ToMap();
+
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var chatId = parameters.ChatId;
-        if (!await lockRepository.TryAcquire(chatId, Command)) return unit;
-        
-        await TryAsync(botClient.DeleteMessage(chatId, parameters.MessageId)).Match(
-            _ => Log.Information("Deleted help message in chat {0}", chatId),
-            ex => Log.Error(ex, "Failed to delete help message in chat {0}", chatId)
-        );
+
+        if (parameters.Payload is not TextPayload { Text: var text }) return unit;
+
+        Option<string> maybeMessage;
+        if (text.Split("@") is not [_, var subject])
+        {
+            maybeMessage = await GetCommandsHelp(chatId, parameters.MessageId);
+        }
+        else if (Enum.TryParse<MemberItemType>(subject, out var itemType))
+        {
+            maybeMessage = await GetItemHelp(chatId, parameters.MessageId, itemType);
+        }
+        else
+        {
+            maybeMessage = await GetCommandsHelp(chatId, parameters.MessageId);
+        }
+
+        var sentResult =
+            from message in maybeMessage.ToTryOptionAsync()
+            from sentMessage in botClient.SendMessage(chatId, message).ToTryOption()
+            select fun(() =>
+            {
+                Log.Information("Sent help message for {0} to chat {1}", text, chatId);
+                expiredMessageRepository.QueueMessage(chatId, sentMessage.MessageId);
+            });
+
+        return await sentResult.IfFail(ex => 
+            Log.Error(ex, "Failed to send help message for {0} to chat {1}", text, chatId));
+    }
+
+    private async Task<Option<string>> GetCommandsHelp(long chatId, int messageId)
+    {
+        if (!await lockRepository.TryAcquire(chatId, Command))
+        {
+            await messageAssistance.CommandNotReady(chatId, messageId, Command);
+            return None;
+        }
 
         var builder = new StringBuilder();
         builder.AppendLine("Available commands:");
-        foreach (var handler in commandHandlers.Value)
+        foreach (var (command, description) in CommandDescriptions)
         {
-            builder.AppendLine($"{handler.Command} - {handler.Description}");
+            builder.AppendLine(MakeCommandHelpString(command, description));
         }
 
-        return await botClient.SendMessage(chatId, builder.ToString()).ToTryAsync().Match(
-            message =>
-            {
-                Log.Information("Sent help message to chat {0}", chatId);
-                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
-            },
-            ex => Log.Error(ex, "Failed to send help message to chat {0}", chatId)
-        );
+        return builder.ToString();
+    }
+
+    private string MakeCommandHelpString(string command, string description) => $"{command} - {description}";
+
+    private async Task<Option<string>> GetItemHelp(long chatId, int messageId, MemberItemType itemType)
+    {
+        var command = $"{Command}={itemType}";
+        if (!await lockRepository.TryAcquire(chatId, Command, command))
+        {
+            await messageAssistance.CommandNotReady(chatId, messageId, command);
+            return None;
+        }
+
+        Option<string> maybeCommand = itemType switch
+        {
+            MemberItemType.RedditMeme => RedditMemeCommandHandler.CommandKey,
+            MemberItemType.Box => OpenBoxCommandHandler.CommandKey,
+            MemberItemType.FastReply => FastReplyCommandHandler.CommandKey,
+            _ => None
+        };
+
+        return maybeCommand.Map(commandKey => (Command: commandKey, Description: CommandDescriptions[commandKey]))
+            .Map(pair => MakeCommandHelpString(pair.Command, pair.Description))
+            .Map(help => $"Item {itemType} help:\n\n{help}");
     }
 }

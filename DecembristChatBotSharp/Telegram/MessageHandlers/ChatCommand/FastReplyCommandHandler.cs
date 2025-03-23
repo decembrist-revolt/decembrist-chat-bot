@@ -18,7 +18,9 @@ public class FastReplyCommandHandler(
     CancellationTokenSource cancelToken
 ) : ICommandHandler
 {
-    public string Command => "/fastreply";
+    public const string CommandKey = "/fastreply";
+    
+    public string Command => CommandKey;
     public string Description => "Creates new fast reply option '/fastreply' for help";
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

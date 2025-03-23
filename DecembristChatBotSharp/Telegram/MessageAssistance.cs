@@ -3,6 +3,8 @@ using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
 using Serilog;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Telegram;
 
@@ -10,6 +12,7 @@ namespace DecembristChatBotSharp.Telegram;
 public class MessageAssistance(
     AppConfig appConfig, 
     BotClient botClient, 
+    User botUser,
     ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken)
 {

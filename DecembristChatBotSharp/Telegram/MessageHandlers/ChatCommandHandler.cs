@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
+﻿using System.Text.RegularExpressions;
+using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Lamar;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
@@ -21,10 +22,12 @@ public class ChatCommandHandler(Lazy<IList<ICommandHandler>> handlers)
             );
     }
     
-    private bool MatchCommand(string command, ICommandHandler handler) => 
-        command == handler.Command
-        || command.StartsWith(handler.Command + ' ') 
-        || command.StartsWith(handler.Command + '@');
+    private bool MatchCommand(string command, ICommandHandler handler)
+    {
+        var escaped = Regex.Escape(handler.Command);
+        var pattern = $@"^{escaped}($|\s|@)";
+        return Regex.IsMatch(command, pattern, RegexOptions.IgnoreCase);
+    }
 }
 
 public enum CommandResult

@@ -18,7 +18,9 @@ public class OpenBoxCommandHandler(
     BotClient botClient,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
-    public string Command => "/openbox";
+    public const string CommandKey = "/openbox";
+    
+    public string Command => CommandKey;
     public string Description => "Open surprise box if you have one";
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

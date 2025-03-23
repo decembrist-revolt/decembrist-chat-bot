@@ -8,7 +8,7 @@ using Telegram.Bot.Types.Enums;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
-public class RandomMemeCommandHandler(
+public class RedditMemeCommandHandler(
     AppConfig appConfig,
     MemberItemRepository memberItemRepository,
     RedditService redditService,
@@ -18,7 +18,9 @@ public class RandomMemeCommandHandler(
     ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
-    public string Command => "/randommeme";
+    public const string CommandKey = "/redditmeme";
+    
+    public string Command => CommandKey;
     public string Description => "Generate random reddit meme";
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

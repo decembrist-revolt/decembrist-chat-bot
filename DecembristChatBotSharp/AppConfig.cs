@@ -65,7 +65,8 @@ public record MongoConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ConnectionString,
     [property: Required(AllowEmptyStrings = false)]
-    string DatabaseName
+    string DatabaseName,
+    int ConnectionCheckTimeoutSeconds
 );
 
 public record CommandConfig(
