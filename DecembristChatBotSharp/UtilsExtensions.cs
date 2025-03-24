@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using DecembristChatBotSharp.Mongo;
 using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -20,6 +21,26 @@ public static class UtilsExtensions
         Action<Exception> onError,
         CancellationToken cancelToken) =>
         botClient.SendMessage(chatId, message, cancellationToken: cancelToken).ToTryAsync().Match(onSent, onError);
+
+    public static Task<Unit> SendReceiverNotSetAndLog(
+        this BotClient botClient,
+        long chatId,
+        string message,
+        string commandName,
+        ExpiredMessageRepository expiredMessageRepository,
+        CancellationToken cancelToken)
+    {
+        return botClient.SendMessage(chatId, message, cancellationToken: cancelToken).ToTryAsync()
+            .Match(
+                message =>
+                {
+                    Log.Information("Sent {0} not set message to chat {1}", commandName, chatId);
+                    expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+                },
+                ex =>
+                    Log.Error(ex, "Failed to send {0} receiver not set message to chat {1}", commandName, chatId)
+            );
+    }
 
     public static Task<Unit> SendMessageAndLog(
         this BotClient botClient,
