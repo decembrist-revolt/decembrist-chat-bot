@@ -13,6 +13,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 public class RestrictCommandHandler(
     BotClient botClient,
     RestrictRepository restrictRepository,
+    AdminUserRepository adminRepository,
     CancellationTokenSource cancelToken,
     AppConfig appConfig,
     ExpiredMessageRepository expiredMessageRepository,
@@ -30,7 +31,7 @@ public class RestrictCommandHandler(
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
         if (text != Command && !text.StartsWith(Command + " ")) return unit;
-        if (!await restrictRepository.IsAdmin(telegramId))
+        if (!await adminRepository.IsAdmin(telegramId))
         {
             return await messageAssistance.SendAdminOnlyMessage(chatId, telegramId);
         }

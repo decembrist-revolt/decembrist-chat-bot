@@ -8,11 +8,8 @@ namespace DecembristChatBotSharp.Mongo;
 [Singleton]
 public class RestrictRepository(
     MongoDatabase db,
-    AdminUserRepository adminRepository,
     CancellationTokenSource cancelToken) : IRepository
 {
-    public async Task<bool> IsAdmin(long id) => await adminRepository.IsAdmin(id);
-
     public async Task<Unit> AddRestrict(RestrictMember member) =>
         await IsRestricted(member.Id)
             .ToTryAsync()
