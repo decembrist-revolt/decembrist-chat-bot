@@ -15,11 +15,11 @@ public class RestrictHandler(
 {
     private RestrictTypeHandler _restrictTypeHandler = new RestrictTypeHandler();
 
-    public async Task<RestrictResult> Do(ChatMessageHandlerParams parameters)
+    public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
 
-        if (!await db.IsRestricted(new RestrictMember.CompositeId(telegramId, chatId))) return RestrictResult.None;
+        if (!await db.IsRestricted(new RestrictMember.CompositeId(telegramId, chatId))) return false;
 
         var restrictMember = await db.GetMember(new RestrictMember(new RestrictMember.CompositeId(telegramId, chatId),
             RestrictType.All));
@@ -29,10 +29,10 @@ public class RestrictHandler(
         if (result)
         {
             await botClient.DeleteMessage(chatId, messageId, cancelToken.Token);
-            return RestrictResult.Ok;
+            return true;
         }
 
-        return RestrictResult.None;
+        return false;
     }
 
     private class RestrictTypeHandler
@@ -77,10 +77,4 @@ public class RestrictHandler(
             return false;
         }
     }
-}
-
-public enum RestrictResult
-{
-    None,
-    Ok
 }

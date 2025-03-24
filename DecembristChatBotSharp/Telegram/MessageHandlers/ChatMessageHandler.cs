@@ -1,4 +1,5 @@
-﻿using Lamar;
+﻿using JasperFx.Core;
+using Lamar;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
@@ -37,6 +38,7 @@ public class ChatMessageHandler(
     CaptchaHandler captchaHandler,
     ChatCommandHandler chatCommandHandler,
     FastReplyHandler fastReplyHandler,
+    RestrictHandler restrictHandler,
     WrongCommandHandler wrongCommandHandler
 )
 {
@@ -44,6 +46,8 @@ public class ChatMessageHandler(
     {
         var result = await captchaHandler.Do(parameters);
         if (result == Result.Captcha) return unit;
+
+        if (await restrictHandler.Do(parameters)) return unit;
 
         if (parameters.Payload is TextPayload { Text.Length: > 1, Text: var text })
         {
