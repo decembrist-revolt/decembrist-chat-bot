@@ -133,7 +133,9 @@ public record RestrictConfig(
     [property: Required(AllowEmptyStrings = false)]
     string RestrictMessage,
     [property: Required(AllowEmptyStrings = false)]
-    string RestrictClearMessage
+    string RestrictClearMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string RestrictSelfMessage
 );
 
 public record ItemConfig(

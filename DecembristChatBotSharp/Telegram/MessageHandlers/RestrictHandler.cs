@@ -13,7 +13,7 @@ public class RestrictHandler(
     CancellationTokenSource cancelToken
 )
 {
-    private RestrictTypeHandler _restrictTypeHandler = new RestrictTypeHandler();
+    private RestrictTypeHandler _restrictTypeHandler = new();
 
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
@@ -24,15 +24,11 @@ public class RestrictHandler(
         var restrictMember = await db.GetMember(new RestrictMember(new RestrictMember.CompositeId(telegramId, chatId),
             RestrictType.All));
 
-
         var result = await _restrictTypeHandler.HandleRestrict(parameters.Payload, restrictMember.RestrictType);
-        if (result)
-        {
-            await botClient.DeleteMessage(chatId, messageId, cancelToken.Token);
-            return true;
-        }
+        if (!result) return false;
 
-        return false;
+        await botClient.DeleteMessage(chatId, messageId, cancelToken.Token);
+        return true;
     }
 
     private class RestrictTypeHandler

@@ -43,7 +43,16 @@ public class RestrictCommandHandler(
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
 
-        var id = new RestrictMember.CompositeId(replyUserId.ValueUnsafe(), chatId);
+        var receiverId = replyUserId.ValueUnsafe();
+        if (telegramId == receiverId)
+        {
+            return await Array(
+                SendSelfRestrictMessage(chatId),
+                messageAssistance.DeleteCommandMessage(chatId, messageId, Command)
+            ).WhenAll();
+        }
+
+        var id = new RestrictMember.CompositeId(receiverId, chatId);
         if (text.Contains("clear", StringComparison.OrdinalIgnoreCase))
         {
             return await DeleteRestrict(id, messageId);
@@ -128,6 +137,19 @@ public class RestrictCommandHandler(
             ex => Log.Error(ex,
                 "Failed to send {command} message from {0} in chat {1} with type {2}",
                 Command, member.Id.TelegramId, chatId, member.RestrictType),
+            cancelToken.Token);
+    }
+
+    private async Task<Unit> SendSelfRestrictMessage(long chatId)
+    {
+        var message = appConfig.RestrictConfig.RestrictSelfMessage;
+        return await botClient.SendMessageAndLog(chatId, message,
+            message =>
+            {
+                Log.Information("Sent self restrict message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
+            ex => Log.Error(ex, "Failed to send self restrict message to chat {0}", chatId),
             cancelToken.Token);
     }
 
