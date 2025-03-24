@@ -1,17 +1,16 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
-using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public class OpenBoxCommandHandler(
     AppConfig appConfig,
-    MongoDatabase db,
     ExpiredMessageRepository expiredMessageRepository,
-    MemberItemRepository memberItemRepository,
+    MemberItemService memberItemService,
     AdminUserRepository adminUserRepository,
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
@@ -19,7 +18,7 @@ public class OpenBoxCommandHandler(
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public const string CommandKey = "/openbox";
-    
+
     public string Command => CommandKey;
     public string Description => "Open surprise box if you have one";
 
@@ -28,7 +27,7 @@ public class OpenBoxCommandHandler(
         var chatId = parameters.ChatId;
         var telegramId = parameters.TelegramId;
         var messageId = parameters.MessageId;
-        if (parameters.Payload is not TextPayload { Text: var text }) return unit;
+        if (parameters.Payload is not TextPayload) return unit;
 
         if (await adminUserRepository.IsAdmin(telegramId))
         {
@@ -40,62 +39,25 @@ public class OpenBoxCommandHandler(
             return await messageAssistance.CommandNotReady(chatId, messageId, Command);
         }
 
-        using var session = await db.OpenTransaction();
-        session.StartTransaction();
+        var (itemType, result) = await memberItemService.OpenBox(chatId, telegramId);
 
-        var isRemoved = await memberItemRepository.RemoveMemberItem(telegramId, chatId, MemberItemType.Box, session);
-
-        if (!isRemoved)
+        return result switch
         {
-            return await Array(
-                messageAssistance.SendNoItems(chatId),
-                session.AbortTransactionAsync()).WhenAll();
-        }
-
-        var item = GetRandomItem();
-        if (await memberItemRepository.AddMemberItem(telegramId, chatId, item, session))
-        {
-            Log.Information("Added item {0} to {1} in chat {2}", item, telegramId, chatId);
-            await session.CommitTransactionAsync();
-        }
-        else
-        {
-            Log.Error("Failed to add item {0} to {1} in chat {2}", item, telegramId, chatId);
-            return await Array(session.AbortTransactionAsync(),
-                SendFailedToOpenBox(chatId, telegramId)).WhenAll();
-        }
-
-        return await botClient.GetChatMember(chatId, telegramId, cancelToken.Token)
-            .ToTryAsync()
-            .Map(member => member.GetUsername())
-            .Match(username => messageAssistance.SendGetItemMessage(chatId, username, item),
-                ex =>
-                {
-                    Log.Error(ex, "Failed to get chat member in chat {0} with telegramId {1}", chatId, telegramId);
-                    return Task.FromResult(unit);
-                });
+            OpenBoxResult.NoItems => await messageAssistance.SendNoItems(chatId),
+            OpenBoxResult.Failed => await SendFailedToOpenBox(chatId, telegramId),
+            OpenBoxResult.Success => await SendBoxResult(itemType, chatId, telegramId),
+            _ => throw new ArgumentOutOfRangeException()
+        };
     }
 
-    public MemberItemType GetRandomItem()
+    private Task<Unit> SendBoxResult(Option<MemberItemType> itemType, long chatId, long telegramId)
     {
-        var random = new Random();
+        var maybeSend =
+            from type in itemType.ToAsync()
+            from username in botClient.GetUsername(chatId, telegramId, cancelToken.Token).ToAsync()
+            select messageAssistance.SendGetItemMessage(chatId, username, type);
 
-        var itemChances = appConfig.ItemConfig.ItemChance;
-        var total = itemChances.Values.Sum();
-        var roll = random.NextDouble() * total;
-
-        var cumulative = 0.0;
-
-        foreach (var pair in itemChances)
-        {
-            cumulative += pair.Value;
-            if (roll <= cumulative)
-            {
-                return pair.Key;
-            }
-        }
-
-        return itemChances.Keys.First();
+        return maybeSend.IfSome(identity);
     }
 
     private async Task<Unit> SendFailedToOpenBox(long chatId, long telegramId) =>

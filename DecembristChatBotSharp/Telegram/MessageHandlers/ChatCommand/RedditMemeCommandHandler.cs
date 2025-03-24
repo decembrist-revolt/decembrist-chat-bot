@@ -1,6 +1,5 @@
-﻿using DecembristChatBotSharp.Entity;
-using DecembristChatBotSharp.Mongo;
-using DecembristChatBotSharp.Reddit;
+﻿using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
 using Telegram.Bot.Types.Enums;
@@ -10,8 +9,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 [Singleton]
 public class RedditMemeCommandHandler(
     AppConfig appConfig,
-    MemberItemRepository memberItemRepository,
-    RedditService redditService,
+    MemberItemService memberItemService,
     AdminUserRepository adminUserRepository,
     MessageAssistance messageAssistance,
     BotClient botClient,
@@ -19,7 +17,7 @@ public class RedditMemeCommandHandler(
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public const string CommandKey = "/redditmeme";
-    
+
     public string Command => CommandKey;
     public string Description => "Generate random reddit meme";
 
@@ -29,33 +27,42 @@ public class RedditMemeCommandHandler(
         var chatId = parameters.ChatId;
         var messageId = parameters.MessageId;
 
-        if (!await adminUserRepository.IsAdmin(telegramId))
+        var isAdmin = await adminUserRepository.IsAdmin(telegramId);
+
+        var result = await memberItemService.UseRedditMeme(chatId, telegramId, isAdmin);
+        if (result.Result == UseRedditMemeResult.Type.Failed)
         {
-            if (!await memberItemRepository.RemoveMemberItem(telegramId, chatId, MemberItemType.RedditMeme))
-            {
-                return await messageAssistance.SendNoItems(chatId);
-            }
+            result = await memberItemService.UseRedditMeme(chatId, telegramId, isAdmin);
         }
 
-        var maybeMeme = await redditService.GetRandomMeme();
-        if (maybeMeme.IsNone) maybeMeme = await redditService.GetRandomMeme();
-        if (maybeMeme.IsNone)
+        var (maybeMeme, resultType) = result;
+        return resultType switch
         {
-            await Array(SendRedditErrorMessage(chatId),
-                memberItemRepository.AddMemberItem(telegramId, chatId, MemberItemType.RedditMeme).UnitTask()).WhenAll();
-        }
-
-        return await maybeMeme.IfSomeAsync(meme => SendMemeAndDeleteSource(chatId, messageId, meme));
+            UseRedditMemeResult.Type.Failed => await SendRedditErrorMessage(chatId),
+            UseRedditMemeResult.Type.NoItems => await messageAssistance.SendNoItems(chatId),
+            UseRedditMemeResult.Type.Success => await Array(
+                TrySendMeme(chatId, maybeMeme, messageId),
+                messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll(),
+            _ => throw new ArgumentOutOfRangeException()
+        };
     }
 
-    private Task<Unit> SendMemeAndDeleteSource(long chatId, int messageId, RedditRandomMeme meme)
+    private Task<Unit> TrySendMeme(long chatId, Option<RedditRandomMeme> maybeMeme, int messageId)
+    {
+        var maybeSend =
+            from meme in maybeMeme
+            select SendMeme(chatId, meme);
+
+        return maybeSend.ToAsync().IfSome(identity);
+    }
+
+    private async Task<Unit> SendMeme(long chatId, RedditRandomMeme meme)
     {
         var message = $"{meme.Url.EscapeMarkdown()}\n[Источник]({meme.Permalink.EscapeMarkdown()})";
-        return Array(botClient.SendMessageAndLog(chatId, message, ParseMode.MarkdownV2,
-                _ => Log.Information("Sent random meme to chat {0}", chatId),
-                ex => Log.Error(ex, "Failed to send random meme {0} to chat {1}", message, chatId),
-                cancelToken.Token),
-            messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
+        return await botClient.SendMessageAndLog(chatId, message, ParseMode.MarkdownV2,
+            _ => Log.Information("Sent random meme to chat {0}", chatId),
+            ex => Log.Error(ex, "Failed to send random meme {0} to chat {1}", message, chatId),
+            cancelToken.Token);
     }
 
     private async Task<Unit> SendRedditErrorMessage(long chatId)

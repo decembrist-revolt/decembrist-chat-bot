@@ -28,7 +28,7 @@ public class FastReplyRepository(
             });
     }
     
-    public async Task<InsertResult> AddFastReply(FastReply fastReply)
+    public async Task<InsertResult> AddFastReply(FastReply fastReply, IClientSessionHandle session)
     {
         var collection = GetCollection();
 
@@ -39,7 +39,7 @@ public class FastReplyRepository(
         if (tryFind.IsSome()) return InsertResult.Duplicate;
         
         return await collection
-            .InsertOneAsync(fastReply, cancellationToken: cancelToken.Token)
+            .InsertOneAsync(session, fastReply, cancellationToken: cancelToken.Token)
             .ToTryAsync()
             .Match(
                 _ => InsertResult.Success,

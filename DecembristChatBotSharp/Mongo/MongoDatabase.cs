@@ -11,7 +11,7 @@ public class MongoDatabase(AppConfig appConfig, Lazy<IList<IRepository>> reposit
 
     public IMongoDatabase GetDatabase() => _client.GetDatabase(appConfig.MongoConfig.DatabaseName);
 
-    public Task<IClientSessionHandle> OpenTransaction() => _client.StartSessionAsync();
+    public Task<IClientSessionHandle> OpenSession() => _client.StartSessionAsync();
 
     public IMongoCollection<T> GetCollection<T>(string collectionName) =>
         GetDatabase().GetCollection<T>(collectionName);

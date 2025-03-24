@@ -1,7 +1,7 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
-using LanguageExt.UnsafeValueAccess;
 using Serilog;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
@@ -9,7 +9,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 [Singleton]
 public class GiveItemCommandHandler(
     BotClient botClient,
-    MemberItemRepository memberItemRepository,
+    MemberItemService memberItemService,
     AdminUserRepository adminUserRepository,
     MessageAssistance messageAssistance,
     CancellationTokenSource cancelToken) : ICommandHandler
@@ -40,8 +40,6 @@ public class GiveItemCommandHandler(
             return unit;
         }
 
-        var replyTelegramId = maybeReplyTelegramId.ValueUnsafe();
-
         if (text.Trim().Split(' ') is not [_, var item])
         {
             Log.Warning("Admin {0} in chat {1} try to give item without item", telegramId, chatId);
@@ -54,25 +52,21 @@ public class GiveItemCommandHandler(
             return unit;
         }
 
-        return await AddMemberItem(chatId, replyTelegramId, itemType, messageId);
-    }
-
-    private async Task<Unit> AddMemberItem(long chatId, long telegramId, MemberItemType itemType, int messageId)
-    {
-        if (await memberItemRepository.AddMemberItem(telegramId, chatId, itemType))
+        var maybeUsername = maybeReplyTelegramId.Map(async replyTelegramId =>
         {
-            Log.Information("Admin add item {0} to {1} in chat {2}", itemType, telegramId, chatId);
-            var deleteTask = messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+            if (await memberItemService.GiveItem(chatId, replyTelegramId, telegramId, itemType))
+            {
+                return await botClient.GetUsername(chatId, replyTelegramId, cancelToken.Token);
+            }
+            
+            return None;
+        }).MapAsync(TaskOptionAsyncExtensions.ToAsync).Flatten();
 
-            var maybeUsername = await botClient.GetUsername(chatId, telegramId, cancelToken.Token);
-            var sendMessageTask = maybeUsername
-                .MapAsync(username => messageAssistance.SendGetItemMessage(chatId, username, itemType))
-                .Match(_ => unit, () => unit);
+        var sendGetItemMessageTask = maybeUsername
+            .IfSome(username => messageAssistance.SendGetItemMessage(chatId, username, itemType));
 
-            return await Array(deleteTask, sendMessageTask).WhenAll();
-        }
-
-        Log.Error("Failed admin add item {0} to {1} in chat {2}", itemType, telegramId, chatId);
-        return unit;
+        return await Array(
+            sendGetItemMessageTask,
+            messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
     }
 }

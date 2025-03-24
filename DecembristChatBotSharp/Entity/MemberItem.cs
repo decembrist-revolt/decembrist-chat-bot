@@ -14,3 +14,17 @@ public enum MemberItemType
     FastReply = 1,
     Box = 2
 }
+
+public record MemberItemHistoryLogData(
+    MemberItemType MemberItemType,
+    int Count,
+    MemberItemSourceType SourceType,
+    long? SourceTelegramId
+) : IHistoryLogData;
+
+public enum MemberItemSourceType
+{
+    Admin,
+    Box,
+    Use
+}

@@ -4,7 +4,7 @@ using Lamar;
 using Serilog;
 using static System.Net.HttpStatusCode;
 
-namespace DecembristChatBotSharp.Reddit;
+namespace DecembristChatBotSharp.Service;
 
 internal record RedditResponse(
     [property: JsonPropertyName("data")] RedditResponse.Data ResponseData

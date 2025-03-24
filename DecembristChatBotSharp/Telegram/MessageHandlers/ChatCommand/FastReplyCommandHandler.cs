@@ -1,5 +1,6 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
@@ -10,8 +11,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 public class FastReplyCommandHandler(
     AppConfig appConfig,
     AdminUserRepository adminUserRepository,
-    FastReplyRepository fastReplyRepository,
-    MemberItemRepository memberItemRepository,
+    MemberItemService memberItemService,
     BotClient botClient,
     MessageAssistance messageAssistance,
     ExpiredMessageRepository expiredMessageRepository,
@@ -19,7 +19,7 @@ public class FastReplyCommandHandler(
 ) : ICommandHandler
 {
     public const string CommandKey = "/fastreply";
-    
+
     public string Command => CommandKey;
     public string Description => "Creates new fast reply option '/fastreply' for help";
 
@@ -30,46 +30,32 @@ public class FastReplyCommandHandler(
         var messageId = parameters.MessageId;
 
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        if (!await adminUserRepository.IsAdmin(telegramId))
-        {
-            if (!await memberItemRepository.RemoveMemberItem(telegramId, chatId, MemberItemType.FastReply))
-            {
-                return await messageAssistance.SendNoItems(chatId);
-            }
-        }
 
         var args = text.Trim().Split("@").Skip(1).ToArray();
         if (args is not [var message, var reply])
         {
             return await Array(
-                AddItemBack(chatId, telegramId),
                 SendFastReplyHelp(chatId),
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
 
         var maybeFastReply = await CreateFastReply(chatId, message, reply, messageId);
-        return await maybeFastReply.MatchAsync(
-            fastReply => AddFastReply(chatId, telegramId, messageId, fastReply),
-            () => AddItemBack(chatId, telegramId));
-    }
+        var isAdmin = await adminUserRepository.IsAdmin(telegramId);
 
-    private async Task<Unit> AddFastReply(long chatId, long telegramId, int messageId, FastReply fastReply)
-    {
-        var result = await fastReplyRepository.AddFastReply(fastReply);
-        return result switch
+        return await maybeFastReply.MapAsync(async fastReply =>
         {
-            FastReplyRepository.InsertResult.Duplicate => await Array(
-                expiredMessageRepository.QueueMessage(chatId, messageId),
-                SendDuplicateMessage(chatId, fastReply.Id.Message),
-                AddItemBack(chatId, telegramId)).WhenAll(),
-            FastReplyRepository.InsertResult.Failed => await AddItemBack(chatId, telegramId),
-            _ => await Array(SendNewFastReply(chatId, fastReply.Id.Message, fastReply.Reply),
-                expiredMessageRepository.QueueMessage(chatId, messageId)).WhenAll()
-        };
+            var result = await memberItemService.UseFastReply(chatId, telegramId, fastReply, isAdmin);
+            return result switch
+            {
+                UseFastReplyResult.NoItems => await messageAssistance.SendNoItems(chatId),
+                UseFastReplyResult.Duplicate => await Array(
+                    expiredMessageRepository.QueueMessage(chatId, messageId),
+                    SendDuplicateMessage(chatId, fastReply.Id.Message)).WhenAll(),
+                UseFastReplyResult.Success => await SendNewFastReply(chatId, fastReply.Id.Message, fastReply.Reply),
+                _ => unit
+            };
+        }).IfSome(identity);
     }
-
-    private Task<Unit> AddItemBack(long chatId, long telegramId) =>
-        memberItemRepository.AddMemberItem(telegramId, chatId, MemberItemType.FastReply).UnitTask();
 
     private async Task<Option<FastReply>> CreateFastReply(long chatId, string message, string reply, int messageId)
     {

@@ -11,8 +11,8 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
 {
     /// <returns>True if item was added</returns>
     public async Task<bool> AddMemberItem(
-        long telegramId,
         long chatId,
+        long telegramId,
         MemberItemType type,
         IClientSessionHandle? session = null)
     {
@@ -38,8 +38,8 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
     
     /// <returns>True if item was removed, false if item was not found or count was 0</returns>
     public async Task<bool> RemoveMemberItem(
-        long telegramId,
         long chatId,
+        long telegramId,
         MemberItemType type,
         IClientSessionHandle? session = null)
     {
