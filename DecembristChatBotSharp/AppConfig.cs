@@ -129,8 +129,6 @@ public record BanConfig(
 
 public record RestrictConfig(
     [property: Required(AllowEmptyStrings = false)]
-    string RestrictReceiverNotSet,
-    [property: Required(AllowEmptyStrings = false)]
     string RestrictMessage,
     [property: Required(AllowEmptyStrings = false)]
     string RestrictClearMessage

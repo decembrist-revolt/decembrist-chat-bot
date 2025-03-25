@@ -39,15 +39,14 @@ public class RestrictCommandHandler(
         var replyUserId = parameters.ReplyToTelegramId;
         if (replyUserId.IsNone)
         {
-            return await Array(
-                SendReceiverNotSet(chatId),
-                messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
+            Log.Warning("Reply user for {0} not set in chat {1}", Command, chatId);
+            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
         }
 
         var receiverId = replyUserId.ValueUnsafe();
         if (telegramId == receiverId)
         {
-            Log.Warning("Reply user for {0} not set in chat {1}", Command, chatId);
+            Log.Warning("Self-targeting {0} in chat {1}", Command, chatId);
             return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
         }
 
@@ -125,8 +124,8 @@ public class RestrictCommandHandler(
             .ToTryAsync()
             .Bind(chatMember => SendRestrictMessage(chatId, member, chatMember).ToTryAsync())
             .Match(
-                _ => Log.Information("Sent recent message to chat {0}", chatId),
-                ex => Log.Error(ex, "Failed to send recent message to chat {0}", chatId)
+                _ => Log.Information("Sent restrict message to chat {0}", chatId),
+                ex => Log.Error(ex, "Failed to send restrict message to chat {0}", chatId)
             );
         await Array(
             sendRestrictMessageTask,
@@ -156,11 +155,5 @@ public class RestrictCommandHandler(
                 "Failed to send {command} message from {0} in chat {1} with type {2}",
                 Command, member.Id.TelegramId, chatId, member.RestrictType),
             cancelToken.Token);
-    }
-
-    private async Task<Unit> SendReceiverNotSet(long chatId)
-    {
-        var message = appConfig.RestrictConfig.RestrictReceiverNotSet;
-        return await messageAssistance.SendReceiverNotSet(chatId, message, nameof(RestrictCommandHandler));
     }
 }
