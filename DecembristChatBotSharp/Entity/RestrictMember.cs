@@ -16,8 +16,6 @@ public readonly record struct RestrictMember(
 public enum RestrictType : short
 {
     All = 0,
-    Text = 1,
-    Sticker = 2,
-    Link = 4,
-    Emoji = 8
+    Link = 1,
+    Emoji = 2
 }

@@ -40,9 +40,7 @@ public class RestrictHandler(
             _handlers = new Dictionary<RestrictType, Func<IMessagePayload, Task<bool>>>()
             {
                 { RestrictType.Link, HandleLink },
-                { RestrictType.Sticker, HandleSticker },
-                { RestrictType.Emoji, HandleEmoji },
-                { RestrictType.Text, HandleText }
+                { RestrictType.Emoji, HandleEmoji }
             };
         }
 
@@ -61,8 +59,6 @@ public class RestrictHandler(
             return result;
         }
 
-        private async Task<bool> HandleText(IMessagePayload payload) => payload is TextPayload;
-        private async Task<bool> HandleSticker(IMessagePayload payload) => payload is StickerPayload;
         private async Task<bool> HandleEmoji(IMessagePayload payload) => false;
 
         private async Task<bool> HandleLink(IMessagePayload payload)
