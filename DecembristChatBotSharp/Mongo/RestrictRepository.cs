@@ -38,15 +38,15 @@ public class RestrictRepository(
         .Find(m => m.Id == id)
         .SingleOrDefaultAsync(cancelToken.Token)
         .ToTryAsync()
-        .Match( member => member.IsDefault() ? None : Some(member),
+        .Match(member => member.IsDefault() ? None : Some(member),
             ex =>
             {
-                Log.Error(ex, "");
+                Log.Error(ex, "Failed to get user with telegramId {0} in restrict db", id);
                 return None;
             });
 
     public async Task<bool> DeleteRestrictMember(RestrictMember.CompositeId id) =>
-        await GetCollection().DeleteOneAsync(m => m.Id == id)
+        await GetCollection().DeleteOneAsync(m => m.Id == id, cancelToken.Token)
             .ToTryAsync()
             .Match(
                 result => result.DeletedCount > 0,
