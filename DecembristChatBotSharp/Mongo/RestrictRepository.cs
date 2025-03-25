@@ -38,7 +38,7 @@ public class RestrictRepository(
         .Find(m => m.Id == id)
         .SingleOrDefaultAsync(cancelToken.Token)
         .ToTryAsync()
-        .Match(Optional,
+        .Match( member => member.IsDefault() ? None : Some(member),
             ex =>
             {
                 Log.Error(ex, "");
