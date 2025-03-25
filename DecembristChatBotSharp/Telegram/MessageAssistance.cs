@@ -84,4 +84,17 @@ public class MessageAssistance(
             ex => Log.Error(ex, "Failed to send get item message to chat {0}", chatId),
             cancelToken.Token);
     }
+
+    public async Task<Unit> SendReceiverNotSet(long chatId, string message, string commandName)
+    {
+        return await botClient.SendMessageAndLog(chatId, message,
+            message =>
+            {
+                Log.Information("Sent {0} receiver not set message to chat {1}", commandName, chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
+            ex =>
+                Log.Error(ex, "Failed to send {0} receiver not set message to chat {1}", commandName, chatId),
+            cancelToken.Token);
+    }
 }
