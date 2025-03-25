@@ -20,7 +20,7 @@ public class RestrictCommandHandler(
     MessageAssistance messageAssistance
 ) : ICommandHandler
 {
-    private readonly Regex _regex = new(@"\b(all|text|sticker|link|emoji)\b", RegexOptions.IgnoreCase);
+    private readonly Regex _regex = new(@"\b(all|link|emoji)\b", RegexOptions.IgnoreCase);
 
     public string Command => "/restrict";
     public string Description => "Restrict user in reply";
@@ -47,36 +47,44 @@ public class RestrictCommandHandler(
         var receiverId = replyUserId.ValueUnsafe();
         if (telegramId == receiverId)
         {
-            return await Array(
-                SendSelfRestrictMessage(chatId),
-                messageAssistance.DeleteCommandMessage(chatId, messageId, Command)
-            ).WhenAll();
+            Log.Warning("Reply user for {0} not set in chat {1}", Command, chatId);
+            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
         }
 
         var id = new RestrictMember.CompositeId(receiverId, chatId);
         if (text.Contains("clear", StringComparison.OrdinalIgnoreCase))
         {
-            return await DeleteRestrict(id, messageId);
+            if (await DeleteRestrict(id, messageId))
+                Log.Information("Clear restrict for {0} in chat {1} by {2}", receiverId, chatId, telegramId);
+            else
+                Log.Error("Restrict not cleared for {0} in chat {1} by {2}", receiverId, chatId, telegramId);
+            return unit;
         }
 
         var member = new RestrictMember
         {
             Id = id,
-            RestrictType = await ParseRestrictType(text)
+            RestrictType = ParseRestrictType(text)
         };
 
-        return await AddRestrict(member, messageId);
+        if (await AddRestrict(member, messageId))
+            Log.Information(
+                "Added restrict for {0} in chat {1} by {2} with type {3}", receiverId, chatId, telegramId,
+                member.RestrictType);
+        else
+            Log.Error("Restrict not added for {0} in chat {1} by {2}", receiverId, chatId, telegramId);
+        return unit;
     }
 
-    private async Task<RestrictType> ParseRestrictType(string input)
+    private RestrictType ParseRestrictType(string input)
     {
-        var result = RestrictType.All;
+        var result = RestrictType.Link;
         var matches = _regex.Matches(input);
         foreach (Match match in matches)
         {
             if (Enum.TryParse(match.Value, true, out RestrictType restrictType))
             {
-                if (restrictType == RestrictType.All) return RestrictType.All;
+                if (restrictType == RestrictType.All) continue;
                 result |= restrictType;
             }
         }
@@ -84,24 +92,25 @@ public class RestrictCommandHandler(
         return result;
     }
 
-    private async Task<Unit> DeleteRestrict(RestrictMember.CompositeId id, int messageId)
+    private async Task<bool> DeleteRestrict(RestrictMember.CompositeId id, int messageId)
     {
         var (telegramId, chatId) = id;
         var sendRestrictMessageTask = botClient.GetChatMember(chatId, telegramId, cancelToken.Token)
             .ToTryAsync()
             .Bind(chatMember => SendRestrictClearMessage(chatId, chatMember).ToTryAsync())
             .Match(
-                _ => Log.Information("Sent recent message to chat {0}", chatId),
-                ex => Log.Error(ex, "Failed to send recent message to chat {0}", chatId)
+                _ => Log.Information("Sent restrict message to chat {0}", chatId),
+                ex => Log.Error(ex, "Failed to send restrict message to chat {0}", chatId)
             );
-        return await Array(
-            restrictRepository.DeleteMember(id),
+        await Array(
             sendRestrictMessageTask,
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)
         ).WhenAll();
+        return
+            await restrictRepository.DeleteRestrictMember(id);
     }
 
-    private async Task<Unit> AddRestrict(RestrictMember member, int messageId)
+    private async Task<bool> AddRestrict(RestrictMember member, int messageId)
     {
         var (telegramId, chatId) = member.Id;
         var sendRestrictMessageTask = botClient.GetChatMember(chatId, telegramId, cancelToken.Token)
@@ -111,11 +120,11 @@ public class RestrictCommandHandler(
                 _ => Log.Information("Sent recent message to chat {0}", chatId),
                 ex => Log.Error(ex, "Failed to send recent message to chat {0}", chatId)
             );
-        return await Array(
+        await Array(
             sendRestrictMessageTask,
-            restrictRepository.AddRestrict(member),
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)
         ).WhenAll();
+        return await restrictRepository.AddRestrict(member);
     }
 
     private async Task<Unit> SendRestrictClearMessage(long chatId, ChatMember chatMember)
@@ -141,23 +150,9 @@ public class RestrictCommandHandler(
             cancelToken.Token);
     }
 
-    private async Task<Unit> SendSelfRestrictMessage(long chatId)
-    {
-        var message = appConfig.RestrictConfig.RestrictSelfMessage;
-        return await botClient.SendMessageAndLog(chatId, message,
-            message =>
-            {
-                Log.Information("Sent self restrict message to chat {0}", chatId);
-                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
-            },
-            ex => Log.Error(ex, "Failed to send self restrict message to chat {0}", chatId),
-            cancelToken.Token);
-    }
-
     private async Task<Unit> SendReceiverNotSet(long chatId)
     {
         var message = appConfig.RestrictConfig.RestrictReceiverNotSet;
-        return await botClient.SendReceiverNotSetAndLog(chatId, message, nameof(RestrictCommandHandler),
-            expiredMessageRepository, cancelToken.Token);
+        return await messageAssistance.SendReceiverNotSet(chatId, message, nameof(RestrictCommandHandler));
     }
 }

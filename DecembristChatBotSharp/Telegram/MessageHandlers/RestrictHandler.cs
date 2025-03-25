@@ -2,6 +2,8 @@
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
+using LanguageExt.UnsafeValueAccess;
+using Serilog;
 using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
@@ -19,39 +21,44 @@ public class RestrictHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
 
-        if (!await db.IsRestricted(new RestrictMember.CompositeId(telegramId, chatId))) return false;
-
-        var restrictMember = await db.GetMember(new RestrictMember(new RestrictMember.CompositeId(telegramId, chatId),
-            RestrictType.All));
-
-        var result = await _restrictTypeHandler.HandleRestrict(parameters.Payload, restrictMember.RestrictType);
-        if (!result) return false;
-
-        await botClient.DeleteMessage(chatId, messageId, cancelToken.Token);
-        return true;
+        return await db.GetRestrictMember(new RestrictMember.CompositeId(telegramId, chatId))
+            .MatchAsync(
+                async restrictMember =>
+                {
+                    var result =
+                        _restrictTypeHandler.HandleRestrict(parameters.Payload, restrictMember.RestrictType);
+                    if (!result) return false;
+                    await botClient.DeleteMessageAndLog(chatId, messageId,
+                        () => Log.Information("Deleted restrict message in chat {0}, user {1}", chatId, telegramId),
+                        ex => Log.Error(ex, "Failed to delete restrict message in chat {0},user {1}", chatId,
+                            telegramId)
+                    );
+                    return true;
+                },
+                () => false);
     }
 
     private class RestrictTypeHandler
     {
-        private readonly Dictionary<RestrictType, Func<IMessagePayload, Task<bool>>> _handlers;
+        private readonly Dictionary<RestrictType, Func<IMessagePayload, bool>> _handlers;
 
         public RestrictTypeHandler()
         {
-            _handlers = new Dictionary<RestrictType, Func<IMessagePayload, Task<bool>>>()
+            _handlers = new Dictionary<RestrictType, Func<IMessagePayload, bool>>()
             {
                 { RestrictType.Link, HandleLink },
                 { RestrictType.Emoji, HandleEmoji }
             };
         }
 
-        public async Task<bool> HandleRestrict(IMessagePayload payload, RestrictType restrictType)
+        public bool HandleRestrict(IMessagePayload payload, RestrictType restrictType)
         {
             var result = restrictType == RestrictType.All;
             if (!result)
                 foreach (var (flag, handler) in _handlers)
                 {
                     if ((restrictType & flag) != flag) continue;
-                    result |= await handler(payload);
+                    result |= handler(payload);
                     if (result)
                         break;
                 }
@@ -59,9 +66,9 @@ public class RestrictHandler(
             return result;
         }
 
-        private async Task<bool> HandleEmoji(IMessagePayload payload) => false;
+        private bool HandleEmoji(IMessagePayload payload) => false;
 
-        private async Task<bool> HandleLink(IMessagePayload payload)
+        private bool HandleLink(IMessagePayload payload)
         {
             var regex = new Regex(@"https?:\/\/[^\s]+");
             if (payload is TextPayload textPayload)

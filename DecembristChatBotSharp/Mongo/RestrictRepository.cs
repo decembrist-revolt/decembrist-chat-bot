@@ -10,78 +10,51 @@ public class RestrictRepository(
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
 {
-    public async Task<Unit> AddRestrict(RestrictMember member) =>
-        await IsRestricted(member.Id)
-            .ToTryAsync()
-            .Bind(exists => exists
-                ? UpdateRestrict(member)
-                : TryInsertRestrict(member))
-            .Match(
-                _ => unit,
-                ex =>
-                {
-                    Log.Error(ex, "Failed to add restrict for {MemberId}", member.Id);
-                    return unit;
-                });
-
-    private TryAsync<Unit> UpdateRestrict(RestrictMember member)
+    public async Task<bool> AddRestrict(
+        RestrictMember member,
+        IClientSessionHandle? session = null)
     {
         var collection = GetCollection();
-        var filter = Builders<RestrictMember>.Filter.Eq(x => x.Id, member.Id);
+
         var update = Builders<RestrictMember>.Update
             .Set(x => x.RestrictType, member.RestrictType);
+        var options = new UpdateOptions { IsUpsert = true };
 
-        return TryAsync(async () =>
-        {
-            await collection.UpdateOneAsync(filter, update, cancellationToken: cancelToken.Token);
-            return unit;
-        });
-    }
+        var filter = Builders<RestrictMember>.Filter.Eq(x => x.Id, member.Id);
+        var updateTask = not(session.IsNull())
+            ? collection.UpdateOneAsync(session, filter, update, options, cancelToken.Token)
+            : collection.UpdateOneAsync(filter, update, options, cancelToken.Token);
 
-    private TryAsync<Unit> TryInsertRestrict(RestrictMember member)
-    {
-        var collection = GetCollection();
-        return TryAsync(async () =>
-        {
-            await collection.InsertOneAsync(member, cancellationToken: cancelToken.Token);
-            return unit;
-        });
-    }
-
-    public async Task<RestrictMember> GetMember(RestrictMember member) => await GetCollection()
-        .Find(m => m.Id == member.Id)
-        .SingleOrDefaultAsync(cancelToken.Token);
-
-    public async Task<bool> IsRestricted(RestrictMember.CompositeId Id)
-    {
-        var collection = GetCollection();
-
-        return await collection
-            .Find(m => m.Id == Id)
-            .AnyAsync(cancelToken.Token)
-            .ToTryAsync()
-            .Match(identity, ex =>
+        return await updateTask.ToTryAsync().Match(
+            result => result.IsAcknowledged && (result.UpsertedId != null || result.ModifiedCount == 1),
+            ex =>
             {
-                Log.Error(ex, "Failed to find user with telegramId {0} in restrict db", Id);
+                Log.Error(ex, "Failed to add restrict for {0}", member.Id);
                 return false;
             });
     }
 
-    public async Task<Unit> DeleteMember(RestrictMember.CompositeId id)
-    {
-        var collection = GetCollection();
-        var res = await IsRestricted(id);
-        if (!res)
-            return unit;
-        return await collection.DeleteOneAsync(m => m.Id == id)
+    public async Task<Option<RestrictMember>> GetRestrictMember(RestrictMember.CompositeId id) => await GetCollection()
+        .Find(m => m.Id == id)
+        .SingleOrDefaultAsync(cancelToken.Token)
+        .ToTryAsync()
+        .Match(Optional,
+            ex =>
+            {
+                Log.Error(ex, "");
+                return None;
+            });
+
+    public async Task<bool> DeleteRestrictMember(RestrictMember.CompositeId id) =>
+        await GetCollection().DeleteOneAsync(m => m.Id == id)
             .ToTryAsync()
-            .Match(identity => unit,
+            .Match(
+                result => result.DeletedCount > 0,
                 ex =>
                 {
                     Log.Error(ex, "Failed to delete user with telegramId {0} in restrict db", id);
-                    return unit;
+                    return false;
                 });
-    }
 
     private IMongoCollection<RestrictMember> GetCollection() =>
         db.GetCollection<RestrictMember>(nameof(RestrictMember));
