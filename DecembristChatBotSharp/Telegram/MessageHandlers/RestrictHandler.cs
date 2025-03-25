@@ -53,7 +53,7 @@ public class RestrictHandler(
 
         public bool HandleRestrict(IMessagePayload payload, RestrictType restrictType)
         {
-            var result = restrictType == RestrictType.All;
+            var result = restrictType == RestrictType.None;
             if (!result)
                 foreach (var (flag, handler) in _handlers)
                 {

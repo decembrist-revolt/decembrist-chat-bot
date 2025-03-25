@@ -20,7 +20,7 @@ public class RestrictCommandHandler(
     MessageAssistance messageAssistance
 ) : ICommandHandler
 {
-    private readonly Regex _regex = new(@"\b(all|link|emoji)\b", RegexOptions.IgnoreCase);
+    private readonly Regex _regex = new(@"\b(link|emoji)\b", RegexOptions.IgnoreCase);
 
     public string Command => "/restrict";
     public string Description => "Restrict user in reply";
@@ -51,6 +51,7 @@ public class RestrictCommandHandler(
             return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
         }
 
+
         var id = new RestrictMember.CompositeId(receiverId, chatId);
         if (text.Contains("clear", StringComparison.OrdinalIgnoreCase))
         {
@@ -61,10 +62,17 @@ public class RestrictCommandHandler(
             return unit;
         }
 
+        var restrictType = ParseRestrictType(text);
+        if (restrictType == RestrictType.None)
+        {
+            Log.Warning("Command parameters are missing for {0} in chat {1}", Command, chatId);
+            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        }
+
         var member = new RestrictMember
         {
             Id = id,
-            RestrictType = ParseRestrictType(text)
+            RestrictType = restrictType
         };
 
         if (await AddRestrict(member, messageId))
@@ -78,13 +86,13 @@ public class RestrictCommandHandler(
 
     private RestrictType ParseRestrictType(string input)
     {
-        var result = RestrictType.Link;
+        var result = RestrictType.None;
         var matches = _regex.Matches(input);
         foreach (Match match in matches)
         {
             if (Enum.TryParse(match.Value, true, out RestrictType restrictType))
             {
-                if (restrictType == RestrictType.All) continue;
+                if (restrictType == RestrictType.None) continue;
                 result |= restrictType;
             }
         }
