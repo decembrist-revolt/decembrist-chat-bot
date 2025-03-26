@@ -21,9 +21,10 @@ public readonly record struct ChatMessageHandlerParams(
 
 public interface IMessagePayload;
 
-public readonly struct TextPayload(string text) : IMessagePayload
+public readonly struct TextPayload(string text, bool isLink) : IMessagePayload
 {
     public string Text => text;
+    public bool IsLink => isLink;
 }
 
 public readonly struct StickerPayload(string fileId) : IMessagePayload

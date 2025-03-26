@@ -18,7 +18,7 @@ public class RestrictCommandHandler(
     MessageAssistance messageAssistance
 ) : ICommandHandler
 {
-    private readonly Regex _regex = new(@"\b(link|emoji)\b", RegexOptions.IgnoreCase);
+    private readonly Regex _regex = new(@"\b(link)\b", RegexOptions.IgnoreCase);
 
     public string Command => "/restrict";
     public string Description => "Restrict user in reply";

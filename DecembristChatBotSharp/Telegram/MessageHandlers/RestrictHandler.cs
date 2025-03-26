@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Net.Mime;
+using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
@@ -14,12 +15,17 @@ public class RestrictHandler(
 )
 {
     private static readonly Regex LinkRegex = new(
-        @"\b((https?:\/\/|www\.)[^\s<>]+(?:\.[^\s<>]+)*(\/[^\s]*)?)",
+        @"([^\s<>]+\.[^\s<>]{2,})",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private readonly Dictionary<RestrictType, Predicate<IMessagePayload>> _handlers = new()
     {
-        [RestrictType.Link] = payload => payload is TextPayload textPayload && LinkRegex.IsMatch(textPayload.Text)
+        [RestrictType.Link] = payload => payload switch
+        {
+            TextPayload { IsLink: true } => true,
+            TextPayload { Text: var text } => LinkRegex.IsMatch(text),
+            _ => false
+        }
     };
 
     /// <returns>True if message was deleted due to restriction</returns>
