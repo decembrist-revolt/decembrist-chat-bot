@@ -1,33 +1,36 @@
 ﻿using DecembristChatBotSharp.Mongo;
 using Lamar;
+using Quartz;
 using Serilog;
 using Telegram.Bot;
 
-namespace DecembristChatBotSharp.Telegram;
+namespace DecembristChatBotSharp.Scheduler;
 
 [Singleton]
-public class ExpiredMessageService(
+public class ExpiredMessageJob(
     AppConfig appConfig,
-    ExpiredMessageRepository repository, 
+    ExpiredMessageRepository repository,
     BotClient botClient,
-    CancellationTokenSource cancelToken)
+    CancellationTokenSource cancelToken) : IRegisterJob
 {
-    private Timer? _timer;
-
-    public Unit Start()
+    public async Task Register(IScheduler scheduler)
     {
-        var intervalSeconds = appConfig.CommandConfig.CommandIntervalSeconds;
-        var interval = TimeSpan.FromSeconds(intervalSeconds);
+        var job = JobBuilder.Create<ExpiredMessageJob>()
+            .WithIdentity(nameof(ExpiredMessageJob))
+            .Build();
 
-        _timer = new Timer(
-            _ => CheckMessages().Wait(cancelToken.Token), null, interval, interval);
+        var trigger = TriggerBuilder.Create()
+            .WithIdentity(nameof(ExpiredMessageJob))
+            .StartNow()
+            .WithSimpleSchedule(x => x
+                .WithIntervalInSeconds(appConfig.CommandConfig.CommandIntervalSeconds)
+                .RepeatForever())
+            .Build();
 
-        cancelToken.Token.Register(_ => _timer.Dispose(), null);
-
-        return unit;
+        await scheduler.ScheduleJob(job, trigger);
     }
 
-    private async Task<Unit> CheckMessages()
+    public async Task Execute(IJobExecutionContext context)
     {
         var messages = await repository.GetExpiredMessages();
         var chatIdToMessageIds = messages
@@ -36,10 +39,8 @@ public class ExpiredMessageService(
 
         await chatIdToMessageIds.Map(group => DeleteMessages(group.Key, group.Value)).WhenAll();
         await repository.DeleteMessages(messages);
-
-        return unit;
     }
-    
+
     private async Task<Unit> DeleteMessages(long chatId, int[] messageIds) =>
         await botClient.DeleteMessages(chatId, messageIds, cancelToken.Token)
             .ToTryAsync()

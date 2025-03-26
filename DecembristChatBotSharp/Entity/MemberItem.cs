@@ -7,7 +7,7 @@ public record MemberItem(
 {
     public record CompositeId(long TelegramId, long ChatId, MemberItemType Type);
 }
-    
+
 public enum MemberItemType
 {
     RedditMeme = 0,
@@ -24,7 +24,8 @@ public record MemberItemHistoryLogData(
 
 public enum MemberItemSourceType
 {
-    Admin,
-    Box,
-    Use
+    Admin = 0,
+    Box = 1,
+    Use = 2,
+    TopLiker = 3
 }

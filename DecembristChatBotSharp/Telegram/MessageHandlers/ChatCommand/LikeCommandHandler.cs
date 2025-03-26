@@ -82,7 +82,7 @@ public class LikeCommandHandler(
 
     private async Task<Unit> SendLikeReceiverNotSet(long chatId)
     {
-        var message = appConfig.CommandConfig.LikeReceiverNotSet;
+        var message = appConfig.CommandConfig.LikeConfig.LikeReceiverNotSet;
         return await botClient.SendMessageAndLog(chatId, message,
             message =>
             {
@@ -95,7 +95,7 @@ public class LikeCommandHandler(
 
     private async Task<Unit> SendSelfLikeMessage(long chatId)
     {
-        var message = appConfig.CommandConfig.SelfLikeMessage;
+        var message = appConfig.CommandConfig.LikeConfig.SelfLikeMessage;
         return await botClient.SendMessageAndLog(chatId, message,
             message =>
             {
@@ -109,7 +109,7 @@ public class LikeCommandHandler(
     private async Task<Unit> SendLikeMessage(long chatId, ChatMember chatMember)
     {
         var username = chatMember.GetUsername();
-        var message = string.Format(appConfig.CommandConfig.LikeMessage, username);
+        var message = string.Format(appConfig.CommandConfig.LikeConfig.LikeMessage, username);
         await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token);
 
         return unit;

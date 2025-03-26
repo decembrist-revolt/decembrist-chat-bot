@@ -4,6 +4,7 @@ global using BotClient = Telegram.Bot.ITelegramBotClient;
 using DecembristChatBotSharp;
 using DecembristChatBotSharp.DI;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Scheduler;
 using DecembristChatBotSharp.Telegram;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
@@ -23,15 +24,14 @@ try
     Log.Information("Indexes ensured");
     var botHandler = container.GetRequiredService<BotHandler>();
     botHandler.Start();
-    var checkCaptcha = container.GetRequiredService<CheckCaptchaScheduler>();
-    checkCaptcha.Start();
-    var expiredMessageService = container.GetRequiredService<ExpiredMessageService>();
-    expiredMessageService.Start();
+    var jobManager = container.GetRequiredService<JobManager>();
+    await jobManager.Start();
     // Log.Information(container.WhatDidIScan());
     // Log.Information(container.WhatDoIHave());
 
     Console.CancelKeyPress += (_, args) =>
     {
+        jobManager.Shutdown().Wait();
         CancelGlobalToken();
         args.Cancel = true;
     };

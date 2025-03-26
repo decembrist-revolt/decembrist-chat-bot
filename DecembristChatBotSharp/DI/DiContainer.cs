@@ -1,8 +1,9 @@
 ﻿using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Scheduler;
 using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Lamar;
-using LanguageExt.Common;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Driver;
 using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -26,12 +27,20 @@ public class DiContainer
         var botUser = await GetBotUser(botClient, cancellationTokenSource.Token);
         registry.AddSingleton(botUser);
 
+        var mongoUrl = new MongoUrl(appConfig.MongoConfig.ConnectionString);
+        registry.AddSingleton(mongoUrl);
+        var client = new MongoClient(appConfig.MongoConfig.ConnectionString);
+        registry.AddSingleton(client);
+
+        registry.AddQuartz();
+
         registry.Scan(s =>
         {
             s.TheCallingAssembly();
             s.WithDefaultConventions();
             s.AddAllTypesOf<ICommandHandler>();
             s.AddAllTypesOf<IRepository>();
+            s.AddAllTypesOf<IRegisterJob>();
         });
 
         return new Container(registry);

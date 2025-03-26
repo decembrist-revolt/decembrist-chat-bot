@@ -5,13 +5,15 @@ using Serilog;
 namespace DecembristChatBotSharp.Mongo;
 
 [Singleton]
-public class MongoDatabase(AppConfig appConfig, Lazy<IList<IRepository>> repositories)
+public class MongoDatabase(
+    AppConfig appConfig, 
+    MongoClient client,
+    MongoUrl mongoUrl,
+    Lazy<IList<IRepository>> repositories)
 {
-    private readonly MongoClient _client = new(appConfig.MongoConfig.ConnectionString);
+    public IMongoDatabase GetDatabase() => client.GetDatabase(mongoUrl.DatabaseName);
 
-    public IMongoDatabase GetDatabase() => _client.GetDatabase(appConfig.MongoConfig.DatabaseName);
-
-    public Task<IClientSessionHandle> OpenSession() => _client.StartSessionAsync();
+    public Task<IClientSessionHandle> OpenSession() => client.StartSessionAsync();
 
     public IMongoCollection<T> GetCollection<T>(string collectionName) =>
         GetDatabase().GetCollection<T>(collectionName);
@@ -21,7 +23,7 @@ public class MongoDatabase(AppConfig appConfig, Lazy<IList<IRepository>> reposit
         var timeout = appConfig.MongoConfig.ConnectionCheckTimeoutSeconds;
         using var cancelToken = new CancellationTokenSource(TimeSpan.FromSeconds(timeout));
 
-        return await _client.ListDatabaseNamesAsync(cancelToken.Token)
+        return await client.ListDatabaseNamesAsync(cancelToken.Token)
             .ToTryAsync()
             .IfFail(static void (ex) =>
             {

@@ -13,7 +13,7 @@ public record AppConfig(
     string WelcomeMessage,
     [property: Required(AllowEmptyStrings = false)]
     string DatabaseFile,
-    long CheckCaptchaIntervalSeconds,
+    int CheckCaptchaIntervalSeconds,
     long CaptchaTimeSeconds,
     [property: Required(AllowEmptyStrings = false)]
     string CaptchaAnswer,
@@ -64,22 +64,15 @@ public record AllowedChatConfig(
 public record MongoConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ConnectionString,
-    [property: Required(AllowEmptyStrings = false)]
-    string DatabaseName,
     int ConnectionCheckTimeoutSeconds
 );
 
 public record CommandConfig(
-    int TopLikeMemberCount,
     int CommandIntervalSeconds,
-    [property: Required(AllowEmptyStrings = false)]
-    string LikeMessage,
-    [property: Required(AllowEmptyStrings = false)]
-    string LikeReceiverNotSet,
+    LikeConfig LikeConfig,
+    BanConfig BanConfig,
     [property: Required(AllowEmptyStrings = false)]
     string CommandNotReady,
-    [property: Required(AllowEmptyStrings = false)]
-    string SelfLikeMessage,
     [property: Required(AllowEmptyStrings = false)]
     string AdminOnlyMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -90,7 +83,6 @@ public record CommandConfig(
     string NewFastReplyMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FastReplyDuplicateMessage,
-    BanConfig BanConfig,
     [property: Required(AllowEmptyStrings = false)]
     string WrongCommandMessage
 );
@@ -134,4 +126,20 @@ public record ItemConfig(
     string GetItemMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FailedToOpenBoxMessage
+);
+
+public record LikeConfig(
+    int TopLikeMemberCount,
+    [property: Required(AllowEmptyStrings = false)]
+    string LikeMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string LikeReceiverNotSet,
+    [property: Required(AllowEmptyStrings = false)]
+    string SelfLikeMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string DailyTopLikersGiftCronUtc,
+    [property: Required(AllowEmptyStrings = false)]
+    int DailyTopLikersCount,
+    [property: Required(AllowEmptyStrings = false)]
+    string TopLikersGiftMessage
 );

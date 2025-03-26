@@ -8,6 +8,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public class ShowLikesCommandHandler(
+    AppConfig appConfig,
     CommandLockRepository lockRepository,
     MemberLikeRepository memberLikeRepository,
     BotClient botClient,
@@ -29,7 +30,8 @@ public class ShowLikesCommandHandler(
         
         Log.Information("Processing show likes command in chat {0}", chatId);
 
-        var topLikeMembers = await memberLikeRepository.GetTopLikeMembers(chatId);
+        var limit = appConfig.CommandConfig.LikeConfig.TopLikeMemberCount;
+        var topLikeMembers = await memberLikeRepository.GetTopLikeMembers(chatId, limit);
         if (topLikeMembers.Count <= 0) return unit;
 
         var usernameCountChunks = await topLikeMembers.Chunk(5)

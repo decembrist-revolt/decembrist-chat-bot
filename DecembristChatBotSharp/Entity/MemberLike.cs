@@ -13,3 +13,8 @@ public record MemberLike(
         long ChatId
     );
 }
+
+public record TopLikerHistoryLogData(
+    int Likes,
+    int Position
+) : IHistoryLogData;

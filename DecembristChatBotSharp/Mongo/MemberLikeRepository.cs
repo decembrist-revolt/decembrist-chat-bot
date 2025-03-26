@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using System.Linq.Expressions;
+using DecembristChatBotSharp.Entity;
 using Lamar;
 using MongoDB.Driver;
 using Serilog;
@@ -36,10 +37,11 @@ public class MemberLikeRepository(
         return unit;
     }
 
-    public async Task<List<LikeTelegramToLikeCount>> GetTopLikeMembers(long chatId)
+    public async Task<Arr<LikeTelegramToLikeCount>> GetTopLikeMembers(
+        long chatId, int limit, IClientSessionHandle? session = null)
     {
         var collection = GetCollection();
-        var limit = appConfig.CommandConfig.TopLikeMemberCount;
+
         var pipeline = new EmptyPipelineDefinition<MemberLike>()
             .Match(member => member.Id.ChatId == chatId)
             .Group(member => member.LikeTelegramId,
@@ -47,12 +49,15 @@ public class MemberLikeRepository(
             .Sort(Builders<LikeTelegramToLikeCount>.Sort.Descending(count => count.Count))
             .Limit(limit);
 
-        var aggregateTask = collection.Aggregate(pipeline).ToListAsync(cancelToken.Token);
-        return await TryAsync(aggregateTask).IfFail(ex =>
+        var cursor = session.IsNull()
+            ? collection.Aggregate(pipeline, cancellationToken: cancelToken.Token)
+            : collection.Aggregate(session, pipeline, cancellationToken: cancelToken.Token);
+        var aggregateTask = cursor.ToListAsync(cancelToken.Token);
+        return await aggregateTask.ToTryAsync().Map(ListExtensions.ToArr).IfFail(ex =>
         {
             Log.Error(ex, "Failed to get top 10 like members for chat {0}", chatId);
             return [];
-        }) ?? throw new Exception("Impossible aggregation null");
+        });
     }
 
     public Task<Unit> AddMemberLike(long telegramId, long chatId, long likeTelegramId, int value = 1)
@@ -87,20 +92,58 @@ public class MemberLikeRepository(
         });
     }
 
-    public async Task<bool> RemoveMemberLike(long telegramId, long chatId, long likeTelegramId)
+    public async Task<bool> RemoveMemberLike(
+        long telegramId,
+        long chatId,
+        long likeTelegramId,
+        IClientSessionHandle? session = null)
     {
         var memberLikes = GetCollection();
-        var tryDelete = await TryAsync(memberLikes.DeleteOneAsync(member => member.Id.TelegramId == telegramId
-                                                                            && member.Id.ChatId == chatId
-                                                                            && member.LikeTelegramId == likeTelegramId,
-            cancellationToken: cancelToken.Token));
+        Expression<Func<MemberLike, bool>> filter = member => member.Id.TelegramId == telegramId
+                                                              && member.Id.ChatId == chatId
+                                                              && member.LikeTelegramId == likeTelegramId;
 
-        return tryDelete.Match(
+        var deleteTask = session.IsNull()
+            ? memberLikes.DeleteOneAsync(filter, cancellationToken: cancelToken.Token)
+            : memberLikes.DeleteOneAsync(session, filter, cancellationToken: cancelToken.Token);
+
+        return await deleteTask.ToTryAsync().Match(
             result => result.DeletedCount > 0,
             ex =>
             {
                 Log.Error(ex, "Failed to remove like for {0} in chat {1}", telegramId, chatId);
                 return false;
+            });
+    }
+
+    public async Task<long> RemoveAllInChat(long chatId, IClientSessionHandle? session = null)
+    {
+        var memberLikes = GetCollection();
+        Expression<Func<MemberLike,bool>> filter = member => member.Id.ChatId == chatId;
+        var deleteTask = session.IsNull()
+            ? memberLikes.DeleteManyAsync(filter, cancellationToken: cancelToken.Token)
+            : memberLikes.DeleteManyAsync(session, filter, cancellationToken: cancelToken.Token);
+
+        return await deleteTask.ToTryAsync().Match(
+            result => result.DeletedCount,
+            ex =>
+            {
+                Log.Error(ex, "Failed to remove likes for chat {0}", chatId);
+                return 0;
+            });
+    }
+
+    public async Task<Arr<long>> GetChatIds()
+    {
+        var memberLikes = GetCollection();
+        return await memberLikes
+            .Distinct(member => member.Id.ChatId, member => true, cancellationToken: cancelToken.Token)
+            .ToListAsync(cancelToken.Token)
+            .ToTryAsync()
+            .Match(ListExtensions.ToArr, ex =>
+            {
+                Log.Error(ex, "Failed to get chat ids from member likes");
+                return [];
             });
     }
 

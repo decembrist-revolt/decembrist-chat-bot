@@ -9,7 +9,7 @@ public static class SetLogger
     public static Unit Do()
     {
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
+            .MinimumLevel.Information()
             .WriteTo.Console(outputTemplate: LogTemplate)
             .WriteTo.File(
                 path: $"logs/log-{DateTime.Now:yyyy-MM-dd}.log",

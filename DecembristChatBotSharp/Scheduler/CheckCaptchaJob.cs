@@ -1,40 +1,43 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
+using Quartz;
 using Serilog;
 using Telegram.Bot;
 
-namespace DecembristChatBotSharp.Telegram;
+namespace DecembristChatBotSharp.Scheduler;
 
 [Singleton]
-public class CheckCaptchaScheduler(
+public class CheckCaptchaJob(
     BotClient bot,
     AppConfig appConfig,
     NewMemberRepository db,
-    CancellationTokenSource cancelToken)
+    CancellationTokenSource cancelToken) : IRegisterJob
 {
-    private Timer? _timer;
-
-    public Unit Start()
+    public async Task Register(IScheduler scheduler)
     {
-        var interval = TimeSpan.FromSeconds(appConfig.CheckCaptchaIntervalSeconds);
+        var job = JobBuilder.Create<CheckCaptchaJob>()
+            .WithIdentity(nameof(CheckCaptchaJob))
+            .Build();
 
-        _timer = new Timer(
-            _ => CheckCaptcha().Wait(cancelToken.Token), null, interval, interval);
+        var trigger = TriggerBuilder.Create()
+            .WithIdentity(nameof(CheckCaptchaJob))
+            .StartNow()
+            .WithSimpleSchedule(x => x
+                .WithIntervalInSeconds(appConfig.CheckCaptchaIntervalSeconds)
+                .RepeatForever())
+            .Build();
 
-        cancelToken.Token.Register(_ => _timer.Dispose(), null);
-
-        return unit;
+        await scheduler.ScheduleJob(job, trigger);
     }
 
-    private async Task<Unit> CheckCaptcha()
+    public async Task Execute(IJobExecutionContext context)
     {
         var olderThanUtc = DateTime.UtcNow.AddSeconds(-appConfig.CaptchaTimeSeconds);
         var members = await db.GetNewMembers(olderThanUtc)
             .Match(identity, OnGetMembersFailed);
         
-        await Task.WhenAll(members.Select(HandleExpiredMember));
-        return unit;
+        await members.Select(HandleExpiredMember).WhenAll();
     }
     
     private List<NewMember> OnGetMembersFailed(Exception ex)
