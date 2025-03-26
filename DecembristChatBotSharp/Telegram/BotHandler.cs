@@ -96,7 +96,7 @@ public class BotHandler(
                 Text: { } text,
                 Type: MessageType.Text,
                 From.Id: { }
-            } => new TextPayload(text),
+            } => new TextPayload(text, CheckForLinkEntity(message.Entities)),
             {
                 Sticker.FileId: { } fileId,
                 Type: MessageType.Sticker,
@@ -110,6 +110,9 @@ public class BotHandler(
             payload, messageId, telegramId, chatId, Optional(message.ReplyToMessage?.From?.Id));
         await chatMessageHandler.Do(parameters);
     }
+
+    private bool CheckForLinkEntity(MessageEntity[]? entities) =>
+        entities != null && entities.Any(e => e.Type is MessageEntityType.Url or MessageEntityType.TextLink);
 
     private Task HandleChatMemberUpdateAsync(ChatMemberUpdated chatMember) =>
         chatMember switch
