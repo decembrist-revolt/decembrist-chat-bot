@@ -1,20 +1,22 @@
-﻿using Lamar;
+﻿using JasperFx.Core;
+using Lamar;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
-public readonly struct ChatMessageHandlerParams(
-    IMessagePayload payload,
-    int messageId,
-    long telegramId,
-    long chatId,
-    Option<long> replyToTelegramId
+public readonly record struct ChatMessageHandlerParams(
+    IMessagePayload Payload,
+    int MessageId,
+    long TelegramId,
+    long ChatId,
+    Option<long> ReplyToTelegramId
 )
 {
-    public IMessagePayload Payload => payload;
-    public int MessageId => messageId;
-    public long TelegramId => telegramId;
-    public long ChatId => chatId;
-    public Option<long> ReplyToTelegramId => replyToTelegramId;
+    public void Deconstruct(out int messageId, out long telegramId, out long chatId)
+    {
+        messageId = MessageId;
+        telegramId = TelegramId;
+        chatId = ChatId;
+    }
 }
 
 public interface IMessagePayload;
@@ -36,6 +38,7 @@ public class ChatMessageHandler(
     CaptchaHandler captchaHandler,
     ChatCommandHandler chatCommandHandler,
     FastReplyHandler fastReplyHandler,
+    RestrictHandler restrictHandler,
     WrongCommandHandler wrongCommandHandler
 )
 {
@@ -43,7 +46,9 @@ public class ChatMessageHandler(
     {
         var result = await captchaHandler.Do(parameters);
         if (result == Result.Captcha) return unit;
-        
+
+        if (await restrictHandler.Do(parameters)) return unit;
+
         if (parameters.Payload is TextPayload { Text.Length: > 1, Text: var text })
         {
             var commandResult = await chatCommandHandler.Do(parameters);

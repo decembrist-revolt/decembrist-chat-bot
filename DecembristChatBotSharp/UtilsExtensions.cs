@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using MongoDB.Driver;
+using DecembristChatBotSharp.Mongo;
 using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
