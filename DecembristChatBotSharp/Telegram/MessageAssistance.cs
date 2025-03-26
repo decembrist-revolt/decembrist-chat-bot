@@ -12,7 +12,6 @@ namespace DecembristChatBotSharp.Telegram;
 public class MessageAssistance(
     AppConfig appConfig, 
     BotClient botClient, 
-    User botUser,
     ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken)
 {
@@ -40,7 +39,8 @@ public class MessageAssistance(
     public async Task<Unit> DeleteCommandMessage(long chatId, int messageId, string command) =>
         await botClient.DeleteMessageAndLog(chatId, messageId,
             () => Log.Information("Deleted {0} message in chat {1}", command, chatId),
-            ex => Log.Error(ex, "Failed to delete like message in chat {0}", chatId));
+            ex => Log.Error(ex, "Failed to delete like message in chat {0}", chatId),
+            cancelToken.Token);
     
     public async Task<Unit> SendAdminOnlyMessage(long chatId, long telegramId) =>
         await botClient.SendMessageAndLog(chatId, appConfig.CommandConfig.AdminOnlyMessage,
@@ -82,19 +82,6 @@ public class MessageAssistance(
         return await botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Sent get item message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send get item message to chat {0}", chatId),
-            cancelToken.Token);
-    }
-
-    public async Task<Unit> SendReceiverNotSet(long chatId, string message, string commandName)
-    {
-        return await botClient.SendMessageAndLog(chatId, message,
-            message =>
-            {
-                Log.Information("Sent {0} receiver not set message to chat {1}", commandName, chatId);
-                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
-            },
-            ex =>
-                Log.Error(ex, "Failed to send {0} receiver not set message to chat {1}", commandName, chatId),
             cancelToken.Token);
     }
 }

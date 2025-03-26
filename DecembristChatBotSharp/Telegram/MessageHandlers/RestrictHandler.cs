@@ -2,9 +2,7 @@
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
-using LanguageExt.UnsafeValueAccess;
 using Serilog;
-using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
@@ -15,65 +13,52 @@ public class RestrictHandler(
     CancellationTokenSource cancelToken
 )
 {
-    private RestrictTypeHandler _restrictTypeHandler = new();
+    private static readonly Regex LinkRegex = new(
+        @"\b((https?:\/\/|www\.)[^\s<>]+(?:\.[^\s<>]+)*(\/[^\s]*)?)",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+    private readonly Dictionary<RestrictType, Predicate<IMessagePayload>> _handlers = new()
+    {
+        [RestrictType.Link] = payload => payload is TextPayload textPayload && LinkRegex.IsMatch(textPayload.Text)
+    };
+
+    /// <returns>True if message was deleted due to restriction</returns>
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
 
         return await db.GetRestrictMember(new RestrictMember.CompositeId(telegramId, chatId))
             .MatchAsync(
-                async restrictMember =>
-                {
-                    var result =
-                        _restrictTypeHandler.HandleRestrict(parameters.Payload, restrictMember.RestrictType);
-                    if (!result) return false;
-                    await botClient.DeleteMessageAndLog(chatId, messageId,
-                        () => Log.Information("Deleted restrict message in chat {0}, user {1}", chatId, telegramId),
-                        ex => Log.Error(ex, "Failed to delete restrict message in chat {0},user {1}", chatId,
-                            telegramId)
-                    );
-                    return true;
-                },
+                member => CheckRestrictions(chatId, telegramId, parameters.Payload, messageId, member.RestrictType),
                 () => false);
     }
 
-    private class RestrictTypeHandler
+    /// <returns>True if message was deleted due to restriction</returns>
+    private async Task<bool> CheckRestrictions(
+        long chatId, long telegramId, IMessagePayload payload, int messageId, RestrictType restrictType)
     {
-        private readonly Dictionary<RestrictType, Func<IMessagePayload, bool>> _handlers;
+        if (!IsRestricted(payload, restrictType)) return false;
 
-        public RestrictTypeHandler()
+        await botClient.DeleteMessageAndLog(chatId, messageId,
+            () => Log.Information("Deleted restrict message in chat {0}, user {1}", chatId, telegramId),
+            ex => Log.Error(ex, "Failed to delete restrict message in chat {0}, user {1}", chatId, telegramId),
+            cancelToken.Token);
+
+        return true;
+    }
+
+    private bool IsRestricted(IMessagePayload payload, RestrictType restrictType)
+    {
+        if (restrictType == RestrictType.None) return false;
+
+        var result = false;
+        foreach (var (flag, handler) in _handlers)
         {
-            _handlers = new Dictionary<RestrictType, Func<IMessagePayload, bool>>()
-            {
-                { RestrictType.Link, HandleLink },
-                { RestrictType.Emoji, HandleEmoji }
-            };
+            if ((restrictType & flag) != flag) continue;
+            result |= handler(payload);
+            if (result) return true;
         }
 
-        public bool HandleRestrict(IMessagePayload payload, RestrictType restrictType)
-        {
-            var result = restrictType == RestrictType.None;
-            if (!result)
-                foreach (var (flag, handler) in _handlers)
-                {
-                    if ((restrictType & flag) != flag) continue;
-                    result |= handler(payload);
-                    if (result)
-                        break;
-                }
-
-            return result;
-        }
-
-        private bool HandleEmoji(IMessagePayload payload) => false;
-
-        private bool HandleLink(IMessagePayload payload)
-        {
-            var regex = new Regex(@"https?:\/\/[^\s]+");
-            if (payload is TextPayload textPayload)
-                return regex.Match(textPayload.Text).Success;
-            return false;
-        }
+        return false;
     }
 }

@@ -112,20 +112,16 @@ public class RestrictCommandHandler(
     private async Task<bool> AddRestrict(RestrictMember member, int messageId)
     {
         var (telegramId, chatId) = member.Id;
-        var sendRestrictMessageTask = botClient.GetChatMember(chatId, telegramId, cancelToken.Token)
-            .ToTryAsync()
-            .Map(chatMember => chatMember.GetUsername())
-            .Match(async username => await SendRestrictMessage(chatId, member, username),
-                ex =>
-                {
-                    Log.Error(ex, "Failed to get chat member in chat {0} with telegramId {1}", chatId, telegramId);
-                    return Task.FromResult(unit);
-                });
+        var sendRestrictMessageTask = botClient
+            .GetUsername(chatId, telegramId, cancelToken.Token)
+            .IfSomeAsync(username => SendRestrictMessage(chatId, telegramId, username, member.RestrictType));
+        var addRestrictTask = restrictRepository.AddRestrict(member);
         await Array(
+            addRestrictTask.UnitTask(),
             sendRestrictMessageTask,
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)
         ).WhenAll();
-        return await restrictRepository.AddRestrict(member);
+        return await addRestrictTask;
     }
 
     private async Task<Unit> SendRestrictClearMessage(long chatId, string username)
@@ -136,18 +132,15 @@ public class RestrictCommandHandler(
             ex => Log.Error(ex, "Failed to send restrict clear message to chat {0}", chatId), cancelToken.Token);
     }
 
-    private async Task<Unit> SendRestrictMessage(long chatId, RestrictMember member, string username)
+    private async Task<Unit> SendRestrictMessage(
+        long chatId, long telegramId, string username, RestrictType restrictType)
     {
-        var message = string.Format(appConfig.RestrictConfig.RestrictMessage, username,
-            member.RestrictType);
+        var message = string.Format(appConfig.RestrictConfig.RestrictMessage, username, restrictType);
         return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("{command}-message sent from {0} in chat {1} with type {2}", Command,
-                member.Id.TelegramId,
-                chatId, member.RestrictType
-            ),
-            ex => Log.Error(ex,
-                "Failed to send {command} message from {0} in chat {1} with type {2}",
-                Command, member.Id.TelegramId, chatId, member.RestrictType),
+            _ => Log.Information("{0}-message sent from {1} in chat {2} with type {3}",
+                Command, telegramId, chatId, restrictType),
+            ex => Log.Error(ex, "Failed to send {command} message from {0} in chat {1} with type {2}",
+                Command, telegramId, chatId, restrictType),
             cancelToken.Token);
     }
 }

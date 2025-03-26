@@ -17,5 +17,4 @@ public enum RestrictType : short
 {
     None = 0,
     Link = 1,
-    Emoji = 2
 }
