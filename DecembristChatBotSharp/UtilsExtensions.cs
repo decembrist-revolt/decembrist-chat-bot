@@ -39,8 +39,12 @@ public static class UtilsExtensions
         long chatId,
         int messageId,
         Action onDeleted,
-        Action<Exception> onError) =>
-        botClient.DeleteMessage(chatId, messageId).ToTryAsync().Match(_ => onDeleted(), onError);
+        Action<Exception> onError,
+        CancellationToken cancelToken) =>
+        botClient
+            .DeleteMessage(chatId, messageId, cancellationToken: cancelToken)
+            .ToTryAsync()
+            .Match(_ => onDeleted(), onError);
 
     public static TryAsync<T> ToTryAsync<T>(this Task<T> task) => TryAsync(task);
 

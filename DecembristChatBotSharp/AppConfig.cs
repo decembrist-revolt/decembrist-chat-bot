@@ -27,6 +27,7 @@ public record AppConfig(
     MongoConfig MongoConfig,
     CommandConfig CommandConfig,
     RedditConfig RedditConfig,
+    RestrictConfig RestrictConfig,
     ItemConfig ItemConfig,
     DateTime? DeployTime = null,
     List<long>? WhiteListIds = null)
@@ -116,6 +117,13 @@ public record BanConfig(
     int ReasonLengthLimit,
     [property: Required(AllowEmptyStrings = false)]
     string ReasonLengthErrorMessage
+);
+
+public record RestrictConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string RestrictMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string RestrictClearMessage
 );
 
 public record ItemConfig(
