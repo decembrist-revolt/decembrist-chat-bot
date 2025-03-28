@@ -3,5 +3,5 @@
 namespace DecembristChatBotSharp.Entity;
 
 public record AdminUser(
-    [property: BsonId] long TelegramId
+    [property: BsonId] CompositeId Id
 );

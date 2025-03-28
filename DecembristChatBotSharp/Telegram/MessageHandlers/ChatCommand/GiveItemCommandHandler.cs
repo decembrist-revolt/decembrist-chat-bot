@@ -29,7 +29,7 @@ public class GiveItemCommandHandler(
 
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
-        if (!await adminUserRepository.IsAdmin(telegramId))
+        if (!await adminUserRepository.IsAdmin(new(telegramId, chatId)))
         {
             return await messageAssistance.SendAdminOnlyMessage(chatId, telegramId);
         }
@@ -58,7 +58,7 @@ public class GiveItemCommandHandler(
             {
                 return await botClient.GetUsername(chatId, replyTelegramId, cancelToken.Token);
             }
-            
+
             return None;
         }).MapAsync(TaskOptionAsyncExtensions.ToAsync).Flatten();
 

@@ -10,17 +10,17 @@ public class AdminUserRepository(
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
 {
-    public Task<bool> IsAdmin(long telegramId)
+    public Task<bool> IsAdmin(CompositeId id)
     {
         var collection = GetCollection();
 
         return collection
-            .Find(reply => reply.TelegramId == telegramId)
+            .Find(reply => reply.Id == id)
             .AnyAsync(cancelToken.Token)
             .ToTryAsync()
             .Match(identity, ex =>
             {
-                Log.Error(ex, "Failed to find admin user with telegramId {0}", telegramId);
+                Log.Error(ex, "Failed to find admin user with telegramId {0}", id);
                 return false;
             });
     }

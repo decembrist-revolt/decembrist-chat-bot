@@ -29,7 +29,7 @@ public class RestrictCommandHandler(
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
         if (text != Command && !text.StartsWith(Command + " ")) return unit;
-        if (!await adminRepository.IsAdmin(telegramId))
+        if (!await adminRepository.IsAdmin(new(telegramId, chatId)))
         {
             return await messageAssistance.SendAdminOnlyMessage(chatId, telegramId);
         }
