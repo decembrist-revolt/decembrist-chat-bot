@@ -29,7 +29,7 @@ public class RestrictCommandHandler(
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
         if (text != Command && !text.StartsWith(Command + " ")) return unit;
-        if (!await adminRepository.IsAdmin(telegramId))
+        if (!await adminRepository.IsAdmin(new(telegramId, chatId)))
         {
             return await messageAssistance.SendAdminOnlyMessage(chatId, telegramId);
         }
@@ -48,7 +48,7 @@ public class RestrictCommandHandler(
             return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
         }
 
-        var compositeId = new RestrictMember.CompositeId(receiverId, chatId);
+        var compositeId = new CompositeId(receiverId, chatId);
         if (text.Contains("clear", StringComparison.OrdinalIgnoreCase))
         {
             if (await DeleteRestrict(compositeId, messageId))
@@ -88,7 +88,7 @@ public class RestrictCommandHandler(
         return result;
     }
 
-    private async Task<bool> DeleteRestrict(RestrictMember.CompositeId id, int messageId)
+    private async Task<bool> DeleteRestrict(CompositeId id, int messageId)
     {
         var (telegramId, chatId) = id;
         var sendClearMessageTask = botClient.GetChatMember(chatId, telegramId, cancelToken.Token)

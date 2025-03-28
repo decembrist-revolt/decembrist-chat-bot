@@ -26,7 +26,7 @@ public class TelegramMemeCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
 
-        var isAdmin = await adminUserRepository.IsAdmin(telegramId);
+        var isAdmin = await adminUserRepository.IsAdmin(new(telegramId, chatId));
 
         var result = await memberItemService.UseTelegramMeme(chatId, telegramId, isAdmin);
         if (result.Result == UseTelegramMemeResult.Type.Failed)

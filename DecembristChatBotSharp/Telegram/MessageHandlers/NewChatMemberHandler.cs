@@ -36,7 +36,7 @@ public class NewMemberHandler(
         var user = parameters.User;
         var telegramId = user.Id;
 
-        if (await whiteListRepository.IsWhiteListMember(telegramId))
+        if (await whiteListRepository.IsWhiteListMember(new(telegramId, chatId)))
         {
             Log.Information("Whitelist member {0} joined", telegramId);
             return unit;

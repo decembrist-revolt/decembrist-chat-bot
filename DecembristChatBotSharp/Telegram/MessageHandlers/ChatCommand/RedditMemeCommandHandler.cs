@@ -27,7 +27,7 @@ public class RedditMemeCommandHandler(
         var chatId = parameters.ChatId;
         var messageId = parameters.MessageId;
 
-        var isAdmin = await adminUserRepository.IsAdmin(telegramId);
+        var isAdmin = await adminUserRepository.IsAdmin(new(telegramId, chatId));
 
         var result = await memberItemService.UseRedditMeme(chatId, telegramId, isAdmin);
         if (result.Result == UseRedditMemeResult.Type.Failed)
