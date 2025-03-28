@@ -11,21 +11,21 @@ public class WhiteListRepository(
     CancellationTokenSource cancelToken) : IRepository
 
 {
-    public async Task<bool> IsWhiteListMember(long telegramId)
+    public async Task<bool> IsWhiteListMember(CompositeId id)
     {
         var collection = GetCollection();
 
         return await collection
-            .Find(member => member.TelegramId == telegramId)
+            .Find(member => member.Id == id)
             .AnyAsync(cancelToken.Token)
             .ToTryAsync()
             .Match(identity, ex =>
             {
-                Log.Error(ex, "Failed to find user with telegramId {0}", telegramId);
+                Log.Error(ex, "Failed to find user with telegramId {0}", id);
                 return false;
             });
     }
 
-    private IMongoCollection<WhiteListMember> GetCollection() => 
+    private IMongoCollection<WhiteListMember> GetCollection() =>
         db.GetCollection<WhiteListMember>(nameof(WhiteListMember));
 }
