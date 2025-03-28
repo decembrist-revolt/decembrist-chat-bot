@@ -2,6 +2,7 @@
 using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
+using Telegram.Bot;
 using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
@@ -54,14 +55,13 @@ public class TelegramMemeCommandHandler(
         return maybeSend.ToAsync().IfSome(identity);
     }
 
-    private async Task<Unit> SendMeme(long chatId, TelegramRandomMeme meme)
-    {
-        var message = $"[Украденный мем]({meme.PhotoLink.EscapeMarkdown()})";
-        return await botClient.SendMessageAndLog(chatId, message, ParseMode.MarkdownV2,
-            _ => Log.Information("Sent random meme to chat {0}", chatId),
-            ex => Log.Error(ex, "Failed to send random meme {0} to chat {1}", message, chatId),
-            cancelToken.Token);
-    }
+    private async Task<Unit> SendMeme(long chatId, TelegramRandomMeme meme) =>
+        await botClient.SendPhoto(
+                chatId, meme.PhotoLink, caption: "Украденный мем", cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .Match(
+                _ => Log.Information("Sent random telegram meme to chat {0}", chatId),
+                ex => Log.Error(ex, "Failed to send random telegram meme {0} to chat {1}", meme.PhotoLink, chatId));
 
     private async Task<Unit> SendTelegramErrorMessage(long chatId)
     {
