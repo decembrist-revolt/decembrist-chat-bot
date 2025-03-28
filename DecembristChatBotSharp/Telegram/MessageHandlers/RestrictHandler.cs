@@ -33,7 +33,7 @@ public class RestrictHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
 
-        return await db.GetRestrictMember(new RestrictMember.CompositeId(telegramId, chatId))
+        return await db.GetRestrictMember(new(telegramId, chatId))
             .MatchAsync(
                 member => CheckRestrictions(chatId, telegramId, parameters.Payload, messageId, member.RestrictType),
                 () => false);

@@ -2,15 +2,9 @@
 
 namespace DecembristChatBotSharp.Entity;
 
-public readonly record struct RestrictMember(
-    [property: BsonId] RestrictMember.CompositeId Id,
-    RestrictType RestrictType)
-{
-    public readonly record struct CompositeId(
-        long TelegramId,
-        long ChatId
-    );
-}
+public record RestrictMember(
+    [property: BsonId] CompositeId Id,
+    RestrictType RestrictType);
 
 [Flags]
 public enum RestrictType : short
