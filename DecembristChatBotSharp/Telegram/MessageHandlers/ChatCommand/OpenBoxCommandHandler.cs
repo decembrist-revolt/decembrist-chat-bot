@@ -29,7 +29,7 @@ public class OpenBoxCommandHandler(
         var messageId = parameters.MessageId;
         if (parameters.Payload is not TextPayload) return unit;
 
-        if (await adminUserRepository.IsAdmin(telegramId))
+        if (await adminUserRepository.IsAdmin(new(telegramId, chatId)))
         {
             return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
         }

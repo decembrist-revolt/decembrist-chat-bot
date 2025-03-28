@@ -40,7 +40,7 @@ public class FastReplyCommandHandler(
         }
 
         var maybeFastReply = await CreateFastReply(chatId, message, reply, messageId);
-        var isAdmin = await adminUserRepository.IsAdmin(telegramId);
+        var isAdmin = await adminUserRepository.IsAdmin(new(telegramId, chatId));
 
         return await maybeFastReply.MapAsync(async fastReply =>
         {

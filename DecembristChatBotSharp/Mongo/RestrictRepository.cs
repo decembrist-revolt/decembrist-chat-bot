@@ -34,7 +34,7 @@ public class RestrictRepository(
             });
     }
 
-    public async Task<Option<RestrictMember>> GetRestrictMember(RestrictMember.CompositeId id) => await GetCollection()
+    public async Task<Option<RestrictMember>> GetRestrictMember(CompositeId id) => await GetCollection()
         .Find(m => m.Id == id)
         .SingleOrDefaultAsync(cancelToken.Token)
         .ToTryAsync()
@@ -45,7 +45,7 @@ public class RestrictRepository(
                 return None;
             });
 
-    public async Task<bool> DeleteRestrictMember(RestrictMember.CompositeId id) =>
+    public async Task<bool> DeleteRestrictMember(CompositeId id) =>
         await GetCollection().DeleteOneAsync(m => m.Id == id, cancelToken.Token)
             .ToTryAsync()
             .Match(

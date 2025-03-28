@@ -2,6 +2,6 @@
 
 namespace DecembristChatBotSharp.Entity;
 
-public readonly record struct WhiteListMember(
-    [property: BsonId] long TelegramId
+public record WhiteListMember(
+    [property: BsonId] CompositeId Id
 );
