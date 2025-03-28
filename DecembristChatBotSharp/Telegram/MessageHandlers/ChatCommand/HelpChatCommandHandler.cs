@@ -4,7 +4,6 @@ using DecembristChatBotSharp.Mongo;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
-using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
@@ -92,6 +91,7 @@ public class HelpChatCommandHandler(
             MemberItemType.RedditMeme => RedditMemeCommandHandler.CommandKey,
             MemberItemType.Box => OpenBoxCommandHandler.CommandKey,
             MemberItemType.FastReply => FastReplyCommandHandler.CommandKey,
+            MemberItemType.TelegramMeme => TelegramMemeCommandHandler.CommandKey,
             _ => None
         };
 

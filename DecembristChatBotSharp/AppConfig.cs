@@ -72,6 +72,7 @@ public record CommandConfig(
     int CommandIntervalSeconds,
     LikeConfig LikeConfig,
     BanConfig BanConfig,
+    TelegramPostConfig TelegramPostConfig,
     [property: Required(AllowEmptyStrings = false)]
     string CommandNotReady,
     [property: Required(AllowEmptyStrings = false)]
@@ -150,4 +151,14 @@ public record LikeConfig(
     int DailyTopLikersCount,
     [property: Required(AllowEmptyStrings = false)]
     string TopLikersGiftMessage
+);
+
+public record TelegramPostConfig(
+    string[] ChannelNames,
+    [property: Range(1, int.MaxValue)]
+    int ScanPostCount,
+    [property: Range(1, int.MaxValue)]
+    int MaxGetPostRetries,
+    [property: Required(AllowEmptyStrings = false)]
+    string TelegramErrorMessage
 );

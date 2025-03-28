@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using DecembristChatBotSharp.DI;
 using Lamar;
 using Serilog;
 using static System.Net.HttpStatusCode;
@@ -34,24 +35,21 @@ internal record RedditAuthResponse(
 public record RedditRandomMeme(string Permalink, string Url);
 
 [Singleton]
-public class RedditService(AppConfig appConfig)
+public class RedditService(
+    AppConfig appConfig,
+    IHttpClientFactory httpClientFactory,
+    Random random)
 {
     private const string AuthUrl = "/api/v1/access_token";
     private const string Bearer = nameof(Bearer);
 
-    private readonly HttpClient _client = new HttpClient().Apply(client =>
-    {
-        client.DefaultRequestHeaders.Add("User-Agent", appConfig.RedditConfig.UserAgent);
-        return client;
-    });
-
-    private bool _isAuthenticated = false;
+    private Option<string> _token;
 
     public async Task<Option<RedditRandomMeme>> GetRandomMeme()
     {
-        if (!_isAuthenticated && !await Authenticate())
+        if (_token.IsNone && !await Authenticate())
         {
-            _isAuthenticated = false;
+            _token = None;
             return None;
         }
 
@@ -72,13 +70,13 @@ public class RedditService(AppConfig appConfig)
             .Sequence()
             .Flatten()
             .ToArr();
-        
+
         if (posts.IsEmpty)
         {
             Log.Error("No posts found in Reddit API response");
             return None;
         }
-        
+
         var children = posts.Map(post => post.Data)
             .Filter(data => IsUrlImage(data.Url))
             .ToArr();
@@ -89,8 +87,7 @@ public class RedditService(AppConfig appConfig)
             return None;
         }
 
-        var rand = new Random();
-        var randomChild = children[rand.Next(children.Count)];
+        var randomChild = children[random.Next(children.Count)];
 
         return new RedditRandomMeme(
             redditConfig.RedditHost + randomChild.Permalink,
@@ -99,17 +96,28 @@ public class RedditService(AppConfig appConfig)
 
     private async Task<Option<HttpResponseMessage>> GetPosts(RedditConfig redditConfig)
     {
-        var rand = new Random();
         var subreddits = redditConfig.Subreddits;
-        var selectedSubreddit = subreddits[rand.Next(subreddits.Length)];
+        var selectedSubreddit = subreddits[random.Next(subreddits.Length)];
         var url = $"{redditConfig.RedditApiHost}/r/{selectedSubreddit}/hot?limit={redditConfig.PostLimit}";
-        return await _client.GetAsync(url)
-            .ToTryAsync()
-            .Match(Optional, ex =>
+
+        var maybeResponse =
+            from token in _token.ToTryOptionAsync()
+            let request = new HttpRequestMessage(HttpMethod.Get, url)
             {
-                Log.Error(ex, "Error while requesting posts Reddit API");
-                return None;
-            });
+                Headers =
+                {
+                    Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(Bearer, token)
+                }
+            }
+            let httpClient = httpClientFactory.CreateClient(HttpClientConfiguration.RedditClient)
+            from response in httpClient.SendAsync(request).ToTryOption()
+            select response;
+
+        return await maybeResponse.Match(CheckFail, () => None, ex =>
+        {
+            Log.Error(ex, "Error while requesting posts Reddit API");
+            return None;
+        });
     }
 
     private bool IsUrlImage(string url) =>
@@ -122,19 +130,12 @@ public class RedditService(AppConfig appConfig)
 
     private async Task<bool> Authenticate()
     {
-        if (_client.DefaultRequestHeaders.Contains("Authorization"))
-        {
-            _client.DefaultRequestHeaders.Remove("Authorization");
-        }
-
         var clientId = appConfig.RedditConfig.ClientId;
         var clientSecret = appConfig.RedditConfig.ClientSecret;
         var authBytes = System.Text.Encoding.ASCII.GetBytes($"{clientId}:{clientSecret}");
         var auth = Convert.ToBase64String(authBytes);
-        _client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", auth);
 
-        var maybeResponse = await SendAuthRequest();
+        var maybeResponse = await SendAuthRequest(auth);
 
         if (maybeResponse.IsNone) return false;
 
@@ -146,14 +147,10 @@ public class RedditService(AppConfig appConfig)
             return false;
         }
 
-        maybeContent.Map(content => content.AccessToken).IfSome(accessToken =>
-        {
-            _client.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue(Bearer, accessToken);
-            _isAuthenticated = true;
-        });
+        _token = maybeContent
+            .Map(content => content.AccessToken);
 
-        return _isAuthenticated;
+        return _token.IsSome;
     }
 
     private async Task<Option<T>> TryGetContent<T>(Option<HttpResponseMessage> maybeResponse)
@@ -162,7 +159,7 @@ public class RedditService(AppConfig appConfig)
             .MapAsync(httpResponseMessage => httpResponseMessage.Content.ReadAsStringAsync())
             .Map(json => Try(() => JsonSerializer.Deserialize<T>(json)))
             .Value;
-        
+
         return tryDeserialize.Match(Optional, ex =>
         {
             Log.Error(ex, "Error while deserializing Reddit API response");
@@ -170,20 +167,24 @@ public class RedditService(AppConfig appConfig)
         });
     }
 
-    private async Task<Option<HttpResponseMessage>> SendAuthRequest()
+    private async Task<Option<HttpResponseMessage>> SendAuthRequest(string basicAuth)
     {
-        var request = new FormUrlEncodedContent([
-            new KeyValuePair<string, string>("grant_type", "client_credentials")
-        ]);
         var redditLink = appConfig.RedditConfig.RedditHost + AuthUrl;
-        var maybeResponse = await _client.PostAsync(redditLink, request).ToTryAsync()
-            .ToEither()
-            .Match(Optional, ex =>
+        var request = new HttpRequestMessage(HttpMethod.Post, redditLink)
+        {
+            Content = new FormUrlEncodedContent([
+                new KeyValuePair<string, string>("grant_type", "client_credentials")
+            ]),
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", basicAuth);
+        var httpClient = httpClientFactory.CreateClient(HttpClientConfiguration.RedditClient);
+        return await httpClient.SendAsync(request)
+            .ToTryOption()
+            .Match(CheckFail, () => None, ex =>
             {
                 Log.Error(ex, "Ошибка при запросе аутентификации Reddit API");
                 return None;
             });
-        return maybeResponse;
     }
 
     private Option<HttpResponseMessage> CheckFail(HttpResponseMessage message)
@@ -192,7 +193,7 @@ public class RedditService(AppConfig appConfig)
 
         if (message.StatusCode is Unauthorized or Forbidden)
         {
-            _isAuthenticated = false;
+            _token = None;
             Log.Error("Error while authenticating Reddit API: {0}", message.ReasonPhrase);
         }
         else

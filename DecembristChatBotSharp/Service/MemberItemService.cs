@@ -13,6 +13,7 @@ public class MemberItemService(
     HistoryLogRepository historyLogRepository,
     FastReplyRepository fastReplyRepository,
     RedditService redditService,
+    TelegramPostService telegramPostService,
     CancellationTokenSource cancelToken)
 {
     public async Task<(Option<MemberItemType>, OpenBoxResult)> OpenBox(long chatId, long telegramId)
@@ -95,8 +96,7 @@ public class MemberItemService(
         }
     }
 
-    public async Task<UseRedditMemeResult> UseRedditMeme(
-        long chatId, long telegramId, bool isAdmin)
+    public async Task<UseRedditMemeResult> UseRedditMeme(long chatId, long telegramId, bool isAdmin)
     {
         using var session = await db.OpenSession();
         session.StartTransaction();
@@ -137,6 +137,50 @@ public class MemberItemService(
             await session.TryAbort(cancelToken.Token);
             Log.Error("Failed to get random reddit meme for {0} in chat {1}", telegramId, chatId);
             return new UseRedditMemeResult(None, UseRedditMemeResult.Type.Failed);
+        });
+    }
+    
+    public async Task<UseTelegramMemeResult> UseTelegramMeme(long chatId, long telegramId, bool isAdmin)
+    {
+        using var session = await db.OpenSession();
+        session.StartTransaction();
+
+        var hasItem = isAdmin || await memberItemRepository
+            .RemoveMemberItem(chatId, telegramId, MemberItemType.TelegramMeme, session);
+
+        if (!hasItem)
+        {
+            await session.TryAbort(cancelToken.Token);
+            Log.Information("{0} tried to use non-existent telegram meme in chat {1}", telegramId, chatId);
+            return new UseTelegramMemeResult(None, UseTelegramMemeResult.Type.NoItems);
+        }
+
+        var maybeMeme = await telegramPostService.GetRandomPostPicture();
+        if (maybeMeme.IsNone)
+        {
+            await session.TryAbort(cancelToken.Token);
+            Log.Error("Failed to get random telegram meme for {0} in chat {1}", telegramId, chatId);
+            return new UseTelegramMemeResult(None, UseTelegramMemeResult.Type.Failed);
+        }
+
+        await historyLogRepository.LogItem(
+            chatId, telegramId, MemberItemType.TelegramMeme, -1, MemberItemSourceType.Use, session);
+
+        return await maybeMeme.MatchAsync(async meme =>
+        {
+            if (await session.TryCommit(cancelToken.Token))
+            {
+                Log.Information("{0} used reddit meme in chat {1}", telegramId, chatId);
+                return new UseTelegramMemeResult(meme, UseTelegramMemeResult.Type.Success);
+            }
+
+            Log.Error("Failed to commit use reddit meme item for {0} in chat {1}", telegramId, chatId);
+            return new UseTelegramMemeResult(None, UseTelegramMemeResult.Type.Failed);
+        }, async () =>
+        {
+            await session.TryAbort(cancelToken.Token);
+            Log.Error("Failed to get random reddit meme for {0} in chat {1}", telegramId, chatId);
+            return new UseTelegramMemeResult(None, UseTelegramMemeResult.Type.Failed);
         });
     }
 
@@ -207,6 +251,16 @@ public enum UseFastReplyResult
 }
 
 public record struct UseRedditMemeResult(Option<RedditRandomMeme> Meme, UseRedditMemeResult.Type Result)
+{
+    public enum Type
+    {
+        Success,
+        NoItems,
+        Failed
+    }
+}
+
+public record struct UseTelegramMemeResult(Option<TelegramRandomMeme> Meme, UseTelegramMemeResult.Type Result)
 {
     public enum Type
     {

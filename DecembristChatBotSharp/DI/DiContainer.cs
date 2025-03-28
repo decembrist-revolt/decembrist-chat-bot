@@ -33,6 +33,8 @@ public class DiContainer
         registry.AddSingleton(client);
 
         registry.AddQuartz();
+        registry.AddHttpClients(appConfig);
+        registry.AddSingleton<Random>();
 
         registry.Scan(s =>
         {
