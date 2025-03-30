@@ -73,8 +73,9 @@ public class PremiumMemberRepository(
     {
         var collection = GetCollection();
         return await collection
-            .Find(member => member.ExpirationDate > DateTime.UtcNow)
-            .Project(member => member.Id.ChatId)
+            .Distinct(
+                member => member.Id.ChatId, 
+                member => member.ExpirationDate > DateTime.UtcNow)
             .ToListAsync(cancelToken.Token)
             .ToTryAsync()
             .Match(chatIds => chatIds.ToArray(), ex =>
@@ -88,8 +89,9 @@ public class PremiumMemberRepository(
     {
         var collection = GetCollection();
         return await collection
-            .Find(member => member.Id.ChatId == chatId && member.ExpirationDate > DateTime.UtcNow)
-            .Project(member => member.Id.TelegramId)
+            .Distinct(
+                member => member.Id.TelegramId, 
+                member => member.Id.ChatId == chatId && member.ExpirationDate > DateTime.UtcNow)
             .ToListAsync(cancelToken.Token)
             .ToTryAsync()
             .Match(telegramIds => telegramIds.ToArray(), ex =>
