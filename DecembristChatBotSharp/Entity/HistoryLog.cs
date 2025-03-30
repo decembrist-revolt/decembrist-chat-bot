@@ -16,7 +16,8 @@ public record HistoryLog<T>(
 public enum HistoryLogType
 {
     MemberItem = 0,
-    TopLiker = 1
+    TopLiker = 1,
+    PremiumMember = 2,
 }
 
 public interface IHistoryLogData;

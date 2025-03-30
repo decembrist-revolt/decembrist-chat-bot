@@ -1,4 +1,5 @@
-﻿using Lamar;
+﻿global using IMongoSession = MongoDB.Driver.IClientSessionHandle;
+using Lamar;
 using MongoDB.Driver;
 using Serilog;
 

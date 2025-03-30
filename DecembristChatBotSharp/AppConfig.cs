@@ -73,6 +73,7 @@ public record CommandConfig(
     LikeConfig LikeConfig,
     BanConfig BanConfig,
     TelegramPostConfig TelegramPostConfig,
+    PremiumConfig PremiumConfig,
     [property: Required(AllowEmptyStrings = false)]
     string CommandNotReady,
     [property: Required(AllowEmptyStrings = false)]
@@ -161,4 +162,15 @@ public record TelegramPostConfig(
     int MaxGetPostRetries,
     [property: Required(AllowEmptyStrings = false)]
     string TelegramErrorMessage
+);
+
+public record PremiumConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string AddPremiumMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string RemovePremiumMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string NotPremiumMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ImPremiumMessage
 );

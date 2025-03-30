@@ -34,6 +34,21 @@ public static class UtilsExtensions
             .ToTryAsync()
             .Match(onSent, onError);
 
+    public static Task<Unit> SendMessageAndLog(
+        this BotClient botClient,
+        long chatId,
+        string message,
+        int replyMessageId,
+        Action<Message> onSent,
+        Action<Exception> onError,
+        CancellationToken cancelToken) => botClient.SendMessage(
+            chatId,
+            message,
+            replyParameters: new ReplyParameters { MessageId = replyMessageId },
+            cancellationToken: cancelToken)
+        .ToTryAsync()
+        .Match(onSent, onError);
+
     public static Task<Unit> DeleteMessageAndLog(
         this BotClient botClient,
         long chatId,
@@ -80,14 +95,14 @@ public static class UtilsExtensions
             Log.Error(ex, "Failed to get chat member in chat {0} with telegramId {1}", chatId, telegramId);
             return None;
         });
-    
+
     public static Task<bool> TryCommit(this IClientSessionHandle session, CancellationToken cancelToken) =>
         session.CommitTransactionAsync(cancelToken).ToTryAsync().Match(_ => true, ex =>
         {
             Log.Error(ex, "Failed to commit transaction");
             return false;
         });
-    
+
     public static Task<bool> TryAbort(this IClientSessionHandle session, CancellationToken cancelToken) =>
         session.AbortTransactionAsync(cancelToken).ToTryAsync().Match(_ => true, ex =>
         {
