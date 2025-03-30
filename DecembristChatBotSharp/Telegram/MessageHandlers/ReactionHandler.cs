@@ -14,7 +14,7 @@ public class ReactionHandler(
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
-        return await db.GetReactionMember(new ReactionMember.CompositeId(telegramId, chatId))
+        return await db.GetReactionMember(new(telegramId, chatId))
             .MatchAsync(async member =>
                 {
                     await botClient.SetMessageReaction(chatId, messageId, (List<ReactionTypeEmoji>) [member.Emoji]);

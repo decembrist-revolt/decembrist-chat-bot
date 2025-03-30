@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Service;
 using MongoDB.Driver;
 using Serilog;
 
@@ -8,33 +9,34 @@ public class ReactionRepository(
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
 {
-    public async Task<bool> AddReactionMember(
-        ReactionMember member,
+    public async Task<UseFastReplyResult> AddReactionMember(ReactionMember member,
         IClientSessionHandle? session = null)
     {
+        Log.Information("start re rpo");
         var collection = GetCollection();
 
         var update = Builders<ReactionMember>.Update
-            .Set(x => x.Id, member.Id);
+            .Set(x => x.Emoji, member.Emoji)
+            .Set(x => x.Date, DateTime.UtcNow);
         var options = new UpdateOptions { IsUpsert = true };
-        Log.Information("repo react start");
 
         var filter = Builders<ReactionMember>.Filter.Eq(x => x.Id, member.Id);
         var updateTask = not(session.IsNull())
             ? collection.UpdateOneAsync(session, filter, update, options, cancelToken.Token)
             : collection.UpdateOneAsync(filter, update, options, cancelToken.Token);
 
-        Log.Information("Repo react end");
         return await updateTask.ToTryAsync().Match(
-            result => result.IsAcknowledged && (result.UpsertedId != null || result.ModifiedCount == 1),
+            result => result.IsAcknowledged && (result.UpsertedId != null || result.ModifiedCount == 1)
+                ? UseFastReplyResult.Success
+                : UseFastReplyResult.Failed,
             ex =>
             {
                 Log.Error(ex, "Failed to add restrict for {0}", member.Id);
-                return false;
+                return UseFastReplyResult.Failed;
             });
     }
 
-    public async Task<Option<ReactionMember>> GetReactionMember(ReactionMember.CompositeId id) => await GetCollection()
+    public async Task<Option<ReactionMember>> GetReactionMember(CompositeId id) => await GetCollection()
         .Find(m => m.Id == id)
         .SingleOrDefaultAsync(cancelToken.Token)
         .ToTryAsync()
@@ -45,7 +47,7 @@ public class ReactionRepository(
                 return None;
             });
 
-    public async Task<bool> DeleteReactionMember(ReactionMember.CompositeId id) =>
+    public async Task<bool> DeleteReactionMember(CompositeId id) =>
         await GetCollection().DeleteOneAsync(m => m.Id == id, cancelToken.Token)
             .ToTryAsync()
             .Match(

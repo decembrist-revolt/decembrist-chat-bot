@@ -12,6 +12,7 @@ public class MemberItemService(
     MemberItemRepository memberItemRepository,
     HistoryLogRepository historyLogRepository,
     FastReplyRepository fastReplyRepository,
+    ReactionRepository reactionRepository,
     RedditService redditService,
     TelegramPostService telegramPostService,
     CancellationTokenSource cancelToken)
@@ -139,7 +140,7 @@ public class MemberItemService(
             return new UseRedditMemeResult(None, UseRedditMemeResult.Type.Failed);
         });
     }
-    
+
     public async Task<UseTelegramMemeResult> UseTelegramMeme(long chatId, long telegramId, bool isAdmin)
     {
         using var session = await db.OpenSession();
@@ -210,6 +211,45 @@ public class MemberItemService(
         await session.TryAbort(cancelToken.Token);
         Log.Error("{0} failed to commit give {1} to {2} in chat {3}", adminTelegramId, type, telegramId, chatId);
         return false;
+    }
+
+    public async Task<UseFastReplyResult> UseSpamReactItem(long chatId, long telegramId, ReactionMember member,
+        bool isAdmin)
+    {
+        using var session = await db.OpenSession();
+        session.StartTransaction();
+
+        var hasItem = isAdmin || await memberItemRepository
+            .RemoveMemberItem(chatId, telegramId, MemberItemType.ReactSpam, session);
+        Log.Information("hasItem is {0}", hasItem);
+        if (!hasItem)
+        {
+            await session.TryAbort(cancelToken.Token);
+            Log.Information("{0} tried to use non-existent reactspam in chat {1}", telegramId, chatId);
+            return UseFastReplyResult.NoItems;
+        }
+
+        var maybeResult = await reactionRepository.AddReactionMember(member, session);
+
+        await historyLogRepository.LogItem(
+            chatId, telegramId, MemberItemType.ReactSpam, -1, MemberItemSourceType.Use, session);
+        switch (maybeResult)
+        {
+            case UseFastReplyResult.Success when await session.TryCommit(cancelToken.Token):
+                Log.Information("{0} used reactspam in chat {1}", telegramId, chatId);
+                return UseFastReplyResult.Success;
+            case UseFastReplyResult.Success:
+                await session.TryAbort(cancelToken.Token);
+                Log.Error("{0} failed to commit use reactspam item for {1} in chat {2}", telegramId,
+                    member.Id, chatId);
+                return UseFastReplyResult.Failed;
+            case UseFastReplyResult.Failed:
+                await session.TryAbort(cancelToken.Token);
+                Log.Error("{0} failed to commit use reactspam item for {1} in chat {2}", telegramId, chatId);
+                return UseFastReplyResult.Failed;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
     }
 
     private MemberItemType GetRandomItem()
