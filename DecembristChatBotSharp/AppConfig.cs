@@ -172,5 +172,9 @@ public record PremiumConfig(
     [property: Required(AllowEmptyStrings = false)]
     string NotPremiumMessage,
     [property: Required(AllowEmptyStrings = false)]
-    string ImPremiumMessage
+    string ImPremiumMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string DailyPremiumRewardCronUtc,
+    [property: Required(AllowEmptyStrings = false)]
+    string DailyPremiumRewardMessage
 );

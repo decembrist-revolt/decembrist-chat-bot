@@ -39,11 +39,11 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
 
     public async Task<long> AddMemberItems(
         long chatId,
-        long[] telegramIds,
+        Arr<long> telegramIds,
         MemberItemType type,
         IClientSessionHandle? session = null)
     {
-        if (telegramIds.IsNullOrEmpty()) return 0;
+        if (telegramIds.IsEmpty) return 0;
         
         var collection = GetCollection();
 

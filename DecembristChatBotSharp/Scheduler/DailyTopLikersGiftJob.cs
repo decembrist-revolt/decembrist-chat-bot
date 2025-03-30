@@ -53,6 +53,11 @@ public class DailyTopLikersGiftJob(
     public async Task Execute(IJobExecutionContext context)
     {
         var chatIds = await memberLikeRepository.GetChatIds();
+        if (chatIds.IsEmpty)
+        {
+            Log.Information("No chats found for daily top likers gift");
+            return;
+        }
 
         foreach (var chatId in chatIds)
         {
@@ -62,7 +67,7 @@ public class DailyTopLikersGiftJob(
 
     private async Task HandleChatTopLikers(long chatId)
     {
-        var session = await db.OpenSession();
+        using var session = await db.OpenSession();
         session.StartTransaction();
 
         var topLikers = await GetTopLikers(chatId, session);
@@ -73,7 +78,7 @@ public class DailyTopLikersGiftJob(
             return;
         }
 
-        var telegramIds = topLikers.Select(liker => liker.TelegramId).ToArray()!;
+        var telegramIds = topLikers.Select(liker => liker.TelegramId).ToArr()!;
         var likesCount = topLikers.Sum(liker => liker.LikesCount);
         var removedCount = await memberLikeRepository.RemoveAllInChat(chatId, session);
         if (removedCount < likesCount)
@@ -95,22 +100,22 @@ public class DailyTopLikersGiftJob(
 
         if (!await session.TryCommit(cancelToken.Token))
         {
+            await session.TryAbort(cancelToken.Token);
             Log.Error("Failed to commit top likers for chat {0}", chatId);
             return;
         }
 
         if (!await SendTopLikersGiftMessage(chatId, topLikers))
         {
-            await session.TryAbort(cancelToken.Token);
             Log.Error("Failed to send top likers gift message for chat {0}", chatId);
             return;
         }
 
-        Log.Information("Successfully processed top likers for chat {0}", chatId, removedCount, addCount);
+        Log.Information("Successfully processed top likers for chat {0}", chatId);
     }
 
     private async Task<Unit> LogEvents(
-        long chatId, long[] telegramIds, Arr<TopLiker> topLikers, IClientSessionHandle session) =>
+        long chatId, Arr<long> telegramIds, Arr<TopLiker> topLikers, IClientSessionHandle session) =>
         await Array(
             historyLogRepository.LogTopLikers(chatId, topLikers, session),
             historyLogRepository.LogItems(

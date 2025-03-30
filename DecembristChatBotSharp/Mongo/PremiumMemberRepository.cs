@@ -69,16 +69,33 @@ public class PremiumMemberRepository(
                 });
     }
 
-    public async Task<IAsyncCursor<PremiumMember>> GetCursor()
+    public async Task<Arr<long>> GetChatIds()
     {
         var collection = GetCollection();
         return await collection
-            .FindAsync(member => member.ExpirationDate > DateTime.UtcNow, cancellationToken: cancelToken.Token)
+            .Find(member => member.ExpirationDate > DateTime.UtcNow)
+            .Project(member => member.Id.ChatId)
+            .ToListAsync(cancelToken.Token)
             .ToTryAsync()
-            .Match(identity, ex =>
+            .Match(chatIds => chatIds.ToArray(), ex =>
             {
-                Log.Error(ex, "Failed to get cursor for {0}", nameof(PremiumMember));
-                return new EmptyAsyncCursor<PremiumMember>();
+                Log.Error(ex, "Failed to get chat ids for {0}", nameof(PremiumMember));
+                return [];
+            });
+    }
+
+    public async Task<Arr<long>> GetTelegramIds(long chatId)
+    {
+        var collection = GetCollection();
+        return await collection
+            .Find(member => member.Id.ChatId == chatId && member.ExpirationDate > DateTime.UtcNow)
+            .Project(member => member.Id.TelegramId)
+            .ToListAsync(cancelToken.Token)
+            .ToTryAsync()
+            .Match(telegramIds => telegramIds.ToArray(), ex =>
+            {
+                Log.Error(ex, "Failed to get telegram ids for {0}", chatId);
+                return [];
             });
     }
 

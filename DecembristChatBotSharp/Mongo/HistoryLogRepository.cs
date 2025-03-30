@@ -32,7 +32,7 @@ public class HistoryLogRepository(
 
     public async Task<Unit> LogItems(
         long chatId,
-        long[] telegramIds,
+        Arr<long> telegramIds,
         MemberItemType type,
         int count,
         MemberItemSourceType sourceType,

@@ -28,5 +28,6 @@ public enum MemberItemSourceType
     Admin = 0,
     Box = 1,
     Use = 2,
-    TopLiker = 3
+    TopLiker = 3,
+    PremiumDaily = 4,
 }
