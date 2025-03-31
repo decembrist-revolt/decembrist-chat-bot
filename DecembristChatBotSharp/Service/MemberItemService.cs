@@ -213,7 +213,7 @@ public class MemberItemService(
         return false;
     }
 
-    public async Task<UseFastReplyResult> UseReactionSpam(long chatId, long telegramId, ReactionSpamMember member,
+    public async Task<ReactionSpamResult> UseReactionSpam(long chatId, long telegramId, ReactionSpamMember member,
         bool isAdmin)
     {
         using var session = await db.OpenSession();
@@ -225,7 +225,7 @@ public class MemberItemService(
         {
             await session.TryAbort(cancelToken.Token);
             Log.Information("{0} tried to use non-existent reaction spam in chat {1}", telegramId, chatId);
-            return UseFastReplyResult.NoItems;
+            return ReactionSpamResult.NoItems;
         }
 
         var maybeResult = await reactionSpamRepository.AddReactionSpamMember(member, session);
@@ -234,21 +234,21 @@ public class MemberItemService(
             chatId, telegramId, MemberItemType.ReactionSpam, -1, MemberItemSourceType.Use, session);
         switch (maybeResult)
         {
-            case UseFastReplyResult.Success when await session.TryCommit(cancelToken.Token):
+            case ReactionSpamResult.Success when await session.TryCommit(cancelToken.Token):
                 Log.Information("{0} used reaction spam in chat {1}", telegramId, chatId);
-                return UseFastReplyResult.Success;
-            case UseFastReplyResult.Success:
+                return ReactionSpamResult.Success;
+            case ReactionSpamResult.Success:
                 await session.TryAbort(cancelToken.Token);
                 Log.Error("{0} failed to commit use reaction spam item in chat {1}", telegramId, chatId);
-                return UseFastReplyResult.Failed;
-            case UseFastReplyResult.Failed:
+                return ReactionSpamResult.Failed;
+            case ReactionSpamResult.Failed:
                 await session.TryAbort(cancelToken.Token);
                 Log.Error("Failed to use reaction spam item for {0} in chat {1}", telegramId, chatId);
-                return UseFastReplyResult.Failed;
-            case UseFastReplyResult.Duplicate:
+                return ReactionSpamResult.Failed;
+            case ReactionSpamResult.Duplicate:
                 await session.TryAbort(cancelToken.Token);
                 Log.Information("{0} tried to use duplicate fast reply in chat {1}", telegramId, chatId);
-                return UseFastReplyResult.Duplicate;
+                return ReactionSpamResult.Duplicate;
             default:
                 throw new ArgumentOutOfRangeException();
         }
@@ -292,6 +292,13 @@ public enum UseFastReplyResult
     Failed
 }
 
+public enum ReactionSpamResult 
+{
+    Success,
+    NoItems,
+    Duplicate,
+    Failed
+}
 public record struct UseRedditMemeResult(Option<RedditRandomMeme> Meme, UseRedditMemeResult.Type Result)
 {
     public enum Type

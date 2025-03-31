@@ -1,14 +1,10 @@
-﻿using System.Collections.Immutable;
-using System.Text;
-using DecembristChatBotSharp.Entity;
+﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Lamar;
-using LanguageExt.Common;
 using LanguageExt.UnsafeValueAccess;
 using Serilog;
-using Telegram.Bot;
 using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
@@ -45,34 +41,26 @@ public class ReactionSpamCommandHandler(
 
         var isAdmin = await adminUserRepository.IsAdmin(new(telegramId, chatId));
         var maybeEmoji = ParseEmoji(text.Substring(Command.Length).Trim());
-        ReactionTypeEmoji emoji;
-        if (maybeEmoji.IsRight)
+        if (isAdmin && text.Contains("clear", StringComparison.OrdinalIgnoreCase))
         {
-            emoji = maybeEmoji.RightToArray().First();
-        }
-        else
-        {
-            var error = maybeEmoji.LeftToArray().First();
-            switch (error)
-            {
-                case "clear" when isAdmin:
-                    if (await reactionSpamRepository.DeleteReactionSpamMember(new(receiverId, chatId)))
-                        Log.Information("Clear react spam member for {0} in chat {1} by {2}", receiverId, chatId,
-                            telegramId);
-                    else
-                        Log.Error("React spam member not cleared for {0} in chat {1} by {2}", receiverId, chatId,
-                            telegramId);
-                    return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
-                case "clear":
-                case "none":
-                    await SendHelpMessage(chatId);
-                    return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(error), error, null);
-            }
+            if (await reactionSpamRepository.DeleteReactionSpamMember(new(receiverId, chatId)))
+                Log.Information("Clear react spam member for {0} in chat {1} by {2}", receiverId, chatId,
+                    telegramId);
+            else
+                Log.Error("React spam member not cleared for {0} in chat {1} by {2}", receiverId, chatId,
+                    telegramId);
+            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
         }
 
-        var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ReactionSpamConfig.SpamDurationMinutes);
+        if (maybeEmoji.IsNone)
+        {
+            await SendHelpMessage(chatId);
+            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        }
+
+        var emoji = maybeEmoji.ValueUnsafe();
+
+        var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ReactionSpamConfig.DurationMinutes);
         var reactMember = new ReactionSpamMember(new(receiverId, chatId), emoji, expireAt);
 
         var result = await itemService.UseReactionSpam(chatId, telegramId, reactMember, isAdmin);
@@ -80,17 +68,17 @@ public class ReactionSpamCommandHandler(
         await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
         return result switch
         {
-            UseFastReplyResult.NoItems => await messageAssistance.SendNoItems(chatId),
-            UseFastReplyResult.Failed => await SendHelpMessage(chatId),
-            UseFastReplyResult.Duplicate => await SendDuplicateMessage(chatId),
-            UseFastReplyResult.Success => await SendSuccessMessage(reactMember.Id, emoji.Emoji),
+            ReactionSpamResult.NoItems => await messageAssistance.SendNoItems(chatId),
+            ReactionSpamResult.Failed => await SendHelpMessage(chatId),
+            ReactionSpamResult.Duplicate => await SendDuplicateMessage(chatId),
+            ReactionSpamResult.Success => await SendSuccessMessage(reactMember.Id, emoji.Emoji),
             _ => unit
         };
     }
 
     private async Task<Unit> SendDuplicateMessage(long chatId)
     {
-        var message = appConfig.ReactionSpamConfig.SpamDuplicateMessage;
+        var message = appConfig.ReactionSpamConfig.DuplicateMessage;
         return await botClient.SendMessageAndLog(chatId, message,
             m =>
             {
@@ -103,7 +91,7 @@ public class ReactionSpamCommandHandler(
 
     private async Task<Unit> SendHelpMessage(long chatId)
     {
-        var message = string.Format(appConfig.ReactionSpamConfig.SpamHelpMessage, Command, EmojisString);
+        var message = string.Format(appConfig.ReactionSpamConfig.HelpMessage, Command, EmojisString);
         return await botClient.SendMessageAndLog(chatId, message,
             (m) =>
             {
@@ -121,7 +109,7 @@ public class ReactionSpamCommandHandler(
             .GetUsername(chatId, receiverId, cancelToken.Token)
             .IfSomeAsync(async username =>
             {
-                var message = string.Format(appConfig.ReactionSpamConfig.SpamMessage, emoji, username);
+                var message = string.Format(appConfig.ReactionSpamConfig.SuccessMessage, emoji, username);
                 var logTemplate = "Reaction spam message sent {0} ChatId: {1}, Emoji:{2} Receiver: {3}";
                 return await botClient.SendMessageAndLog(chatId, message,
                     m =>
@@ -134,20 +122,18 @@ public class ReactionSpamCommandHandler(
             });
     }
 
-    private Either<string, ReactionTypeEmoji> ParseEmoji(string text)
+    private Option<ReactionTypeEmoji> ParseEmoji(string text)
     {
-        if (text.Contains("clear", StringComparison.CurrentCultureIgnoreCase))
-            return Left("clear");
         var isEmoji = Emojis.Contains(text);
         return isEmoji
             ? new ReactionTypeEmoji
             {
                 Emoji = text
             }
-            : Left("none");
+            : None;
     }
 
-    private static readonly List<string> Emojis =
+    private static readonly System.Collections.Generic.HashSet<string> Emojis =
     [
         "👍", "👎", "❤", "🔥", "🥰", "👏", "😁", "🤔", "🤯", "😱", "🤬", "😢", "🎉", "🤩", "🤮", "💩", "🙏", "👌", "🕊",
         "🤡", "🥱", "🥴", "😍", "🐳", "❤‍", "🌚", "🌭", "💯", "🤣", "⚡", "🍌", "🏆", "💔", "🤨", "😐", "🍓", "🍾", "💋",

@@ -130,13 +130,13 @@ public record RestrictConfig(
 
 public record ReactionSpamConfig(
     [property: Required(AllowEmptyStrings = false)]
-    string SpamHelpMessage,
+    string HelpMessage,
     [property: Required(AllowEmptyStrings = false)]
-    string SpamMessage,
+    string SuccessMessage,
     [property: Required(AllowEmptyStrings = false)]
-    string SpamDuplicateMessage,
+    string DuplicateMessage,
     [property: Required(AllowEmptyStrings = false)]
-    int SpamDurationMinutes
+    int DurationMinutes
 );
 
 public record ItemConfig(

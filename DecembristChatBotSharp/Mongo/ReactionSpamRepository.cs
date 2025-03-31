@@ -11,7 +11,7 @@ public class ReactionSpamRepository(
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
 {
-    public async Task<UseFastReplyResult> AddReactionSpamMember(ReactionSpamMember member,
+    public async Task<ReactionSpamResult> AddReactionSpamMember(ReactionSpamMember member,
         IClientSessionHandle? session = null)
     {
         var collection = GetCollection();
@@ -20,16 +20,16 @@ public class ReactionSpamRepository(
             .SingleOrDefaultAsync(cancelToken.Token)
             .ToTryOption();
 
-        if (tryFind.IsSome()) return UseFastReplyResult.Duplicate;
+        if (tryFind.IsSome()) return ReactionSpamResult.Duplicate;
         return await collection
             .InsertOneAsync(session, member, cancellationToken: cancelToken.Token)
             .ToTryAsync()
             .Match(
-                _ => UseFastReplyResult.Success,
+                _ => ReactionSpamResult.Success,
                 ex =>
                 {
                     Log.Error(ex, "Failed to add reaction spam member {0}", member.Id);
-                    return UseFastReplyResult.Failed;
+                    return ReactionSpamResult.Failed;
                 });
     }
 
