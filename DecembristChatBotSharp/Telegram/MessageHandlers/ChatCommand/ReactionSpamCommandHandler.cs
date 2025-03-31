@@ -4,6 +4,7 @@ using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Lamar;
 using LanguageExt.UnsafeValueAccess;
+using MongoDB.Driver;
 using Serilog;
 using Telegram.Bot.Types;
 
@@ -16,6 +17,7 @@ public class ReactionSpamCommandHandler(
     AdminUserRepository adminUserRepository,
     ReactionSpamRepository reactionSpamRepository,
     MessageAssistance messageAssistance,
+    CommandLockRepository lockRepository,
     MemberItemService itemService,
     ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken) : ICommandHandler
@@ -32,10 +34,7 @@ public class ReactionSpamCommandHandler(
 
         var replyUserId = parameters.ReplyToTelegramId;
         if (replyUserId.IsNone)
-        {
-            await SendHelpMessage(chatId);
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
-        }
+            return await SendHelpMessageWithLock(chatId, messageId);
 
         var receiverId = replyUserId.ValueUnsafe();
 
@@ -53,10 +52,7 @@ public class ReactionSpamCommandHandler(
         }
 
         if (maybeEmoji.IsNone)
-        {
-            await SendHelpMessage(chatId);
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
-        }
+            return await SendHelpMessageWithLock(chatId, messageId);
 
         var emoji = maybeEmoji.ValueUnsafe();
 
@@ -68,6 +64,7 @@ public class ReactionSpamCommandHandler(
         return await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, Command),
             HandleReactionSpamResult(result, chatId, reactMember.Id, emoji.Emoji)).WhenAll();
     }
+
 
     private async Task<Unit> HandleReactionSpamResult(ReactionSpamResult result, long chatId,
         CompositeId id, string emoji) =>
@@ -91,6 +88,16 @@ public class ReactionSpamCommandHandler(
             },
             ex => Log.Error(ex, "Failed to send fast reply duplicate message to chat {0}", chatId),
             cancelToken.Token);
+    }
+
+    private async Task<Unit> SendHelpMessageWithLock(long chatId, int messageId)
+    {
+        var sendHelpOrNotReady = !await lockRepository.TryAcquire(chatId, Command)
+            ? messageAssistance.CommandNotReady(chatId, messageId, Command)
+            : SendHelpMessage(chatId);
+
+        return await Array(
+            sendHelpOrNotReady, messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
     }
 
     private async Task<Unit> SendHelpMessage(long chatId)
