@@ -39,11 +39,11 @@ public class ReactionSpamCommandHandler(
 
         var receiverId = replyUserId.ValueUnsafe();
 
-        var isAdmin = await adminUserRepository.IsAdmin(new(telegramId, chatId));
-        var maybeEmoji = ParseEmoji(text.Substring(Command.Length).Trim());
+        var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
+        var maybeEmoji = ParseEmoji(text[Command.Length..].Trim());
         if (isAdmin && text.Contains("clear", StringComparison.OrdinalIgnoreCase))
         {
-            if (await reactionSpamRepository.DeleteReactionSpamMember(new(receiverId, chatId)))
+            if (await reactionSpamRepository.DeleteReactionSpamMember((receiverId, chatId)))
                 Log.Information("Clear react spam member for {0} in chat {1} by {2}", receiverId, chatId,
                     telegramId);
             else
@@ -61,20 +61,24 @@ public class ReactionSpamCommandHandler(
         var emoji = maybeEmoji.ValueUnsafe();
 
         var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ReactionSpamConfig.DurationMinutes);
-        var reactMember = new ReactionSpamMember(new(receiverId, chatId), emoji, expireAt);
+        var reactMember = new ReactionSpamMember((receiverId, chatId), emoji, expireAt);
 
         var result = await itemService.UseReactionSpam(chatId, telegramId, reactMember, isAdmin);
 
-        await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
-        return result switch
+        return await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, Command),
+            HandleReactionSpamResult(result, chatId, reactMember.Id, emoji.Emoji)).WhenAll();
+    }
+
+    private async Task<Unit> HandleReactionSpamResult(ReactionSpamResult result, long chatId,
+        CompositeId id, string emoji) =>
+        result switch
         {
             ReactionSpamResult.NoItems => await messageAssistance.SendNoItems(chatId),
             ReactionSpamResult.Failed => await SendHelpMessage(chatId),
             ReactionSpamResult.Duplicate => await SendDuplicateMessage(chatId),
-            ReactionSpamResult.Success => await SendSuccessMessage(reactMember.Id, emoji.Emoji),
+            ReactionSpamResult.Success => await SendSuccessMessage(id, emoji),
             _ => unit
         };
-    }
 
     private async Task<Unit> SendDuplicateMessage(long chatId)
     {
