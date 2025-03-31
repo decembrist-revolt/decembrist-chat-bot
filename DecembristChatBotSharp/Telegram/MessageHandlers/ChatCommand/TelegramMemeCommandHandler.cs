@@ -3,7 +3,6 @@ using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
-using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 

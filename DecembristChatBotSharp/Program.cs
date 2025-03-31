@@ -16,7 +16,7 @@ var cancelTokenSource = new CancellationTokenSource();
 
 try
 {
-    var container = await DiContainer.GetInstance(cancelTokenSource);
+    var container = DiContainer.GetInstance(cancelTokenSource);
     Log.Information("DI Container created");
     var mongoDatabase = container.GetRequiredService<MongoDatabase>();
     await mongoDatabase.CheckConnection();

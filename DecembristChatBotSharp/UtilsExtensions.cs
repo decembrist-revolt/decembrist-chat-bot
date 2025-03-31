@@ -35,6 +35,21 @@ public static class UtilsExtensions
             .ToTryAsync()
             .Match(onSent, onError);
 
+    public static Task<Unit> SendMessageAndLog(
+        this BotClient botClient,
+        long chatId,
+        string message,
+        int replyMessageId,
+        Action<Message> onSent,
+        Action<Exception> onError,
+        CancellationToken cancelToken) => botClient.SendMessage(
+            chatId,
+            message,
+            replyParameters: new ReplyParameters { MessageId = replyMessageId },
+            cancellationToken: cancelToken)
+        .ToTryAsync()
+        .Match(onSent, onError);
+
     public static Task<Unit> DeleteMessageAndLog(
         this BotClient botClient,
         long chatId,

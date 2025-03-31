@@ -32,7 +32,7 @@ public class HistoryLogRepository(
 
     public async Task<Unit> LogItems(
         long chatId,
-        long[] telegramIds,
+        Arr<long> telegramIds,
         MemberItemType type,
         int count,
         MemberItemSourceType sourceType,
@@ -70,6 +70,25 @@ public class HistoryLogRepository(
         return await collection.InsertManyAsync(session, logs, cancellationToken: cancelToken.Token)
             .ToTryAsync()
             .IfFail(ex => Log.Error(ex, "Failed to log top likers"));
+    }
+    
+    public async Task<Unit> LogPremium(
+        long chatId,
+        long telegramId,
+        PremiumMemberOperationType operationType,
+        DateTime expirationDate,
+        int level,
+        IMongoSession session,
+        long? sourceTelegramId = null)
+    {
+        var collection = GetCollection<PremiumMemberHistoryLogData>();
+        var id = CreateId<PremiumMemberHistoryLogData>(chatId, telegramId);
+        var data = new PremiumMemberHistoryLogData(operationType, expirationDate, level, sourceTelegramId);
+        var log = new HistoryLog<PremiumMemberHistoryLogData>(id, HistoryLogType.PremiumMember, data);
+
+        return await collection.InsertOneAsync(session, log, cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .IfFail(ex => Log.Error(ex, "Failed to log premium member {0}", telegramId));
     }
 
     private HistoryLog<T>.CompositeId CreateId<T>(long chatId, long telegramId) where T : IHistoryLogData =>
