@@ -28,7 +28,7 @@ public record AppConfig(
     CommandConfig CommandConfig,
     RedditConfig RedditConfig,
     RestrictConfig RestrictConfig,
-    EmojiConfig EmojiConfig,
+    ReactionSpamConfig ReactionSpamConfig,
     ItemConfig ItemConfig,
     DateTime? DeployTime = null,
     List<long>? WhiteListIds = null)
@@ -128,9 +128,15 @@ public record RestrictConfig(
     string RestrictClearMessage
 );
 
-public record EmojiConfig(
+public record ReactionSpamConfig(
     [property: Required(AllowEmptyStrings = false)]
-    string DefaultEmoji
+    string SpamHelpMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SpamMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SpamDuplicateMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    int SpamDurationMinutes
 );
 
 public record ItemConfig(

@@ -3,8 +3,8 @@ using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.Entity;
 
-public record ReactionMember(
+public record ReactionSpamMember(
     [property: BsonId] CompositeId Id,
     ReactionTypeEmoji Emoji,
-    DateTime Date
+    DateTime ExpireAt
 );

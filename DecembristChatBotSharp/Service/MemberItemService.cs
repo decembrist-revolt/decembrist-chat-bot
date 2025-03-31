@@ -12,7 +12,7 @@ public class MemberItemService(
     MemberItemRepository memberItemRepository,
     HistoryLogRepository historyLogRepository,
     FastReplyRepository fastReplyRepository,
-    ReactionRepository reactionRepository,
+    ReactionSpamRepository reactionSpamRepository,
     RedditService redditService,
     TelegramPostService telegramPostService,
     CancellationTokenSource cancelToken)
@@ -213,40 +213,42 @@ public class MemberItemService(
         return false;
     }
 
-    public async Task<UseFastReplyResult> UseSpamReactItem(long chatId, long telegramId, ReactionMember member,
+    public async Task<UseFastReplyResult> UseReactionSpam(long chatId, long telegramId, ReactionSpamMember member,
         bool isAdmin)
     {
         using var session = await db.OpenSession();
         session.StartTransaction();
 
         var hasItem = isAdmin || await memberItemRepository
-            .RemoveMemberItem(chatId, telegramId, MemberItemType.ReactSpam, session);
-        Log.Information("hasItem is {0}", hasItem);
+            .RemoveMemberItem(chatId, telegramId, MemberItemType.ReactionSpam, session);
         if (!hasItem)
         {
             await session.TryAbort(cancelToken.Token);
-            Log.Information("{0} tried to use non-existent reactspam in chat {1}", telegramId, chatId);
+            Log.Information("{0} tried to use non-existent reaction spam in chat {1}", telegramId, chatId);
             return UseFastReplyResult.NoItems;
         }
 
-        var maybeResult = await reactionRepository.AddReactionMember(member, session);
+        var maybeResult = await reactionSpamRepository.AddReactionSpamMember(member, session);
 
         await historyLogRepository.LogItem(
-            chatId, telegramId, MemberItemType.ReactSpam, -1, MemberItemSourceType.Use, session);
+            chatId, telegramId, MemberItemType.ReactionSpam, -1, MemberItemSourceType.Use, session);
         switch (maybeResult)
         {
             case UseFastReplyResult.Success when await session.TryCommit(cancelToken.Token):
-                Log.Information("{0} used reactspam in chat {1}", telegramId, chatId);
+                Log.Information("{0} used reaction spam in chat {1}", telegramId, chatId);
                 return UseFastReplyResult.Success;
             case UseFastReplyResult.Success:
                 await session.TryAbort(cancelToken.Token);
-                Log.Error("{0} failed to commit use reactspam item for {1} in chat {2}", telegramId,
-                    member.Id, chatId);
+                Log.Error("{0} failed to commit use reaction spam item in chat {1}", telegramId, chatId);
                 return UseFastReplyResult.Failed;
             case UseFastReplyResult.Failed:
                 await session.TryAbort(cancelToken.Token);
-                Log.Error("{0} failed to commit use reactspam item for {1} in chat {2}", telegramId, chatId);
+                Log.Error("Failed to use reaction spam item for {0} in chat {1}", telegramId, chatId);
                 return UseFastReplyResult.Failed;
+            case UseFastReplyResult.Duplicate:
+                await session.TryAbort(cancelToken.Token);
+                Log.Information("{0} tried to use duplicate fast reply in chat {1}", telegramId, chatId);
+                return UseFastReplyResult.Duplicate;
             default:
                 throw new ArgumentOutOfRangeException();
         }

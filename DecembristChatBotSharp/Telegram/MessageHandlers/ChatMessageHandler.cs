@@ -40,7 +40,7 @@ public class ChatMessageHandler(
     ChatCommandHandler chatCommandHandler,
     FastReplyHandler fastReplyHandler,
     RestrictHandler restrictHandler,
-    ReactionHandler reactionHandler,
+    ReactionSpamHandler reactionSpamHandler,
     WrongCommandHandler wrongCommandHandler
 )
 {
@@ -49,7 +49,7 @@ public class ChatMessageHandler(
         var result = await captchaHandler.Do(parameters);
         if (result == Result.Captcha) return unit;
 
-        reactionHandler.Do(parameters);
+        await reactionSpamHandler.Do(parameters);
         if (await restrictHandler.Do(parameters)) return unit;
 
         if (parameters.Payload is TextPayload { Text.Length: > 1, Text: var text })

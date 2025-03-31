@@ -14,7 +14,7 @@ public enum MemberItemType
     FastReply = 1,
     Box = 2,
     TelegramMeme = 3,
-    ReactSpam = 4
+    ReactionSpam = 4
 }
 
 public record MemberItemHistoryLogData(
