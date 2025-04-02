@@ -22,6 +22,7 @@ public static class UtilsExtensions
         CancellationToken cancelToken) =>
         botClient.SendMessage(chatId, message, cancellationToken: cancelToken).ToTryAsync().Match(onSent, onError);
 
+
     public static Task<Unit> SendMessageAndLog(
         this BotClient botClient,
         long chatId,
@@ -60,6 +61,17 @@ public static class UtilsExtensions
             .DeleteMessage(chatId, messageId, cancellationToken: cancelToken)
             .ToTryAsync()
             .Match(_ => onDeleted(), onError);
+
+    public static Task<Unit> SetReactionAndLog(
+        this BotClient botClient,
+        long chatId,
+        int messageId,
+        IEnumerable<ReactionTypeEmoji> emojis,
+        Action<Unit> onSent,
+        Action<Exception> onError,
+        CancellationToken cancelToken) =>
+        botClient.SetMessageReaction(chatId, messageId, emojis, cancellationToken: cancelToken).ToTryAsync()
+            .Match(onSent, onError);
 
     public static TryAsync<T> ToTryAsync<T>(this Task<T> task) => TryAsync(task);
 

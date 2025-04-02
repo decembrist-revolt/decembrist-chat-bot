@@ -53,7 +53,7 @@ public class HelpChatCommandHandler(
                 expiredMessageRepository.QueueMessage(chatId, sentMessage.MessageId);
             });
 
-        return await sentResult.IfFail(ex => 
+        return await sentResult.IfFail(ex =>
             Log.Error(ex, "Failed to send help message for {0} to chat {1}", text, chatId));
     }
 
@@ -92,6 +92,7 @@ public class HelpChatCommandHandler(
             MemberItemType.Box => OpenBoxCommandHandler.CommandKey,
             MemberItemType.FastReply => FastReplyCommandHandler.CommandKey,
             MemberItemType.TelegramMeme => TelegramMemeCommandHandler.CommandKey,
+            MemberItemType.Curse => ReactionSpamCommandHandler.CommandKey,
             _ => None
         };
 

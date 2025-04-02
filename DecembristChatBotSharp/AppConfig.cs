@@ -28,6 +28,7 @@ public record AppConfig(
     CommandConfig CommandConfig,
     RedditConfig RedditConfig,
     RestrictConfig RestrictConfig,
+    ReactionSpamConfig ReactionSpamConfig,
     ItemConfig ItemConfig,
     DateTime? DeployTime = null,
     List<long>? WhiteListIds = null)
@@ -128,6 +129,17 @@ public record RestrictConfig(
     string RestrictClearMessage
 );
 
+public record ReactionSpamConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string HelpMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string DuplicateMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    int DurationMinutes
+);
+
 public record ItemConfig(
     Dictionary<MemberItemType, double> ItemChance,
     [property: Required(AllowEmptyStrings = false)]
@@ -156,10 +168,8 @@ public record LikeConfig(
 
 public record TelegramPostConfig(
     string[] ChannelNames,
-    [property: Range(1, int.MaxValue)]
-    int ScanPostCount,
-    [property: Range(1, int.MaxValue)]
-    int MaxGetPostRetries,
+    [property: Range(1, int.MaxValue)] int ScanPostCount,
+    [property: Range(1, int.MaxValue)] int MaxGetPostRetries,
     [property: Required(AllowEmptyStrings = false)]
     string TelegramErrorMessage
 );

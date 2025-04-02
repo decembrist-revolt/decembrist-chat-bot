@@ -12,6 +12,7 @@ public class MemberItemService(
     MemberItemRepository memberItemRepository,
     HistoryLogRepository historyLogRepository,
     FastReplyRepository fastReplyRepository,
+    ReactionSpamRepository reactionSpamRepository,
     RedditService redditService,
     TelegramPostService telegramPostService,
     CancellationTokenSource cancelToken)
@@ -139,7 +140,7 @@ public class MemberItemService(
             return new UseRedditMemeResult(None, UseRedditMemeResult.Type.Failed);
         });
     }
-    
+
     public async Task<UseTelegramMemeResult> UseTelegramMeme(long chatId, long telegramId, bool isAdmin)
     {
         using var session = await db.OpenSession();
@@ -212,6 +213,47 @@ public class MemberItemService(
         return false;
     }
 
+    public async Task<ReactionSpamResult> UseReactionSpam(
+        long chatId, long telegramId, ReactionSpamMember member, bool isAdmin)
+    {
+        using var session = await db.OpenSession();
+        session.StartTransaction();
+
+        var hasItem = isAdmin || await memberItemRepository
+            .RemoveMemberItem(chatId, telegramId, MemberItemType.Curse, session);
+        if (!hasItem)
+        {
+            await session.TryAbort(cancelToken.Token);
+            Log.Information("{0} tried to use non-existent reaction spam in chat {1}", telegramId, chatId);
+            return ReactionSpamResult.NoItems;
+        }
+
+        var maybeResult = await reactionSpamRepository.AddReactionSpamMember(member, session);
+
+        await historyLogRepository.LogItem(
+            chatId, telegramId, MemberItemType.Curse, -1, MemberItemSourceType.Use, session);
+        switch (maybeResult)
+        {
+            case ReactionSpamResult.Success when await session.TryCommit(cancelToken.Token):
+                Log.Information("{0} used reaction spam in chat {1}", telegramId, chatId);
+                return ReactionSpamResult.Success;
+            case ReactionSpamResult.Success:
+                await session.TryAbort(cancelToken.Token);
+                Log.Error("{0} failed to commit use reaction spam item in chat {1}", telegramId, chatId);
+                return ReactionSpamResult.Failed;
+            case ReactionSpamResult.Failed:
+                await session.TryAbort(cancelToken.Token);
+                Log.Error("Failed to use reaction spam item for {0} in chat {1}", telegramId, chatId);
+                return ReactionSpamResult.Failed;
+            case ReactionSpamResult.Duplicate:
+                await session.TryAbort(cancelToken.Token);
+                Log.Information("{0} tried to use duplicate fast reply in chat {1}", telegramId, chatId);
+                return ReactionSpamResult.Duplicate;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+    }
+
     private MemberItemType GetRandomItem()
     {
         var random = new Random();
@@ -250,6 +292,13 @@ public enum UseFastReplyResult
     Failed
 }
 
+public enum ReactionSpamResult 
+{
+    Success,
+    NoItems,
+    Duplicate,
+    Failed
+}
 public record struct UseRedditMemeResult(Option<RedditRandomMeme> Meme, UseRedditMemeResult.Type Result)
 {
     public enum Type
