@@ -213,14 +213,14 @@ public class MemberItemService(
         return false;
     }
 
-    public async Task<ReactionSpamResult> UseReactionSpam(long chatId, long telegramId, ReactionSpamMember member,
-        bool isAdmin)
+    public async Task<ReactionSpamResult> UseReactionSpam(
+        long chatId, long telegramId, ReactionSpamMember member, bool isAdmin)
     {
         using var session = await db.OpenSession();
         session.StartTransaction();
 
         var hasItem = isAdmin || await memberItemRepository
-            .RemoveMemberItem(chatId, telegramId, MemberItemType.ReactionSpam, session);
+            .RemoveMemberItem(chatId, telegramId, MemberItemType.Curse, session);
         if (!hasItem)
         {
             await session.TryAbort(cancelToken.Token);
@@ -231,7 +231,7 @@ public class MemberItemService(
         var maybeResult = await reactionSpamRepository.AddReactionSpamMember(member, session);
 
         await historyLogRepository.LogItem(
-            chatId, telegramId, MemberItemType.ReactionSpam, -1, MemberItemSourceType.Use, session);
+            chatId, telegramId, MemberItemType.Curse, -1, MemberItemSourceType.Use, session);
         switch (maybeResult)
         {
             case ReactionSpamResult.Success when await session.TryCommit(cancelToken.Token):

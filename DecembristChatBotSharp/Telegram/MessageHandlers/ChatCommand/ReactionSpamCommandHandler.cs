@@ -1,14 +1,12 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
-using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Lamar;
 using LanguageExt.UnsafeValueAccess;
-using MongoDB.Driver;
 using Serilog;
 using Telegram.Bot.Types;
 
-namespace DecembristChatBotSharp.Telegram.MessageHandlers;
+namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public class ReactionSpamCommandHandler(
@@ -22,10 +20,20 @@ public class ReactionSpamCommandHandler(
     ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
-    public const string CommandKey = "/reactionspam";
+    public const string CommandKey = "/curse";
+
+    private static readonly System.Collections.Generic.HashSet<string> Emojis =
+    [
+        "👍", "👎", "❤", "🔥", "🥰", "👏", "😁", "🤔", "🤯", "😱", "🤬", "😢", "🎉", "🤩", "🤮", "💩", "🙏", "👌", "🕊",
+        "🤡", "🥱", "🥴", "😍", "🐳", "❤‍", "🌚", "🌭", "💯", "🤣", "⚡", "🍌", "🏆", "💔", "🤨", "😐", "🍓", "🍾", "💋",
+        "🖕", "😈", "😴", "😭", "🤓", "👻", "👨", "‍💻", "👀", "🎃", "🙈", "😇", "😨", "🤝", "✍", "🤗", "🫡", "🎅",
+        "🎄", "☃", "💅", "🤪", "🗿", "🆒", "💘", "🙉", "🦄", "😘", "💊", "🙊", "😎", "👾", "🤷‍♂", "🤷", "🤷‍♀", "😡"
+    ];
+
+    private static readonly string EmojisString = string.Join(", ", Emojis);
     public string Command => CommandKey;
 
-    public string Description => "Adds reactions to the user's messages";
+    public string Description => "All user messages will be cursed by certain emoji";
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -33,8 +41,7 @@ public class ReactionSpamCommandHandler(
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
         var replyUserId = parameters.ReplyToTelegramId;
-        if (replyUserId.IsNone)
-            return await SendHelpMessageWithLock(chatId, messageId);
+        if (replyUserId.IsNone) return await SendHelpMessageWithLock(chatId, messageId);
 
         var receiverId = replyUserId.ValueUnsafe();
 
@@ -43,16 +50,18 @@ public class ReactionSpamCommandHandler(
         if (isAdmin && text.Contains("clear", StringComparison.OrdinalIgnoreCase))
         {
             if (await reactionSpamRepository.DeleteReactionSpamMember((receiverId, chatId)))
-                Log.Information("Clear react spam member for {0} in chat {1} by {2}", receiverId, chatId,
-                    telegramId);
+            {
+                Log.Information("Clear react spam member for {0} in chat {1} by {2}", receiverId, chatId, telegramId);
+            }
             else
-                Log.Error("React spam member not cleared for {0} in chat {1} by {2}", receiverId, chatId,
-                    telegramId);
+            {
+                Log.Error("React spam member not cleared for {0} in chat {1} by {2}", receiverId, chatId, telegramId);
+            }
+
             return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
         }
 
-        if (maybeEmoji.IsNone)
-            return await SendHelpMessageWithLock(chatId, messageId);
+        if (maybeEmoji.IsNone) return await SendHelpMessageWithLock(chatId, messageId);
 
         var emoji = maybeEmoji.ValueUnsafe();
 
@@ -120,7 +129,7 @@ public class ReactionSpamCommandHandler(
             .GetUsername(chatId, receiverId, cancelToken.Token)
             .IfSomeAsync(async username =>
             {
-                var message = string.Format(appConfig.ReactionSpamConfig.SuccessMessage, emoji, username);
+                var message = string.Format(appConfig.ReactionSpamConfig.SuccessMessage, username, emoji);
                 var logTemplate = "Reaction spam message sent {0} ChatId: {1}, Emoji:{2} Receiver: {3}";
                 return await botClient.SendMessageAndLog(chatId, message,
                     m =>
@@ -143,14 +152,4 @@ public class ReactionSpamCommandHandler(
             }
             : None;
     }
-
-    private static readonly System.Collections.Generic.HashSet<string> Emojis =
-    [
-        "👍", "👎", "❤", "🔥", "🥰", "👏", "😁", "🤔", "🤯", "😱", "🤬", "😢", "🎉", "🤩", "🤮", "💩", "🙏", "👌", "🕊",
-        "🤡", "🥱", "🥴", "😍", "🐳", "❤‍", "🌚", "🌭", "💯", "🤣", "⚡", "🍌", "🏆", "💔", "🤨", "😐", "🍓", "🍾", "💋",
-        "🖕", "😈", "😴", "😭", "🤓", "👻", "👨", "‍💻", "👀", "🎃", "🙈", "😇", "😨", "🤝", "✍", "🤗", "🫡", "🎅",
-        "🎄", "☃", "💅", "🤪", "🗿", "🆒", "💘", "🙉", "🦄", "😘", "💊", "🙊", "😎", "👾", "🤷‍♂", "🤷", "🤷‍♀", "😡"
-    ];
-
-    private static readonly string EmojisString = string.Join(", ", Emojis);
 }

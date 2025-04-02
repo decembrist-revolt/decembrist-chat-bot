@@ -92,7 +92,7 @@ public class HelpChatCommandHandler(
             MemberItemType.Box => OpenBoxCommandHandler.CommandKey,
             MemberItemType.FastReply => FastReplyCommandHandler.CommandKey,
             MemberItemType.TelegramMeme => TelegramMemeCommandHandler.CommandKey,
-            MemberItemType.ReactionSpam => ReactionSpamCommandHandler.CommandKey,
+            MemberItemType.Curse => ReactionSpamCommandHandler.CommandKey,
             _ => None
         };
 
