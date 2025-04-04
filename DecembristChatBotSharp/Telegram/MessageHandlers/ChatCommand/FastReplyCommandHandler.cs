@@ -68,6 +68,7 @@ public class FastReplyCommandHandler(
             message = fileId;
             messageType = FastReplyType.Sticker;
         }
+        else message = message.ToLowerInvariant();
 
         var replyType = FastReplyType.Text;
         if (reply.StartsWith(FastReplyHandler.StickerPrefix))
