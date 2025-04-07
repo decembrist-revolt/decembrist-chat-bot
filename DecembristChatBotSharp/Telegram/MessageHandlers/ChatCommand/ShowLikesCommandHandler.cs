@@ -32,7 +32,8 @@ public class ShowLikesCommandHandler(
 
         var limit = appConfig.CommandConfig.LikeConfig.TopLikeMemberCount;
         var topLikeMembers = await memberLikeRepository.GetTopLikeMembers(chatId, limit);
-        if (topLikeMembers.Count <= 0) return await SendNoLikes(chatId);
+        if (topLikeMembers.Count <= 0)
+            return await SendLikes(chatId, appConfig.CommandConfig.LikeConfig.NoLikesMessage);
 
         var usernameCountChunks = await topLikeMembers.Chunk(5)
             .Map(chunk => chunk.Map(likeCount => FillUsername(chatId, likeCount)))
@@ -41,27 +42,24 @@ public class ShowLikesCommandHandler(
 
         var usernameCounts = usernameCountChunks.Flatten();
 
-        await SendLikes(chatId, usernameCounts);
+        await SendLikes(chatId, BuildTopLikes(usernameCounts));
         expiredMessageRepository.QueueMessage(chatId, messageId);
 
         return unit;
     }
 
-    private async Task<Unit> SendNoLikes(long chatId)
-    {
-        var message = appConfig.CommandConfig.LikeConfig.NoLikesMessage;
-        return await botClient.SendMessageAndLog(chatId, message,
+    private async Task<Unit> SendLikes(long chatId, string message) =>
+        await botClient.SendMessageAndLog(chatId, message,
             message =>
             {
-                Log.Information("Sent empty likes message to chat {0}", chatId);
+                Log.Information("Sent top likes message to chat {0}", chatId);
                 expiredMessageRepository.QueueMessage(chatId, message.MessageId);
             },
             ex => Log.Error(ex, "Failed to send top likes message to chat {0}", chatId),
             cancelToken.Token
         );
-    }
 
-    private async Task SendLikes(long chatId, (string username, int Count)[] usernameCounts)
+    private static string BuildTopLikes((string username, int Count)[] usernameCounts)
     {
         var idx = 1;
         var builder = new StringBuilder();
@@ -71,15 +69,7 @@ public class ShowLikesCommandHandler(
             builder.AppendLine($"{idx++}. {username} - {count}");
         }
 
-        await botClient.SendMessageAndLog(chatId, builder.ToString(),
-            message =>
-            {
-                Log.Information("Sent top likes message to chat {0}", chatId);
-                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
-            },
-            ex => Log.Error(ex, "Failed to send top likes message to chat {0}", chatId),
-            cancelToken.Token
-        );
+        return builder.ToString();
     }
 
     private async Task<(string username, int Count)> FillUsername(long chatId, LikeTelegramToLikeCount memberLikes)
