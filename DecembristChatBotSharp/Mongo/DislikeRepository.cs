@@ -73,7 +73,7 @@ public class DislikeRepository(
             Some,
             ex =>
             {
-                Log.Error(ex, "");
+                Log.Error(ex, "Failed to get dislike group for chat {0}", chatId);
                 return None;
             });
     }
