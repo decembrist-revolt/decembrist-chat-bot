@@ -32,7 +32,7 @@ public class ShowLikesCommandHandler(
 
         var limit = appConfig.CommandConfig.LikeConfig.TopLikeMemberCount;
         var topLikeMembers = await memberLikeRepository.GetTopLikeMembers(chatId, limit);
-        if (topLikeMembers.Count <= 0) return unit;
+        if (topLikeMembers.Count <= 0) return await SendNoLikes(chatId);
 
         var usernameCountChunks = await topLikeMembers.Chunk(5)
             .Map(chunk => chunk.Map(likeCount => FillUsername(chatId, likeCount)))
@@ -45,6 +45,20 @@ public class ShowLikesCommandHandler(
         expiredMessageRepository.QueueMessage(chatId, messageId);
 
         return unit;
+    }
+
+    private async Task<Unit> SendNoLikes(long chatId)
+    {
+        var message = appConfig.CommandConfig.LikeConfig.NoLikesMessage;
+        return await botClient.SendMessageAndLog(chatId, message,
+            message =>
+            {
+                Log.Information("Sent empty likes message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
+            ex => Log.Error(ex, "Failed to send top likes message to chat {0}", chatId),
+            cancelToken.Token
+        );
     }
 
     private async Task SendLikes(long chatId, (string username, int Count)[] usernameCounts)

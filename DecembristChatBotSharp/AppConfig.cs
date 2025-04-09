@@ -179,6 +179,8 @@ public record LikeConfig(
     [property: Required(AllowEmptyStrings = false)]
     string SelfLikeMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string NoLikesMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string DailyTopLikersGiftCronUtc,
     [property: Required(AllowEmptyStrings = false)]
     int DailyTopLikersCount,
