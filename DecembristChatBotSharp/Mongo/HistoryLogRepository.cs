@@ -91,6 +91,22 @@ public class HistoryLogRepository(
             .IfFail(ex => Log.Error(ex, "Failed to log premium member {0}", telegramId));
     }
 
+    public async Task<Unit> LogResultDislikes(
+        long chatId,
+        long topDislikesUserId,
+        long randomDislikerId,
+        int dislikesCount,
+        IMongoSession session)
+    {
+        var collection = GetCollection<DislikeResultHistoryLogData>();
+        var id = CreateId<DislikeResultHistoryLogData>(chatId, topDislikesUserId);
+        var data = new DislikeResultHistoryLogData(dislikesCount, randomDislikerId);
+        var log = new HistoryLog<DislikeResultHistoryLogData>(id, HistoryLogType.TopDislikes, data);
+        return await collection.InsertOneAsync(session, log, cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .IfFail(ex => Log.Error(ex, "Failed to log dislikes result"));
+    }
+
     private HistoryLog<T>.CompositeId CreateId<T>(long chatId, long telegramId) where T : IHistoryLogData =>
         new(chatId, telegramId, DateTime.UtcNow);
 

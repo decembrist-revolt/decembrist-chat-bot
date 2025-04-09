@@ -18,6 +18,7 @@ public enum HistoryLogType
     MemberItem = 0,
     TopLiker = 1,
     PremiumMember = 2,
+    TopDislikes = 3
 }
 
 public interface IHistoryLogData;
