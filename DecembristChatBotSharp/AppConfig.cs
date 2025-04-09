@@ -29,6 +29,7 @@ public record AppConfig(
     RedditConfig RedditConfig,
     RestrictConfig RestrictConfig,
     ReactionSpamConfig ReactionSpamConfig,
+    DislikeConfig DislikeConfig,
     ItemConfig ItemConfig,
     DateTime? DeployTime = null,
     List<long>? WhiteListIds = null)
@@ -138,6 +139,25 @@ public record ReactionSpamConfig(
     string DuplicateMessage,
     [property: Required(AllowEmptyStrings = false)]
     int DurationMinutes
+);
+
+public record DislikeConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ExistDislikeMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ReceiverNotSetMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SelfMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string DailyResultMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string DailyResultCronUtc,
+    [property: Required(AllowEmptyStrings = false)]
+    string DailyResultEmoji,
+    [property: Required(AllowEmptyStrings = false)]
+    int EmojiDurationMinutes
 );
 
 public record ItemConfig(
