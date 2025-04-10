@@ -3,15 +3,17 @@ using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
 using Serilog;
+using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace DecembristChatBotSharp.Telegram;
 
 [Singleton]
 public class MessageAssistance(
-    AppConfig appConfig, 
-    BotClient botClient, 
+    AppConfig appConfig,
+    BotClient botClient,
     ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken)
 {
@@ -41,7 +43,7 @@ public class MessageAssistance(
             () => Log.Information("Deleted {0} message in chat {1}", command, chatId),
             ex => Log.Error(ex, "Failed to delete like message in chat {0}", chatId),
             cancelToken.Token);
-    
+
     public async Task<Unit> SendAdminOnlyMessage(long chatId, long telegramId) =>
         await botClient.SendMessageAndLog(chatId, appConfig.CommandConfig.AdminOnlyMessage,
             message =>
@@ -51,7 +53,7 @@ public class MessageAssistance(
             },
             ex => Log.Error(ex, "Failed to send admin only message to {0} chat {1}", telegramId, chatId),
             cancelToken.Token);
-    
+
     public async Task<Unit> SendStickerNotFound(long chatId, string fileId)
     {
         var stickerMessage = FastReplyHandler.StickerPrefix + fileId;
@@ -75,7 +77,7 @@ public class MessageAssistance(
             },
             ex => Log.Error(ex, "Failed to send sticker not found message to chat {0}", chatId),
             cancelToken.Token);
-    
+
     public async Task<Unit> SendGetItemMessage(long chatId, string username, MemberItemType item)
     {
         var message = string.Format(appConfig.ItemConfig.GetItemMessage, username, item);
@@ -83,5 +85,18 @@ public class MessageAssistance(
             _ => Log.Information("Sent get item message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send get item message to chat {0}", chatId),
             cancelToken.Token);
+    }
+
+    public async Task<Unit> SendInviteToDirect(long chatId, long telegramId, string url, string message)
+    {
+        var replyMarkup = new InlineKeyboardMarkup(
+            InlineKeyboardButton.WithUrl("Открыть ЛС с ботом", url));
+
+        return await botClient.SendMessage(chatId, message, replyMarkup: replyMarkup,
+                cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .Match(
+                _ => Log.Information("Sent invite to direct message to chat {0}", chatId),
+                ex => Log.Error(ex, "Failed to send invite to direct message to chat {0}", chatId));
     }
 }

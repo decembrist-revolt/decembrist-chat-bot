@@ -169,6 +169,8 @@ public record ItemConfig(
     [property: Required(AllowEmptyStrings = false)]
     string EmptyInventoryMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string SuccessInventoryMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string FailedToOpenBoxMessage
 );
 

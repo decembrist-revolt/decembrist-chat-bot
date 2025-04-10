@@ -3,6 +3,8 @@ using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
 using Serilog;
+using Telegram.Bot;
+using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
@@ -25,38 +27,47 @@ public class InventoryCommandHandler(
 
         var locked = await lockRepository.TryAcquire(chatId, Command);
         if (!locked) return await messageAssistance.CommandNotReady(chatId, messageId, Command);
-        var username = await botClient.GetUsername(chatId, telegramId, cancelToken.Token)
+        var chatTitle = await botClient.GetChatTitle(chatId, cancelToken.Token)
             .ToAsync()
-            .IfNone(telegramId.ToString);
-        var items = await memberItemRepository.GetItems(chatId, telegramId);
-        var taskSendMessage = items.MatchAsync(
-            async inventory => await SendInventoryMessage(chatId, username, inventory),
-            async () => await SendEmptyInventory(chatId, username));
+            .IfNone(chatId.ToString);
+        return await botClient.SendChatAction(telegramId, ChatAction.Typing, cancellationToken: cancelToken.Token)
+            .ToTryAsync().Match(
+                async exx =>
+                {
+                    var items = await memberItemRepository.GetItems(chatId, telegramId);
+                    var taskSendMessage = items.MatchAsync(
+                        async inventory => await SendInventoryMessage(telegramId, chatTitle, inventory),
+                        async () => await SendEmptyInventory(telegramId));
 
-        return await Array(taskSendMessage,
-            messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
+                    return await Array(taskSendMessage,
+                        messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
+                },
+                async ex =>
+                    await messageAssistance.SendInviteToDirect(chatId, telegramId,
+                        "https://t.me/?start=inventory@chatId",
+                        "Откройте для инвентаря"));
     }
 
-    private Task<Unit> SendEmptyInventory(long chatId, string username)
+    private Task<Unit> SendEmptyInventory(long chatId)
     {
-        var message = string.Format(appConfig.ItemConfig.EmptyInventoryMessage, username);
+        var message = string.Format(appConfig.ItemConfig.EmptyInventoryMessage);
         return botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Sent empty inventory message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to sent empty inventory message to chat {0}", chatId), cancelToken.Token);
     }
 
-    private Task<Unit> SendInventoryMessage(long chatId, string username, Dictionary<MemberItemType, int> items)
+    private Task<Unit> SendInventoryMessage(long chatId, string chatTitle, Dictionary<MemberItemType, int> items)
     {
-        var message = BuildInventory(username, items);
+        var message = BuildInventory(chatTitle, items);
         return botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Success to send inventory message for chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send inventory message for chat {0}", chatId), cancelToken.Token);
     }
 
-    private static string BuildInventory(string username, Dictionary<MemberItemType, int> inventory)
+    private string BuildInventory(string chatTitle, Dictionary<MemberItemType, int> inventory)
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"{username} inventory:");
+        builder.AppendLine(string.Format(appConfig.ItemConfig.SuccessInventoryMessage, chatTitle));
         foreach (var (item, count) in inventory)
         {
             builder.AppendLine($"{item}: {count}");

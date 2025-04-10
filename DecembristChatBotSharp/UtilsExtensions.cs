@@ -108,6 +108,18 @@ public static class UtilsExtensions
             return None;
         });
 
+    public static async Task<Option<string>> GetChatTitle(
+        this BotClient botClient,
+        long chatId,
+        CancellationToken cancelToken) => await botClient.GetChat(chatId, cancelToken)
+        .ToTryAsync()
+        .Map(chat => chat.Title)
+        .Match(Optional, ex =>
+        {
+            Log.Error(ex, "Failed to get chat title for chat {0}", chatId);
+            return None;
+        });
+
     public static Task<bool> TryCommit(this IClientSessionHandle session, CancellationToken cancelToken) =>
         session.CommitTransactionAsync(cancelToken).ToTryAsync().Match(_ => true, ex =>
         {

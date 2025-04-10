@@ -8,8 +8,8 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
 public class PrivateMessageHandler(
-    AppConfig appConfig, 
-    BotClient botClient, 
+    AppConfig appConfig,
+    BotClient botClient,
     MessageAssistance messageAssistance,
     CancellationTokenSource cancelToken)
 {
@@ -25,8 +25,10 @@ public class PrivateMessageHandler(
         {
             MessageType.Sticker => SendStickerFileId(chatId, message.Sticker!.FileId),
             MessageType.Text when message.Text == MeCommand => SendMe(telegramId, chatId),
+            MessageType.Text when message.Text != null && message.Text.Contains("/start") => SendStart(telegramId,
+                chatId, message),
             MessageType.Text when message.Text == StatusCommand => SendStatus(chatId),
-            MessageType.Text when message.Text is {} text && text.StartsWith(FastReplyHandler.StickerPrefix) => 
+            MessageType.Text when message.Text is { } text && text.StartsWith(FastReplyHandler.StickerPrefix) =>
                 SendSticker(chatId, text[FastReplyHandler.StickerPrefix.Length..]),
             _ => TryAsync(botClient.SendMessage(chatId, "OK", cancellationToken: cancelToken.Token))
         };
@@ -42,6 +44,32 @@ public class PrivateMessageHandler(
         return TryAsync(botClient.SendMessage(
             chatId,
             message,
+            parseMode: ParseMode.MarkdownV2,
+            cancellationToken: cancelToken.Token)
+        );
+    }
+
+    private TryAsync<Message> SendStart(long telegramId, long chatId, Message message)
+    {
+        var args = message.Text.Split(' ');
+
+        if (args.Length > 1)
+        {
+            var parameter = args[1];
+
+            if (parameter == "inventory")
+            {
+                return TryAsync(botClient.SendMessage(
+                    message.Chat.Id,
+                    message.Text,
+                    parseMode: ParseMode.MarkdownV2,
+                    cancellationToken: cancelToken.Token));
+            }
+        }
+
+        return TryAsync(botClient.SendMessage(
+            chatId,
+            "",
             parseMode: ParseMode.MarkdownV2,
             cancellationToken: cancelToken.Token)
         );
