@@ -55,30 +55,32 @@ public class DislikeRepository(
                 });
     }
 
-    public async Task<Option<DislikesResultGroup>> GetDislikeTopResults(long chatId,
-        IClientSessionHandle? session = null)
+    public async Task<Option<DislikesResultGroup>> GetDislikeTopResults(long chatId, IMongoSession? session = null)
     {
         var collection = GetCollection();
         var pipeline = new EmptyPipelineDefinition<DislikeMember>()
-            .Match(m => m.Id.ChatId == chatId)
-            .Group(m => m.DislikeTelegramId,
-                g => new DislikesResultGroup
-                    (g.Key, g.Select(x => x.Id.TelegramId).ToArray(), g.Count()))
-            .Sort(Builders<DislikesResultGroup>.Sort.Descending(count => count.DislikersCount)).Limit(1);
+            .Match(member => member.Id.ChatId == chatId)
+            .Group(
+                member => member.DislikeTelegramId,
+                group => new DislikesResultGroup(
+                    group.Key,
+                    group.Select(x => x.Id.TelegramId).ToArray(),
+                    group.Count())
+            ).Sort(Builders<DislikesResultGroup>.Sort.Descending(count => count.DislikersCount))
+            .Limit(1);
 
         var cursor = session.IsNull()
             ? collection.Aggregate(pipeline, cancellationToken: cancelToken.Token)
             : collection.Aggregate(session, pipeline, cancellationToken: cancelToken.Token);
-        return await cursor.FirstAsync().ToTryAsync().Match(
-            Some,
-            ex =>
-            {
-                Log.Error(ex, "Failed to get dislike group for chat {0}", chatId);
-                return None;
-            });
+        
+        return await cursor.FirstAsync().ToTryAsync().Match(Some, ex =>
+        {
+            Log.Error(ex, "Failed to get dislike group for chat {0}", chatId);
+            return None;
+        });
     }
 
-    public async Task<bool> RemoveAllInChat(long chatId, IClientSessionHandle? session = null)
+    public async Task<bool> RemoveAllInChat(long chatId, IMongoSession? session = null)
     {
         var collection = GetCollection();
         Expression<Func<DislikeMember, bool>> filter = member => member.Id.ChatId == chatId;

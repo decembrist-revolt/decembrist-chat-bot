@@ -34,7 +34,8 @@ public class ReactionSpamRepository(
     {
         var collection = GetCollection();
 
-        var tryFind = await collection.Find(session, m => m.Id == member.Id)
+        var tryFind = await collection
+            .Find(session, mmber => mmber.Id == member.Id)
             .SingleOrDefaultAsync(cancelToken.Token)
             .ToTryOption();
         if (tryFind.IsSome()) return ReactionSpamResult.Duplicate;

@@ -13,5 +13,5 @@ public record DislikesResultGroup(
 
 public record DislikeResultHistoryLogData(
     int Dislikes,
-    long randomDislikerId
+    long RandomDislikerId
 ) : IHistoryLogData;

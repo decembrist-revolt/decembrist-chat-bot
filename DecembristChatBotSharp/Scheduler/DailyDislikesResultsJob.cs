@@ -18,10 +18,9 @@ public class DailyDislikesResultsJob(
     ReactionSpamRepository reactionSpamRepository,
     HistoryLogRepository historyLogRepository,
     BotClient botClient,
+    Random random,
     CancellationTokenSource cancelToken) : IRegisterJob
 {
-    private static readonly Random Random = new();
-
     public async Task Register(IScheduler scheduler)
     {
         var jobKey = new JobKey(nameof(DailyDislikesResultsJob));
@@ -73,8 +72,8 @@ public class DailyDislikesResultsJob(
 
         return await dislikeRepository.GetDislikeTopResults(chatId, session)
             .MatchAsync(
-                None: async () => await AbortSessionAndLog("No dislike results found for chat {0}", chatId, session),
-                Some: async group => await HandleDislikeGroup(group, chatId, session));
+                group => HandleDislikeGroup(group, chatId, session),
+                () => AbortSessionAndLog("No dislike results found for chat {0}", chatId, session));
     }
 
     private async Task<Unit> HandleDislikeGroup(DislikesResultGroup group, long chatId, IMongoSession session)
@@ -83,35 +82,45 @@ public class DailyDislikesResultsJob(
         var insertResult = await AddCurseTopDislikeUser(chatId, topDislikesUserId, session);
 
         if (insertResult != ReactionSpamResult.Success)
+        {
             return await AbortSessionWrapper("Failed to add curse to the disliked user for chat {0}");
+        }
 
         if (dislikers.Length == 0)
+        {
             return await AbortSessionWrapper("Failed to get dislikers array for chat {0}");
+        }
 
-        var randomDislikerId = dislikers[Random.Next(0, dislikers.Length)];
+        var randomDislikerId = dislikers[random.Next(0, dislikers.Length)];
         var isAddItem = await memberItemRepository.AddMemberItem(chatId, randomDislikerId, MemberItemType.Box, session);
 
-        if (!isAddItem)
-            return await AbortSessionWrapper("Failed to add item to random disliker for chat {0}");
+        if (!isAddItem) return await AbortSessionWrapper("Failed to add item to random disliker for chat {0}");
 
         if (!await dislikeRepository.RemoveAllInChat(chatId, session))
+        {
             return await AbortSessionWrapper("Failed to remove dislikes for chat {0}");
+        }
 
-        await historyLogRepository.LogResultDislikes(chatId, topDislikesUserId, randomDislikerId,
-            dislikers.Length(), session);
+        await historyLogRepository.LogResultDislikes(
+            chatId, topDislikesUserId, randomDislikerId, dislikers.Length(), session);
 
         if (!await session.TryCommit(cancelToken.Token))
+        {
             return await AbortSessionWrapper("Failed to commit the dislike repository for chat {0}");
+        }
 
         if (!await SendDailyResultMessage(chatId, topDislikesUserId, randomDislikerId))
+        {
             Log.Error("Failed to send  dislikes result message for chat {0}", chatId);
+        }
         else
+        {
             Log.Information("Successfully processed dislikes results for chat {0}", chatId);
+        }
 
         return unit;
 
-        async Task<Unit> AbortSessionWrapper(string template) =>
-            await AbortSessionAndLog(template, chatId, session);
+        async Task<Unit> AbortSessionWrapper(string template) => await AbortSessionAndLog(template, chatId, session);
     }
 
     private async Task<Unit> AbortSessionAndLog(string messageTemplate, long chatId, IMongoSession session)
@@ -121,11 +130,13 @@ public class DailyDislikesResultsJob(
         return unit;
     }
 
-    private async Task<ReactionSpamResult> AddCurseTopDislikeUser(long chatId, long topDislikesUserId,
-        IMongoSession session)
+    private async Task<ReactionSpamResult> AddCurseTopDislikeUser(
+        long chatId, long topDislikesUserId, IMongoSession session)
     {
-        var emoji = new ReactionTypeEmoji();
-        emoji.Emoji = appConfig.DislikeConfig.DailyResultEmoji;
+        var emoji = new ReactionTypeEmoji
+        {
+            Emoji = appConfig.DislikeConfig.DailyResultEmoji
+        };
         var expireAt = DateTime.UtcNow.AddMinutes(appConfig.DislikeConfig.EmojiDurationMinutes);
         var curseMember = new ReactionSpamMember((topDislikesUserId, chatId), emoji, expireAt);
         await reactionSpamRepository.DeleteReactionSpamMember(curseMember.Id, session);
@@ -135,14 +146,14 @@ public class DailyDislikesResultsJob(
 
     private async Task<bool> SendDailyResultMessage(long chatId, long dislikeUserId, long randomDislikerId)
     {
-        var usernames =
-            (from telegramId in new[] { dislikeUserId, randomDislikerId }
-                select botClient.GetUsername(chatId, telegramId, cancelToken.Token)
-                    .ToAsync()
-                    .IfNone(telegramId.ToString)).ToArr();
-        var usernamesString = (await usernames.Traverse(identity)).ToFullString();
-        var message = string.Format(appConfig.DislikeConfig.DailyResultMessage, usernamesString,
-            appConfig.DislikeConfig.DailyResultEmoji);
+        var dislikeUsername = await GetUsername(dislikeUserId);
+        var dislikerUsername = await GetUsername(randomDislikerId);
+        
+        var message = string.Format(
+            appConfig.DislikeConfig.DailyResultMessage, 
+            dislikeUsername, 
+            appConfig.DislikeConfig.DailyResultEmoji, 
+            dislikerUsername);
         return await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token)
             .ToTryAsync()
             .Match(
@@ -156,5 +167,9 @@ public class DailyDislikesResultsJob(
                     Log.Error(ex, "Failed send dislike result message in chat {0}", chatId);
                     return false;
                 });
+
+        async Task<string> GetUsername(long id) => await botClient.GetUsername(chatId, id, cancelToken.Token)
+            .ToAsync()
+            .IfNone(id.ToString);
     }
 }
