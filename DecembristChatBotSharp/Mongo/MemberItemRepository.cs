@@ -93,5 +93,26 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
             });
     }
 
+    public async Task<Option<Dictionary<MemberItemType, int>>> GetItems(long chatId, long telegramId)
+    {
+        var collection = GetCollection();
+
+        Expression<Func<MemberItem, bool>> filter = item =>
+            item.Id.TelegramId == telegramId && item.Id.ChatId == chatId && item.Count > 0;
+
+        return await collection.FindAsync(filter).ToTryAsync().Match(cursor =>
+            {
+                var list = cursor.ToList();
+                return list.Count > 0
+                    ? Some(list.ToDictionary(x => x.Id.Type, x => x.Count))
+                    : None;
+            },
+            ex =>
+            {
+                Log.Error(ex, "Failed to get items for telegramId:{0}, chatId: {1} ", telegramId, chatId);
+                return None;
+            });
+    }
+
     private IMongoCollection<MemberItem> GetCollection() => db.GetCollection<MemberItem>(nameof(MemberItem));
 }
