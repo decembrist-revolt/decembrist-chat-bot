@@ -34,7 +34,8 @@ public class ReactionSpamRepository(
     {
         var collection = GetCollection();
 
-        var tryFind = await collection.Find(m => m.Id == member.Id)
+        var tryFind = await collection
+            .Find(session, mmber => mmber.Id == member.Id)
             .SingleOrDefaultAsync(cancelToken.Token)
             .ToTryOption();
         if (tryFind.IsSome()) return ReactionSpamResult.Duplicate;
@@ -61,16 +62,20 @@ public class ReactionSpamRepository(
             return None;
         });
 
-    public async Task<bool> DeleteReactionSpamMember(CompositeId id) =>
-        await GetCollection().DeleteOneAsync(m => m.Id == id, cancelToken.Token)
-            .ToTryAsync()
-            .Match(
-                result => result.DeletedCount > 0,
+    public async Task<bool> DeleteReactionSpamMember(CompositeId id, IMongoSession? session = null)
+    {
+        var collection = GetCollection();
+        var taskResult = session.IsNull()
+            ? collection.DeleteOneAsync(m => m.Id == id, cancellationToken: cancelToken.Token)
+            : collection.DeleteOneAsync(session, m => m.Id == id, cancellationToken: cancelToken.Token);
+        return await taskResult
+            .ToTryAsync().Match(result => result.DeletedCount > 0,
                 ex =>
                 {
                     Log.Error(ex, "Failed to delete user with telegramId {0} in reaction spam db", id);
                     return false;
                 });
+    }
 
     private IMongoCollection<ReactionSpamMember> GetCollection() =>
         db.GetCollection<ReactionSpamMember>(nameof(ReactionSpamMember));
