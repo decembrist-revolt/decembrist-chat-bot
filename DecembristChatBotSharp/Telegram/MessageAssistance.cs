@@ -4,8 +4,6 @@ using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
-using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace DecembristChatBotSharp.Telegram;
@@ -87,16 +85,18 @@ public class MessageAssistance(
             cancelToken.Token);
     }
 
-    public async Task<Unit> SendInviteToDirect(long chatId, long telegramId, string url, string message)
+    public async Task<Unit> SendInviteToDirect(long chatId, string url, string message)
     {
         var replyMarkup = new InlineKeyboardMarkup(
-            InlineKeyboardButton.WithUrl("Открыть ЛС с ботом", url));
-
+            InlineKeyboardButton.WithUrl(appConfig.CommandConfig.InviteToDirectMessage, url));
         return await botClient.SendMessage(chatId, message, replyMarkup: replyMarkup,
                 cancellationToken: cancelToken.Token)
             .ToTryAsync()
-            .Match(
-                _ => Log.Information("Sent invite to direct message to chat {0}", chatId),
+            .Match(message =>
+                {
+                    Log.Information("Sent invite to direct message to chat {0}", chatId);
+                    expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+                },
                 ex => Log.Error(ex, "Failed to send invite to direct message to chat {0}", chatId));
     }
 }
