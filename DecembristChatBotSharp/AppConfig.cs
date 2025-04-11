@@ -83,6 +83,8 @@ public record CommandConfig(
     [property: Required(AllowEmptyStrings = false)]
     string FastReplyHelpMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string InviteToDirectMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string StickerNotFoundMessage,
     [property: Required(AllowEmptyStrings = false)]
     string NewFastReplyMessage,
@@ -166,6 +168,12 @@ public record ItemConfig(
     string NoItemsMessage,
     [property: Required(AllowEmptyStrings = false)]
     string GetItemMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string EmptyInventoryMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string InviteInventoryMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessInventoryMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FailedToOpenBoxMessage
 );

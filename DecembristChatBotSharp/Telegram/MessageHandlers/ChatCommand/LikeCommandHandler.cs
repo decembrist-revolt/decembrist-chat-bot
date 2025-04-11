@@ -43,8 +43,8 @@ public class LikeCommandHandler(
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
 
-        var locked = await lockRepository.TryAcquire(chatId, Command, telegramId: telegramId);
-        if (!locked) return await messageAssistance.CommandNotReady(chatId, messageId, Command);
+        var lockSuccess = await lockRepository.TryAcquire(chatId, Command, telegramId: telegramId);
+        if (!lockSuccess) return await messageAssistance.CommandNotReady(chatId, messageId, Command);
 
         if (!await SetLike(telegramId, chatId, receiverTelegramId)) return unit;
 

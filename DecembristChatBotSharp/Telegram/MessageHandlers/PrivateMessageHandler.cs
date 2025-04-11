@@ -1,4 +1,5 @@
-﻿using Lamar;
+﻿using DecembristChatBotSharp.Service;
+using Lamar;
 using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -8,13 +9,18 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
 public class PrivateMessageHandler(
-    AppConfig appConfig, 
-    BotClient botClient, 
+    AppConfig appConfig,
+    BotClient botClient,
     MessageAssistance messageAssistance,
+    InventoryService inventoryService,
     CancellationTokenSource cancelToken)
 {
+    public const string StartCommand = "/start";
+    public const string InventoryCommandSuffix = "getInventoryForChat=";
+
     private const string MeCommand = "/me";
     private const string StatusCommand = "/status";
+    private const string InventoryCommand = StartCommand + " " + InventoryCommandSuffix;
 
     public async Task<Unit> Do(Message message)
     {
@@ -25,8 +31,12 @@ public class PrivateMessageHandler(
         {
             MessageType.Sticker => SendStickerFileId(chatId, message.Sticker!.FileId),
             MessageType.Text when message.Text == MeCommand => SendMe(telegramId, chatId),
+            MessageType.Text when message.Text?.Contains(InventoryCommand) == true
+                                  && message.Text.Split("=") is [_, var chatIdText]
+                                  && long.TryParse(chatIdText, out var targetChatId) =>
+                await SendInventory(telegramId, targetChatId),
             MessageType.Text when message.Text == StatusCommand => SendStatus(chatId),
-            MessageType.Text when message.Text is {} text && text.StartsWith(FastReplyHandler.StickerPrefix) => 
+            MessageType.Text when message.Text is { } text && text.StartsWith(FastReplyHandler.StickerPrefix) =>
                 SendSticker(chatId, text[FastReplyHandler.StickerPrefix.Length..]),
             _ => TryAsync(botClient.SendMessage(chatId, "OK", cancellationToken: cancelToken.Token))
         };
@@ -46,6 +56,15 @@ public class PrivateMessageHandler(
             cancellationToken: cancelToken.Token)
         );
     }
+
+    private async Task<TryAsync<Message>> SendInventory(long telegramId, long chatId)
+    {
+        var message = await inventoryService.GetInventory(chatId, telegramId);
+        return TryAsync(botClient.SendMessage(telegramId, message,
+            parseMode: ParseMode.MarkdownV2,
+            cancellationToken: cancelToken.Token));
+    }
+
 
     private TryAsync<Message> SendMe(long telegramId, long chatId)
     {
