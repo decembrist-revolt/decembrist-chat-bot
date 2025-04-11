@@ -93,19 +93,22 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
             });
     }
 
-    public async Task<Dictionary<MemberItemType, int>> GetItems(long chatId, long telegramId)
+    public async Task<Map<MemberItemType, int>> GetItems(long chatId, long telegramId)
     {
         var collection = GetCollection();
 
         Expression<Func<MemberItem, bool>> filter = item =>
             item.Id.TelegramId == telegramId && item.Id.ChatId == chatId && item.Count > 0;
 
-        return await collection.FindAsync(filter).ToTryAsync().Match(
-            cursor => cursor.ToList().ToDictionary(x => x.Id.Type, x => x.Count),
-            ex =>
+        return await collection
+            .Find(filter)
+            .Project(item => new KeyValuePair<MemberItemType, int>(item.Id.Type, item.Count))
+            .ToListAsync()
+            .ToTryAsync()
+            .Match(MapExtensions.ToMap, ex =>
             {
                 Log.Error(ex, "Failed to get items for telegramId:{0}, chatId: {1} ", telegramId, chatId);
-                return new Dictionary<MemberItemType, int>();
+                return [];
             });
     }
 

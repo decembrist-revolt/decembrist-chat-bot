@@ -89,8 +89,8 @@ public class MessageAssistance(
     {
         var replyMarkup = new InlineKeyboardMarkup(
             InlineKeyboardButton.WithUrl(appConfig.CommandConfig.InviteToDirectMessage, url));
-        return await botClient.SendMessage(chatId, message, replyMarkup: replyMarkup,
-                cancellationToken: cancelToken.Token)
+        return await botClient.SendMessage(
+                chatId, message, replyMarkup: replyMarkup, cancellationToken: cancelToken.Token)
             .ToTryAsync()
             .Match(message =>
                 {

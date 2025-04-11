@@ -1,10 +1,9 @@
 ﻿using System.Text;
-using DecembristChatBotSharp;
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
-using Serilog;
 
+namespace DecembristChatBotSharp.Service;
 
 [Singleton]
 public class InventoryService(
@@ -13,26 +12,7 @@ public class InventoryService(
     AppConfig appConfig,
     CancellationTokenSource cancelToken)
 {
-    public async Task<string> GetInventoryMessage(long telegramId, string text)
-    {
-        var message = "OK";
-        var parts = text.Split('_');
-        if (parts.Length < 2) return message;
-        {
-            if (long.TryParse(parts[1], out var chatId))
-            {
-                return await GetInventory(chatId, telegramId);
-            }
-            else
-            {
-                Log.Error("Failed to parse chatId for inventory command");
-            }
-        }
-
-        return message;
-    }
-
-    private async Task<string> GetInventory(long chatId, long telegramId)
+    public async Task<string> GetInventory(long chatId, long telegramId)
     {
         var items = await memberItemRepository.GetItems(chatId, telegramId);
 
@@ -45,7 +25,7 @@ public class InventoryService(
             : string.Format(appConfig.ItemConfig.EmptyInventoryMessage, chatTitle);
     }
 
-    private string BuildInventory(Dictionary<MemberItemType, int> inventory, string chatTitle)
+    private string BuildInventory(Map<MemberItemType, int> inventory, string chatTitle)
     {
         var builder = new StringBuilder();
         builder.AppendLine(string.Format(appConfig.ItemConfig.SuccessInventoryMessage, chatTitle));

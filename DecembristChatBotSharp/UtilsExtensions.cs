@@ -1,5 +1,7 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text;
+using System.Text.RegularExpressions;
 using System.Web;
+using JasperFx.Core;
 using MongoDB.Driver;
 using Serilog;
 using Telegram.Bot;
@@ -10,6 +12,8 @@ namespace DecembristChatBotSharp;
 
 public static class UtilsExtensions
 {
+    private const string MeLink = "https://t.me";
+
     public static Task<Unit> UnitTask(this Task? task) => task?.ContinueWith(_ => unit) ?? Task.FromResult(unit);
 
     public static Unit Ignore(this object any) => unit;
@@ -121,15 +125,16 @@ public static class UtilsExtensions
             return None;
         });
 
-    public static async Task<string> GetSelfLink(this BotClient botClient, string parameters) =>
-        await botClient.GetMe().ToTryAsync()
-            .Map(x => Optional(x.Username)
-                .Map(botName => $"https://t.me/{botName}?start={HttpUtility.UrlEncode(parameters)}")
-                .IfNone("https://t.me"))
-            .Match(identity, ex =>
+    public static async Task<string> GetBotStartLink(this BotClient botClient, string parameters) =>
+        await botClient.GetMe()
+            .ToTryOption()
+            .Map(me => me.Username)
+            .Filter(username => username?.IsNotEmpty() == true)
+            .Map(botName => $"{MeLink}/{botName}?start={Uri.EscapeDataString(parameters)}")
+            .Match(identity, () => MeLink, ex =>
             {
                 Log.Error(ex, "Failed get self bot username");
-                return "https://t.me";
+                return MeLink;
             });
 
     public static Task<bool> TryCommit(this IClientSessionHandle session, CancellationToken cancelToken) =>

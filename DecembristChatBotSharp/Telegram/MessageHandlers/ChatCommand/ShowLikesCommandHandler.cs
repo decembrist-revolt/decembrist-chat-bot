@@ -25,8 +25,8 @@ public class ShowLikesCommandHandler(
         var chatId = parameters.ChatId;
         var messageId = parameters.MessageId;
         
-        var locked = await lockRepository.TryAcquire(chatId, Command);
-        if (!locked) return await messageAssistance.CommandNotReady(chatId, messageId, Command);
+        var lockSuccess = await lockRepository.TryAcquire(chatId, Command);
+        if (!lockSuccess) return await messageAssistance.CommandNotReady(chatId, messageId, Command);
         
         Log.Information("Processing show likes command in chat {0}", chatId);
 
