@@ -23,7 +23,7 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
         var update = Builders<MemberItem>.Update.Inc(item => item.Count, 1);
         var options = new UpdateOptions { IsUpsert = true };
 
-        Expression<Func<MemberItem,bool>> findExpr = item => item.Id == id;
+        Expression<Func<MemberItem, bool>> findExpr = item => item.Id == id;
         var updateTask = not(session.IsNull())
             ? collection.UpdateOneAsync(session, findExpr, update, options, cancelToken.Token)
             : collection.UpdateOneAsync(findExpr, update, options, cancelToken.Token);
@@ -44,7 +44,7 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
         IClientSessionHandle? session = null)
     {
         if (telegramIds.IsEmpty) return 0;
-        
+
         var collection = GetCollection();
 
         var requests =
@@ -53,7 +53,7 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
             let filter = Builders<MemberItem>.Filter.Eq(item => item.Id, id)
             let update = Builders<MemberItem>.Update.Inc(item => item.Count, 1)
             select new UpdateOneModel<MemberItem>(filter, update) { IsUpsert = true };
-        
+
         var updateTask = not(session.IsNull())
             ? collection.BulkWriteAsync(session, requests, cancellationToken: cancelToken.Token)
             : collection.BulkWriteAsync(requests, cancellationToken: cancelToken.Token);
@@ -66,7 +66,7 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
                 return 0;
             });
     }
-    
+
     /// <returns>True if item was removed, false if item was not found or count was 0</returns>
     public async Task<bool> RemoveMemberItem(
         long chatId,
@@ -80,7 +80,7 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
 
         var update = Builders<MemberItem>.Update.Inc(item => item.Count, -1);
 
-        Expression<Func<MemberItem,bool>> findExpr = item => item.Id == id && item.Count > 0;
+        Expression<Func<MemberItem, bool>> findExpr = item => item.Id == id && item.Count > 0;
         var updateTask = not(session.IsNull())
             ? collection.UpdateOneAsync(session, findExpr, update, cancellationToken: cancelToken.Token)
             : collection.UpdateOneAsync(findExpr, update, cancellationToken: cancelToken.Token);
@@ -93,24 +93,19 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
             });
     }
 
-    public async Task<Option<Dictionary<MemberItemType, int>>> GetItems(long chatId, long telegramId)
+    public async Task<Dictionary<MemberItemType, int>> GetItems(long chatId, long telegramId)
     {
         var collection = GetCollection();
 
         Expression<Func<MemberItem, bool>> filter = item =>
             item.Id.TelegramId == telegramId && item.Id.ChatId == chatId && item.Count > 0;
 
-        return await collection.FindAsync(filter).ToTryAsync().Match(cursor =>
-            {
-                var list = cursor.ToList();
-                return list.Count > 0
-                    ? Some(list.ToDictionary(x => x.Id.Type, x => x.Count))
-                    : None;
-            },
+        return await collection.FindAsync(filter).ToTryAsync().Match(
+            cursor => cursor.ToList().ToDictionary(x => x.Id.Type, x => x.Count),
             ex =>
             {
                 Log.Error(ex, "Failed to get items for telegramId:{0}, chatId: {1} ", telegramId, chatId);
-                return None;
+                return new Dictionary<MemberItemType, int>();
             });
     }
 
