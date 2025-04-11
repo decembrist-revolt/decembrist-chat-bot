@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using System.Web;
 using MongoDB.Driver;
 using Serilog;
 using Telegram.Bot;
@@ -119,6 +120,17 @@ public static class UtilsExtensions
             Log.Error(ex, "Failed to get chat title for chat {0}", chatId);
             return None;
         });
+
+    public static async Task<string> GetSelfLink(this BotClient botClient, string parameters) =>
+        await botClient.GetMe().ToTryAsync()
+            .Map(x => Optional(x.Username)
+                .Map(botName => $"https://t.me/{botName}?start={HttpUtility.UrlEncode(parameters)}")
+                .IfNone("https://t.me"))
+            .Match(identity, ex =>
+            {
+                Log.Error(ex, "Failed get self bot username");
+                return "https://t.me";
+            });
 
     public static Task<bool> TryCommit(this IClientSessionHandle session, CancellationToken cancelToken) =>
         session.CommitTransactionAsync(cancelToken).ToTryAsync().Match(_ => true, ex =>
