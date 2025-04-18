@@ -13,6 +13,7 @@ public class MemberItemService(
     HistoryLogRepository historyLogRepository,
     FastReplyRepository fastReplyRepository,
     ReactionSpamRepository reactionSpamRepository,
+    CharmRepository charmRepository,
     RedditService redditService,
     TelegramPostService telegramPostService,
     CancellationTokenSource cancelToken)
@@ -247,8 +248,49 @@ public class MemberItemService(
                 return ReactionSpamResult.Failed;
             case ReactionSpamResult.Duplicate:
                 await session.TryAbort(cancelToken.Token);
-                Log.Information("{0} tried to use duplicate fast reply in chat {1}", telegramId, chatId);
+                Log.Information("{0} tried to use duplicate curse in chat {1}", telegramId, chatId);
                 return ReactionSpamResult.Duplicate;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+    }
+
+    public async Task<CharmResult> UseCharm(
+        long chatId, long telegramId, CharmMember member, bool isAdmin)
+    {
+        using var session = await db.OpenSession();
+        session.StartTransaction();
+
+        var hasItem = isAdmin || await memberItemRepository
+            .RemoveMemberItem(chatId, telegramId, MemberItemType.Charm, session);
+        if (!hasItem)
+        {
+            await session.TryAbort(cancelToken.Token);
+            Log.Information("{0} tried to use non-existent charm in chat {1}", telegramId, chatId);
+            return CharmResult.NoItems;
+        }
+
+        var maybeResult = await charmRepository.AddCharmMember(member, session);
+
+        await historyLogRepository.LogItem(
+            chatId, telegramId, MemberItemType.Charm, -1, MemberItemSourceType.Use, session);
+        switch (maybeResult)
+        {
+            case CharmResult.Success when await session.TryCommit(cancelToken.Token):
+                Log.Information("{0} used charm in chat {1}", telegramId, chatId);
+                return CharmResult.Success;
+            case CharmResult.Success:
+                await session.TryAbort(cancelToken.Token);
+                Log.Error("{0} failed to commit use charm in chat {1}", telegramId, chatId);
+                return CharmResult.Failed;
+            case CharmResult.Failed:
+                await session.TryAbort(cancelToken.Token);
+                Log.Error("Failed to use charm for {0} in chat {1}", telegramId, chatId);
+                return CharmResult.Failed;
+            case CharmResult.Duplicate:
+                await session.TryAbort(cancelToken.Token);
+                Log.Information("{0} tried to use duplicate charm in chat {1}", telegramId, chatId);
+                return CharmResult.Duplicate;
             default:
                 throw new ArgumentOutOfRangeException();
         }
@@ -292,13 +334,22 @@ public enum UseFastReplyResult
     Failed
 }
 
-public enum ReactionSpamResult 
+public enum ReactionSpamResult
 {
     Success,
     NoItems,
     Duplicate,
     Failed
 }
+
+public enum CharmResult
+{
+    Success,
+    NoItems,
+    Duplicate,
+    Failed
+}
+
 public record struct UseRedditMemeResult(Option<RedditRandomMeme> Meme, UseRedditMemeResult.Type Result)
 {
     public enum Type

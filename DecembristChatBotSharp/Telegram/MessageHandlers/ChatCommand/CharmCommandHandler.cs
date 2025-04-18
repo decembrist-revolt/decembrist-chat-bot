@@ -1,0 +1,117 @@
+﻿using System.Runtime.CompilerServices;
+using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
+using Lamar;
+using LanguageExt.UnsafeValueAccess;
+using Serilog;
+
+namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
+
+[Singleton]
+public class CharmCommandHandler(
+    CharmRepository charmRepository,
+    AdminUserRepository adminUserRepository,
+    MessageAssistance messageAssistance,
+    MemberItemService itemService,
+    AppConfig appConfig,
+    BotClient botClient,
+    CancellationTokenSource cancelToken) : ICommandHandler
+{
+    public string Command => "/charm";
+    public string Description => "Charm user with phrase";
+
+    public async Task<Unit> Do(ChatMessageHandlerParams parameters)
+    {
+        var (messageId, telegramId, chatId) = parameters;
+        if (parameters.Payload is not TextPayload { Text: var text }) return unit;
+
+        var taskResult = parameters.ReplyToTelegramId.MatchAsync(
+            async receiverId => await HandleCharm(text, receiverId, chatId, telegramId),
+            async () => await SendReceiverNotSet(chatId));
+
+        return await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, Command),
+            taskResult).WhenAll();
+    }
+
+    private async Task<Unit> HandleCharm(string text, long receiverId, long chatId, long telegramId)
+    {
+        var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
+        if (isAdmin && text.Contains("clear", StringComparison.OrdinalIgnoreCase))
+        {
+            return await DeleteCharmMember(receiverId, chatId, telegramId);
+        }
+
+        if (receiverId == telegramId) return await SendSelfMessage(chatId);
+
+        var maybePhrase = ParseText(text[Command.Length..].Trim());
+
+        return await maybePhrase.Match(
+            None: () => _ = SendHelpMessage(chatId),
+            Some: async phrase =>
+            {
+                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.CharmConfig.DurationMinutes);
+                var charmMember = new CharmMember((receiverId, chatId), phrase, expireAt);
+
+                var result = await itemService.UseCharm(chatId, telegramId, charmMember, isAdmin);
+                return result switch
+                {
+                    CharmResult.Duplicate => await SendDuplicateMessage(chatId),
+                    CharmResult.Success => await SendSuccessMessage(chatId, receiverId, phrase),
+                    _ => unit
+                };
+            });
+    }
+
+    private async Task<Unit> DeleteCharmMember(long receiverId, long chatId, long telegramId)
+    {
+        if (await charmRepository.DeleteCharmMember((receiverId, chatId)))
+        {
+            Log.Information("Clear charm for {0} in chat {1} by {2}", receiverId, chatId, telegramId);
+        }
+        else
+        {
+            Log.Error("Charm not cleared for {0} in chat {1} by {2}", receiverId, chatId, telegramId);
+        }
+
+        return unit;
+    }
+
+    private Option<string> ParseText(string text) =>
+        text.Length <= 0 || text.Length > appConfig.CharmConfig.CharacterLimit
+            ? None
+            : text;
+
+    private async Task<Unit> SendReceiverNotSet(long chatId)
+    {
+        var message = string.Format(appConfig.CharmConfig.ReceiverNotSetMessage, Command);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private async Task<Unit> SendHelpMessage(long chatId)
+    {
+        var message = string.Format(appConfig.CharmConfig.HelpMessage, Command, appConfig.CharmConfig.CharacterLimit);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private async Task<Unit> SendSelfMessage(long chatId)
+    {
+        var message = appConfig.CharmConfig.SelfMessage;
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private async Task<Unit> SendDuplicateMessage(long chatId)
+    {
+        var message = appConfig.CharmConfig.DuplicateMessage;
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private async Task<Unit> SendSuccessMessage(long chatId, long receiverId, string phrase)
+    {
+        var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
+            .ToAsync()
+            .IfNone(receiverId.ToString);
+        var message = string.Format(appConfig.CharmConfig.SuccessMessage, username, phrase);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+}

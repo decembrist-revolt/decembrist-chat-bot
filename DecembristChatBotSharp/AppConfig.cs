@@ -30,6 +30,7 @@ public record AppConfig(
     RestrictConfig RestrictConfig,
     ReactionSpamConfig ReactionSpamConfig,
     DislikeConfig DislikeConfig,
+    CharmConfig CharmConfig,
     ItemConfig ItemConfig,
     DateTime? DeployTime = null,
     List<long>? WhiteListIds = null)
@@ -160,6 +161,23 @@ public record DislikeConfig(
     string DailyResultEmoji,
     [property: Required(AllowEmptyStrings = false)]
     int EmojiDurationMinutes
+);
+
+public record CharmConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string HelpMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ReceiverNotSetMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SelfMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string DuplicateMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    int CharacterLimit,
+    [property: Required(AllowEmptyStrings = false)]
+    int DurationMinutes
 );
 
 public record ItemConfig(
