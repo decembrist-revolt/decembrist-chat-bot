@@ -52,6 +52,17 @@ public class CharmRepository(
                 });
     }
 
+    public async Task<Option<CharmMember>> GetCharmMember(CompositeId id) => await GetCollection()
+        .Find(m => m.Id == id)
+        .SingleOrDefaultAsync(cancelToken.Token)
+        .ToTryAsync()
+        .Match(member => member.IsDefault() ? None : Some(member),
+            ex =>
+            {
+                Log.Error(ex, "Failed to get user with telegramId {0} in charm db", id);
+                return None;
+            });
+
     public async Task<bool> DeleteCharmMember(CompositeId id, IMongoSession? session = null)
     {
         var collection = GetCollection();
@@ -62,7 +73,7 @@ public class CharmRepository(
             .ToTryAsync().Match(result => result.DeletedCount > 0,
                 ex =>
                 {
-                    Log.Error(ex, "Failed to delete charm to user with telegramId {0} in {1}", id, nameof(CharmRepository));
+                    Log.Error(ex, "Failed to delete charm to user with telegramId {0} in charm collection", id);
                     return false;
                 });
     }

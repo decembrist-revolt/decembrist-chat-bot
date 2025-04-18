@@ -1,9 +1,7 @@
-﻿using System.Runtime.CompilerServices;
-using DecembristChatBotSharp.Entity;
+﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
-using LanguageExt.UnsafeValueAccess;
 using Serilog;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
@@ -12,6 +10,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 public class CharmCommandHandler(
     CharmRepository charmRepository,
     AdminUserRepository adminUserRepository,
+    ExpiredMessageRepository expiredMessageRepository,
     MessageAssistance messageAssistance,
     MemberItemService itemService,
     AppConfig appConfig,
@@ -57,6 +56,7 @@ public class CharmCommandHandler(
                 return result switch
                 {
                     CharmResult.Duplicate => await SendDuplicateMessage(chatId),
+                    CharmResult.NoItems => await messageAssistance.SendNoItems(chatId),
                     CharmResult.Success => await SendSuccessMessage(chatId, receiverId, phrase),
                     _ => unit
                 };
@@ -112,6 +112,15 @@ public class CharmCommandHandler(
             .ToAsync()
             .IfNone(receiverId.ToString);
         var message = string.Format(appConfig.CharmConfig.SuccessMessage, username, phrase);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        const string logTemplate = "Charm success message sent {0} ChatId: {1}, Phrase:{2} Receiver: {3}";
+        return await botClient.SendMessageAndLog(chatId, message,
+            m =>
+            {
+                Log.Information(logTemplate, "success", chatId, phrase, receiverId);
+                expiredMessageRepository.QueueMessage(chatId, m.MessageId,
+                    DateTime.UtcNow.AddMinutes(appConfig.CharmConfig.DurationMinutes));
+            },
+            ex => Log.Error(ex, logTemplate, "failed", chatId, phrase, receiverId),
+            cancelToken.Token);
     }
 }

@@ -40,6 +40,7 @@ public class ChatMessageHandler(
     ChatCommandHandler chatCommandHandler,
     FastReplyHandler fastReplyHandler,
     RestrictHandler restrictHandler,
+    CharmHandler charmHandler,
     ReactionSpamHandler reactionSpamHandler,
     WrongCommandHandler wrongCommandHandler
 )
@@ -51,6 +52,7 @@ public class ChatMessageHandler(
 
         await reactionSpamHandler.Do(parameters);
         if (await restrictHandler.Do(parameters)) return unit;
+        if (await charmHandler.Do(parameters)) return unit;
 
         if (parameters.Payload is TextPayload { Text.Length: > 1, Text: var text })
         {
