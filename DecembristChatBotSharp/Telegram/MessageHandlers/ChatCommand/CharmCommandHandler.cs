@@ -111,7 +111,8 @@ public class CharmCommandHandler(
         var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
             .ToAsync()
             .IfNone(receiverId.ToString);
-        var message = string.Format(appConfig.CharmConfig.SuccessMessage, username, phrase);
+        var message = string.Format(appConfig.CharmConfig.SuccessMessage, username,
+            appConfig.CharmConfig.DurationMinutes, phrase);
         const string logTemplate = "Charm success message sent {0} ChatId: {1}, Phrase:{2} Receiver: {3}";
         return await botClient.SendMessageAndLog(chatId, message,
             m =>
