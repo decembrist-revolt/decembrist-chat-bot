@@ -17,8 +17,9 @@ public class CharmCommandHandler(
     BotClient botClient,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
-    public string Command => "/charm";
-    public string Description => "Charm user with phrase";
+    public const string CommandKey = "/charm";
+    public string Command => CommandKey;
+    public string Description => "Mutes a user with a phrase, they can’t chat until the charm wears off";
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -46,7 +47,7 @@ public class CharmCommandHandler(
         var maybePhrase = ParseText(text[Command.Length..].Trim());
 
         return await maybePhrase.Match(
-            None: () => _ = SendHelpMessage(chatId),
+            None: async () => await SendHelpMessage(chatId),
             Some: async phrase =>
             {
                 var expireAt = DateTime.UtcNow.AddMinutes(appConfig.CharmConfig.DurationMinutes);
@@ -55,8 +56,9 @@ public class CharmCommandHandler(
                 var result = await itemService.UseCharm(chatId, telegramId, charmMember, isAdmin);
                 return result switch
                 {
-                    CharmResult.Duplicate => await SendDuplicateMessage(chatId),
                     CharmResult.NoItems => await messageAssistance.SendNoItems(chatId),
+                    CharmResult.Duplicate => await SendDuplicateMessage(chatId),
+                    CharmResult.Failed => await SendHelpMessage(chatId),
                     CharmResult.Success => await SendSuccessMessage(chatId, receiverId, phrase),
                     _ => unit
                 };

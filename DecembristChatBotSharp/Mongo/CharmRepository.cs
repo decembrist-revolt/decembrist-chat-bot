@@ -56,7 +56,7 @@ public class CharmRepository(
         .Find(m => m.Id == id)
         .SingleOrDefaultAsync(cancelToken.Token)
         .ToTryAsync()
-        .Match(member => member.IsDefault() ? None : Some(member),
+        .Match(member => member is null ? None : Some(member),
             ex =>
             {
                 Log.Error(ex, "Failed to get user with telegramId {0} in charm db", id);
