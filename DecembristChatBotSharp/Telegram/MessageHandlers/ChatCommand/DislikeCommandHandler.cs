@@ -59,7 +59,6 @@ public class DislikeCommandHandler(
     private async Task<Unit> SendReceiverNotSet(long chatId)
     {
         var message = appConfig.DislikeConfig.ReceiverNotSetMessage;
-        Log.Information("{0}", string.Join(", ", await dislikeRepository.GetDislikeTopResults(chatId)));
         return await botClient.SendMessageAndLog(chatId, message,
             message =>
             {

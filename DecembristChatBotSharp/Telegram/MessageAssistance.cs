@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using System.Runtime.CompilerServices;
+using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
@@ -99,4 +100,19 @@ public class MessageAssistance(
                 },
                 ex => Log.Error(ex, "Failed to send invite to direct message to chat {0}", chatId));
     }
+
+    public async Task<Unit> SendCommandResponse(
+        long chatId,
+        string message,
+        string commandName,
+        [CallerMemberName] string callerName = "UnknownCaller") =>
+        await botClient.SendMessageAndLog(chatId, message,
+            message =>
+            {
+                Log.Information("Sent response to command:'{0}' from {1} to chat {2}", commandName, callerName, chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+            },
+            ex => Log.Error(ex, "Failed to send response to command: {0} from {1} to chat {2}",
+                commandName, callerName, chatId),
+            cancelToken.Token);
 }
