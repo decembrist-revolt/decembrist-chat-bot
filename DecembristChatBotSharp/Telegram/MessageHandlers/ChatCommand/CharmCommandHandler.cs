@@ -22,21 +22,6 @@ public class CharmCommandHandler(
     public string Command => CommandKey;
     public string Description => "Mutes a user with a phrase, they can’t chat until the charm wears off";
 
-    private static readonly Regex BannedWordsRegex;
-
-    static CharmCommandHandler()
-    {
-        var badWords = (Environment.GetEnvironmentVariable("BAD_WORDS") ?? "").Split(",");
-        var joined = string.Join("|", badWords);
-        var pattern = $@"\b(?:{joined})\b";
-
-        BannedWordsRegex = new Regex(pattern,
-            RegexOptions.IgnoreCase
-            | RegexOptions.CultureInvariant
-            | RegexOptions.Compiled
-        );
-    }
-
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
@@ -96,8 +81,7 @@ public class CharmCommandHandler(
     }
 
     private Option<string> ParseText(string text) => Optional(text)
-        .Filter(_ => text.Length > 0 && text.Length <= appConfig.CharmConfig.CharacterLimit)
-        .Filter(_ => !BannedWordsRegex.IsMatch(text));
+        .Filter(_ => text.Length > 0 && text.Length <= appConfig.CharmConfig.CharacterLimit);
 
     private async Task<Unit> SendReceiverNotSet(long chatId)
     {
