@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using System.Text.RegularExpressions;
+using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
@@ -20,6 +21,21 @@ public class CharmCommandHandler(
     public const string CommandKey = "/charm";
     public string Command => CommandKey;
     public string Description => "Mutes a user with a phrase, they can’t chat until the charm wears off";
+
+    private static readonly Regex BannedWordsRegex;
+
+    static CharmCommandHandler()
+    {
+        var badWords = (Environment.GetEnvironmentVariable("BAD_WORDS") ?? "").Split(",");
+        var joined = string.Join("|", badWords);
+        var pattern = $@"\b(?:{joined})\b";
+
+        BannedWordsRegex = new Regex(pattern,
+            RegexOptions.IgnoreCase
+            | RegexOptions.CultureInvariant
+            | RegexOptions.Compiled
+        );
+    }
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -79,10 +95,9 @@ public class CharmCommandHandler(
         return unit;
     }
 
-    private Option<string> ParseText(string text) =>
-        text.Length <= 0 || text.Length > appConfig.CharmConfig.CharacterLimit
-            ? None
-            : text;
+    private Option<string> ParseText(string text) => Optional(text)
+        .Filter(_ => text.Length > 0 && text.Length <= appConfig.CharmConfig.CharacterLimit)
+        .Filter(_ => !BannedWordsRegex.IsMatch(text));
 
     private async Task<Unit> SendReceiverNotSet(long chatId)
     {

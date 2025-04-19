@@ -77,6 +77,22 @@ public class CharmRepository(
                     return false;
                 });
     }
+    
+    public async Task<bool> SetSecretMessageId(CompositeId id, int? messageId, IMongoSession? session = null)
+    {
+        var collection = GetCollection();
+        var update = Builders<CharmMember>.Update.Set(m => m.SecretMessageId, messageId);
+        var taskResult = session.IsNull()
+            ? collection.UpdateOneAsync(m => m.Id == id, update, cancellationToken: cancelToken.Token)
+            : collection.UpdateOneAsync(session, m => m.Id == id, update, cancellationToken: cancelToken.Token);
+        return await taskResult
+            .ToTryAsync().Match(result => result.ModifiedCount > 0,
+                ex =>
+                {
+                    Log.Error(ex, "Failed to set secret message id for user with telegramId {0} in charm collection", id);
+                    return false;
+                });
+    }
 
     private IMongoCollection<CharmMember> GetCollection() =>
         db.GetCollection<CharmMember>(nameof(CharmMember));
