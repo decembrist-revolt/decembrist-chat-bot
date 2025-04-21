@@ -15,8 +15,7 @@ public class FastReplyCommandHandler(
     MemberItemService memberItemService,
     BotClient botClient,
     MessageAssistance messageAssistance,
-    ExpiredMessageRepository expiredMessageRepository,
-    CancellationTokenSource cancelToken
+    ExpiredMessageRepository expiredMessageRepository
 ) : ICommandHandler
 {
     public const string CommandKey = "/fastreply";
