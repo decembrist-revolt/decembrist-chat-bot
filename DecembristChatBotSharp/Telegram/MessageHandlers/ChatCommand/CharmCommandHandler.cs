@@ -38,7 +38,7 @@ public class CharmCommandHandler(
     private async Task<Unit> HandleCharm(string text, long receiverId, long chatId, long telegramId)
     {
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
-        if (isAdmin && text.Contains("clear", StringComparison.OrdinalIgnoreCase))
+        if (isAdmin && text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
         {
             return await DeleteCharmMember(receiverId, chatId, telegramId);
         }

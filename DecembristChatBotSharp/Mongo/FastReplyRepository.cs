@@ -10,6 +10,24 @@ public class FastReplyRepository(
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
 {
+    private const string ExpireFastReplyIndex = $"{nameof(FastReply)}_ExpireIndex_V1";
+
+    public async Task<Unit> EnsureIndexes()
+    {
+        var collection = GetCollection();
+        var indexes = await (await collection.Indexes.ListAsync(cancelToken.Token)).ToListAsync(cancelToken.Token);
+        if (indexes.Any(index => index["name"] == ExpireFastReplyIndex)) return unit;
+
+        var expireAtIndex = Builders<FastReply>.IndexKeys.Ascending(x => x.ExpireAt);
+        var options = new CreateIndexOptions
+        {
+            ExpireAfter = TimeSpan.Zero,
+            Name = ExpireFastReplyIndex
+        };
+        await collection.Indexes.CreateOneAsync(new CreateIndexModel<FastReply>(expireAtIndex, options));
+        return unit;
+    }
+
     public async Task<Option<FastReply>> FindOne(long chatId, string message, FastReplyType type)
     {
         var collection = GetCollection();
@@ -50,6 +68,21 @@ public class FastReplyRepository(
                 });
     }
 
+    public async Task<bool> DeleteFastReply(FastReply.CompositeId id, IMongoSession? session = null)
+    {
+        var collection = GetCollection();
+        var taskResult = session.IsNull()
+            ? collection.DeleteOneAsync(m => m.Id == id, cancellationToken: cancelToken.Token)
+            : collection.DeleteOneAsync(session, m => m.Id == id, cancellationToken: cancelToken.Token);
+        return await taskResult
+            .ToTryAsync().Match(result => result.DeletedCount > 0,
+                ex =>
+                {
+                    Log.Error(ex, "Failed to delete fast reply: {id} in fast reply collection", id);
+                    return false;
+                });
+    }
+
     private IMongoCollection<FastReply> GetCollection() => db.GetCollection<FastReply>(nameof(FastReply));
     
     public enum InsertResult
@@ -59,4 +92,3 @@ public class FastReplyRepository(
         Failed
     }
 }
-

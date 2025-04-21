@@ -11,11 +11,11 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 public class FastReplyCommandHandler(
     AppConfig appConfig,
     AdminUserRepository adminUserRepository,
+    FastReplyRepository fastReplyRepository,
     MemberItemService memberItemService,
     BotClient botClient,
     MessageAssistance messageAssistance,
-    ExpiredMessageRepository expiredMessageRepository,
-    CancellationTokenSource cancelToken
+    ExpiredMessageRepository expiredMessageRepository
 ) : ICommandHandler
 {
     public const string CommandKey = "/fastreply";
@@ -25,9 +25,7 @@ public class FastReplyCommandHandler(
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
-        var chatId = parameters.ChatId;
-        var telegramId = parameters.TelegramId;
-        var messageId = parameters.MessageId;
+        var (messageId, telegramId, chatId) = parameters;
 
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
@@ -39,8 +37,14 @@ public class FastReplyCommandHandler(
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
 
+        var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
+
+        if (isAdmin && message == ChatCommandHandler.DeleteSubcommand)
+        {
+            return await DeleteFastReply(chatId, reply, messageId);
+        }
+
         var maybeFastReply = await CreateFastReply(chatId, message, reply, messageId);
-        var isAdmin = await adminUserRepository.IsAdmin(new(telegramId, chatId));
 
         return await maybeFastReply.MapAsync(async fastReply =>
         {
@@ -55,6 +59,21 @@ public class FastReplyCommandHandler(
                 _ => unit
             };
         }).IfSome(identity);
+    }
+
+    private async Task<Unit> DeleteFastReply(long chatId, string message, int messageId)
+    {
+        if (message.StartsWith(FastReplyHandler.StickerPrefix))
+        {
+            message = message[FastReplyHandler.StickerPrefix.Length..];
+        }
+
+        var id = (chatId, message);
+        var isDeleted = await fastReplyRepository.DeleteFastReply(id);
+        if (isDeleted) Log.Information("Successfully deleted fast reply: {0}", id);
+        else Log.Error("Failed to delete fast reply: {0}", id);
+
+        return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
     }
 
     private async Task<Option<FastReply>> CreateFastReply(long chatId, string message, string reply, int messageId)
@@ -80,7 +99,9 @@ public class FastReplyCommandHandler(
             replyType = FastReplyType.Sticker;
         }
 
-        return new FastReply((chatId, message), reply, messageType, replyType);
+        var expireAt = DateTime.UtcNow.AddDays(appConfig.CommandConfig.FastReplyDaysDuration);
+
+        return new FastReply((chatId, message), reply, expireAt, messageType, replyType);
     }
 
     private async Task<bool> CheckSticker(long chatId, string fileId, int messageId)
@@ -102,40 +123,19 @@ public class FastReplyCommandHandler(
         Log.Information("New fast reply {0} -> {1} in chat {2}", message, reply, chatId);
 
         var replyMessage = string.Format(appConfig.CommandConfig.NewFastReplyMessage, message, reply);
-        return await botClient.SendMessageAndLog(chatId, replyMessage,
-            message =>
-            {
-                Log.Information("Sent new fast reply message to chat {0}", chatId);
-                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
-            },
-            ex => Log.Error(ex, "Failed to send new fast reply message to chat {0}", chatId),
-            cancelToken.Token);
+        return await messageAssistance.SendCommandResponse(chatId, replyMessage, Command);
     }
 
     private async Task<Unit> SendFastReplyHelp(long chatId)
     {
         var message = appConfig.CommandConfig.FastReplyHelpMessage;
-        return await botClient.SendMessageAndLog(chatId, message,
-            message =>
-            {
-                Log.Information("Sent fast reply help message to chat {0}", chatId);
-                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
-            },
-            ex => Log.Error(ex, "Failed to send fast reply help message to chat {0}", chatId),
-            cancelToken.Token);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
 
     private async Task<Unit> SendDuplicateMessage(long chatId, string text)
     {
         var message = string.Format(appConfig.CommandConfig.FastReplyDuplicateMessage, text);
-        return await botClient.SendMessageAndLog(chatId, message,
-            message =>
-            {
-                Log.Information("Sent fast reply duplicate message to chat {0}", chatId);
-                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
-            },
-            ex => Log.Error(ex, "Failed to send fast reply duplicate message to chat {0}", chatId),
-            cancelToken.Token);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 }

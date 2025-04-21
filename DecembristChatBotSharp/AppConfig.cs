@@ -92,6 +92,8 @@ public record CommandConfig(
     [property: Required(AllowEmptyStrings = false)]
     string FastReplyDuplicateMessage,
     [property: Required(AllowEmptyStrings = false)]
+    int FastReplyDaysDuration,
+    [property: Required(AllowEmptyStrings = false)]
     string WrongCommandMessage
 );
 
