@@ -10,6 +10,24 @@ public class FastReplyRepository(
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
 {
+    private const string ExpireFastReplyIndex = $"{nameof(FastReply)}_ExpireIndex_V1";
+
+    public async Task<Unit> EnsureIndexes()
+    {
+        var collection = GetCollection();
+        var indexes = await (await collection.Indexes.ListAsync(cancelToken.Token)).ToListAsync(cancelToken.Token);
+        if (indexes.Any(index => index["name"] == ExpireFastReplyIndex)) return unit;
+
+        var expireAtIndex = Builders<FastReply>.IndexKeys.Ascending(x => x.ExpireAt);
+        var options = new CreateIndexOptions
+        {
+            ExpireAfter = TimeSpan.Zero,
+            Name = ExpireFastReplyIndex
+        };
+        await collection.Indexes.CreateOneAsync(new CreateIndexModel<FastReply>(expireAtIndex, options));
+        return unit;
+    }
+
     public async Task<Option<FastReply>> FindOne(long chatId, string message, FastReplyType type)
     {
         var collection = GetCollection();

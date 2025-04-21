@@ -100,7 +100,9 @@ public class FastReplyCommandHandler(
             replyType = FastReplyType.Sticker;
         }
 
-        return new FastReply((chatId, message), reply, messageType, replyType);
+        var expireAt = DateTime.UtcNow.AddDays(appConfig.CommandConfig.FastReplyDaysDuration);
+
+        return new FastReply((chatId, message), reply, expireAt, messageType, replyType);
     }
 
     private async Task<bool> CheckSticker(long chatId, string fileId, int messageId)
