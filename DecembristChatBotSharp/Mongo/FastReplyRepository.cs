@@ -50,6 +50,21 @@ public class FastReplyRepository(
                 });
     }
 
+    public async Task<bool> DeleteFastReply(FastReply.CompositeId id, IMongoSession? session = null)
+    {
+        var collection = GetCollection();
+        var taskResult = session.IsNull()
+            ? collection.DeleteOneAsync(m => m.Id == id, cancellationToken: cancelToken.Token)
+            : collection.DeleteOneAsync(session, m => m.Id == id, cancellationToken: cancelToken.Token);
+        return await taskResult
+            .ToTryAsync().Match(result => result.DeletedCount > 0,
+                ex =>
+                {
+                    Log.Error(ex, "Failed to delete fast reply: {id} in fast reply collection", id);
+                    return false;
+                });
+    }
+
     private IMongoCollection<FastReply> GetCollection() => db.GetCollection<FastReply>(nameof(FastReply));
     
     public enum InsertResult
@@ -59,4 +74,3 @@ public class FastReplyRepository(
         Failed
     }
 }
-
