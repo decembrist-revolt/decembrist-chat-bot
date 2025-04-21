@@ -62,13 +62,16 @@ public class FastReplyCommandHandler(
         }).IfSome(identity);
     }
 
-    private async Task<Unit> DeleteFastReply(long chatId, string reply, int messageId)
+    private async Task<Unit> DeleteFastReply(long chatId, string message, int messageId)
     {
-        if (reply.StartsWith(FastReplyHandler.StickerPrefix)) reply = reply[FastReplyHandler.StickerPrefix.Length..];
+        if (message.StartsWith(FastReplyHandler.StickerPrefix))
+        {
+            message = message[FastReplyHandler.StickerPrefix.Length..];
+        }
 
-        var id = (chatId, reply);
+        var id = (chatId, message);
         var isDeleted = await fastReplyRepository.DeleteFastReply(id);
-        if (isDeleted) Log.Information("Success to delete fast reply: {0}", id);
+        if (isDeleted) Log.Information("Successfully deleted fast reply: {0}", id);
         else Log.Error("Failed to delete fast reply: {0}", id);
 
         return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
