@@ -47,7 +47,7 @@ public class ReactionSpamCommandHandler(
 
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
         var maybeEmoji = ParseEmoji(text[Command.Length..].Trim());
-        if (isAdmin && text.Contains("clear", StringComparison.OrdinalIgnoreCase))
+        if (isAdmin && text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
         {
             if (await reactionSpamRepository.DeleteReactionSpamMember((receiverId, chatId)))
             {

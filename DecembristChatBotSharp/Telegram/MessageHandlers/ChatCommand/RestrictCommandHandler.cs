@@ -49,7 +49,7 @@ public class RestrictCommandHandler(
         }
 
         var compositeId = new CompositeId(receiverId, chatId);
-        if (text.Contains("clear", StringComparison.OrdinalIgnoreCase))
+        if (text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
         {
             if (await DeleteRestrict(compositeId, messageId))
                 Log.Information("Clear restrict for {0} in chat {1} by {2}", receiverId, chatId, telegramId);

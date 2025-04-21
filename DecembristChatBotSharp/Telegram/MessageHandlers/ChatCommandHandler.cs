@@ -7,6 +7,8 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 [Singleton]
 public class ChatCommandHandler(Lazy<IList<ICommandHandler>> handlers)
 {
+    public const string DeleteSubcommand = "clear";
+
     public async Task<CommandResult> Do(ChatMessageHandlerParams parameters)
     {
         var command = parameters.Payload is TextPayload { Text: var text }
