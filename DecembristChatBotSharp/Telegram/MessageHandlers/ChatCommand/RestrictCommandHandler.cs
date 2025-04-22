@@ -2,9 +2,7 @@
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
-using LanguageExt.UnsafeValueAccess;
 using Serilog;
-using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
@@ -29,22 +27,19 @@ public class RestrictCommandHandler(
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
-        if (!await adminRepository.IsAdmin((telegramId, chatId)))
-        {
-            await messageAssistance.SendAdminOnlyMessage(chatId, telegramId);
-        }
-        else
-        {
-            await parameters.ReplyToTelegramId.Match(
+        var isAdmin = await adminRepository.IsAdmin((telegramId, chatId));
+        var taskResult = !isAdmin
+            ? messageAssistance.SendAdminOnlyMessage(chatId, telegramId)
+            : parameters.ReplyToTelegramId.Match(
                 async receiverId => await HandleRestrict(text, receiverId, chatId, telegramId, messageId),
                 () =>
                 {
                     Log.Warning("Reply user for {0} not set in chat {1}", Command, chatId);
                     return Task.FromResult(unit);
                 });
-        }
 
-        return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        return await Array(taskResult,
+            messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
     }
 
     private async Task<Unit> HandleRestrict(string text, long receiverId, long chatId, long telegramId, int messageId)
@@ -56,18 +51,17 @@ public class RestrictCommandHandler(
         }
 
         var compositeId = new CompositeId(receiverId, chatId);
-        if (text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
-        {
-            return await DeleteRestrictAndLog(compositeId, telegramId);
-        }
-
-        return await ParseRestrictType(text).Match(
-            async restrictType => await AddRestrictAndLog(new RestrictMember(compositeId, restrictType), telegramId),
-            () =>
-            {
-                Log.Warning("Command parameters are missing for {0} in chat {1}", Command, chatId);
-                return Task.FromResult(unit);
-            });
+        var isDelete = text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase);
+        return isDelete
+            ? await DeleteRestrictAndLog(compositeId, telegramId)
+            : await ParseRestrictType(text).Match(
+                async restrictType =>
+                    await AddRestrictAndLog(new RestrictMember(compositeId, restrictType), telegramId),
+                () =>
+                {
+                    Log.Warning("Command parameters are missing for {0} in chat {1}", Command, chatId);
+                    return Task.FromResult(unit);
+                });
     }
 
     private Option<RestrictType> ParseRestrictType(string input)
