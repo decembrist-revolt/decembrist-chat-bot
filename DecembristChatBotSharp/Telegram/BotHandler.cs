@@ -114,10 +114,7 @@ public class BotHandler(
     private bool CheckForLinkEntity(MessageEntity[]? entities) =>
         entities != null && entities.Any(e => e.Type is MessageEntityType.Url or MessageEntityType.TextLink);
 
-    public async Task RegisterTipsCommand()
-    {
-        await tipsRegistrationService.RegisterTipsCommand();
-    }
+    public async Task RegisterTipsCommand() => await tipsRegistrationService.RegisterTipsCommand();
 
     private Task HandleChatMemberUpdateAsync(ChatMemberUpdated chatMember) =>
         chatMember switch
