@@ -23,6 +23,7 @@ try
     await mongoDatabase.EnsureIndexes();
     Log.Information("Indexes ensured");
     var botHandler = container.GetRequiredService<BotHandler>();
+    await botHandler.RegisterTipsCommand();
     botHandler.Start();
     var jobManager = container.GetRequiredService<JobManager>();
     await jobManager.Start();
