@@ -119,7 +119,10 @@ public class BotHandler(
         var botCommands = commandHandlers.Value
             .OrderBy(x => x.Command)
             .Select(x => new BotCommand(x.Command, x.Description));
-        await botClient.SetMyCommands(botCommands, cancellationToken: cancelToken.Token);
+        await botClient.SetMyCommands(botCommands, scope: new BotCommandScopeAllGroupChats(),
+            cancellationToken: cancelToken.Token);
+        await botClient.SetMyCommands([], scope: new BotCommandScopeAllPrivateChats(),
+            cancellationToken: cancelToken.Token);
     }
 
     private Task HandleChatMemberUpdateAsync(ChatMemberUpdated chatMember) =>
