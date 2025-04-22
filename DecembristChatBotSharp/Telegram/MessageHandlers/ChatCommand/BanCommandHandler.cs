@@ -12,7 +12,7 @@ public class BanCommandHandler(
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
     BotClient botClient,
-    ExpiredMessageRepository expiredMessageRepository,
+    Random random,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public string Command => "/ban";
@@ -21,12 +21,8 @@ public class BanCommandHandler(
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
-        var chatId = parameters.ChatId;
-        var telegramId = parameters.TelegramId;
-        var messageId = parameters.MessageId;
+        var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-
-        if (text != Command && !text.StartsWith("/ban ")) return unit;
 
         if (!await lockRepository.TryAcquire(chatId, Command, telegramId: telegramId))
         {
@@ -68,10 +64,9 @@ public class BanCommandHandler(
         }
 
         var message = string.Format(banConfig.BanMessage, banUsername, arg);
-        var rand = new Random();
 
         // 1/10 chance to send addition ban message
-        if (rand.Next(10) == 0) message = message + "\n" + banConfig.BanAdditionMessage;
+        if (random.Next(10) == 0) message = message + "\n" + banConfig.BanAdditionMessage;
 
         return await Array(SendBanMessage(chatId, telegramId, message, arg),
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
@@ -97,28 +92,13 @@ public class BanCommandHandler(
     private async Task<Unit> SendBanReceiverNotSet(long chatId)
     {
         var message = appConfig.CommandConfig.BanConfig.BanReceiverNotSetMessage;
-        return await botClient.SendMessageAndLog(chatId, message,
-            message =>
-            {
-                Log.Information("Sent like receiver not set message to chat {0}", chatId);
-                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
-            },
-            ex => Log.Error(ex, "Failed to send like receiver not set message to chat {0}", chatId),
-            cancelToken.Token);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
     private async Task<Unit> SendToLongReasonMessage(long chatId, long telegramId)
     {
         var banConfig = appConfig.CommandConfig.BanConfig;
         var message = string.Format(banConfig.ReasonLengthErrorMessage, banConfig.ReasonLengthLimit);
-        return await botClient.SendMessageAndLog(chatId, message,
-            message =>
-            {
-                Log.Information("Sent ban reason too long message to chat {0}", chatId);
-                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
-            },
-            ex => Log.Error(ex,
-                "Failed to send ban reason too long message to chat {0}", chatId),
-            cancelToken.Token);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 }
