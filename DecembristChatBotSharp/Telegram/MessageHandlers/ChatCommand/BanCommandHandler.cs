@@ -17,6 +17,7 @@ public class BanCommandHandler(
 {
     public string Command => "/ban";
     public string Description => "Ban user in reply. Set reason in format /ban This is ban reason";
+    public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -65,10 +66,10 @@ public class BanCommandHandler(
                 SendToLongReasonMessage(chatId, telegramId),
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
-        
+
         var message = string.Format(banConfig.BanMessage, banUsername, arg);
         var rand = new Random();
-        
+
         // 1/10 chance to send addition ban message
         if (rand.Next(10) == 0) message = message + "\n" + banConfig.BanAdditionMessage;
 
@@ -105,7 +106,7 @@ public class BanCommandHandler(
             ex => Log.Error(ex, "Failed to send like receiver not set message to chat {0}", chatId),
             cancelToken.Token);
     }
-    
+
     private async Task<Unit> SendToLongReasonMessage(long chatId, long telegramId)
     {
         var banConfig = appConfig.CommandConfig.BanConfig;

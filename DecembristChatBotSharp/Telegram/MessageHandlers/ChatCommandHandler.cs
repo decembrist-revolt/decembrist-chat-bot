@@ -23,7 +23,7 @@ public class ChatCommandHandler(Lazy<IList<ICommandHandler>> handlers)
                 () => CommandResult.None
             );
     }
-    
+
     private bool MatchCommand(string command, ICommandHandler handler)
     {
         var escaped = Regex.Escape(handler.Command);
@@ -36,4 +36,11 @@ public enum CommandResult
 {
     None,
     Ok
+}
+
+public enum CommandLevel
+{
+    User,
+    Admin,
+    Owner
 }

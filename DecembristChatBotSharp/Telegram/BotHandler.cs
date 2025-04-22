@@ -1,4 +1,4 @@
-﻿using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
+﻿using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
 using Serilog;
@@ -17,7 +17,7 @@ public class BotHandler(
     NewMemberHandler newMemberHandler,
     PrivateMessageHandler privateMessageHandler,
     ChatMessageHandler chatMessageHandler,
-    Lazy<IReadOnlyList<ICommandHandler>> commandHandlers,
+    TipsRegistrationService tipsRegistrationService,
     ChatBotAddHandler chatBotAddHandler,
     CancellationTokenSource cancelToken
 ) : IUpdateHandler
@@ -116,13 +116,7 @@ public class BotHandler(
 
     public async Task RegisterTipsCommand()
     {
-        var botCommands = commandHandlers.Value
-            .OrderBy(x => x.Command)
-            .Select(x => new BotCommand(x.Command, x.Description));
-        await botClient.SetMyCommands(botCommands, scope: new BotCommandScopeAllGroupChats(),
-            cancellationToken: cancelToken.Token);
-        await botClient.SetMyCommands([], scope: new BotCommandScopeAllPrivateChats(),
-            cancellationToken: cancelToken.Token);
+        await tipsRegistrationService.RegisterTipsCommand();
     }
 
     private Task HandleChatMemberUpdateAsync(ChatMemberUpdated chatMember) =>

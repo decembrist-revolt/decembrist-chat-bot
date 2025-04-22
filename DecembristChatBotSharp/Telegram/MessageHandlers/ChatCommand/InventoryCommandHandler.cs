@@ -13,6 +13,7 @@ public class InventoryCommandHandler(
 {
     public string Command => "/inventory";
     public string Description => "Show users items";
+    public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {

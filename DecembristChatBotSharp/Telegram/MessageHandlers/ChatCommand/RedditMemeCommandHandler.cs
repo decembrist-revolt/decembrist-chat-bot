@@ -20,6 +20,7 @@ public class RedditMemeCommandHandler(
 
     public string Command => CommandKey;
     public string Description => "Generate random reddit meme";
+    public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {

@@ -19,15 +19,16 @@ public class ShowLikesCommandHandler(
 {
     public string Command => "/likes";
     public string Description => "Show top like users";
+    public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var chatId = parameters.ChatId;
         var messageId = parameters.MessageId;
-        
+
         var lockSuccess = await lockRepository.TryAcquire(chatId, Command);
         if (!lockSuccess) return await messageAssistance.CommandNotReady(chatId, messageId, Command);
-        
+
         Log.Information("Processing show likes command in chat {0}", chatId);
 
         var limit = appConfig.CommandConfig.LikeConfig.TopLikeMemberCount;

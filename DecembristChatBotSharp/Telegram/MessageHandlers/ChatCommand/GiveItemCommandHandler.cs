@@ -16,6 +16,7 @@ public class GiveItemCommandHandler(
 {
     public string Command => "/give";
     public string Description => $"Give item to replied member, options: {_itemOptions}";
+    public CommandLevel CommandLevel => CommandLevel.Admin;
 
     private readonly string _itemOptions =
         string.Join(", ", Enum.GetValues<MemberItemType>().Map(type => type.ToString()));

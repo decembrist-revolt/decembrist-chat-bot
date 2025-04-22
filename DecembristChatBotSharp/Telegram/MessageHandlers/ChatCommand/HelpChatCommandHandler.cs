@@ -17,6 +17,7 @@ public class HelpChatCommandHandler(
 {
     public string Command => "/help";
     public string Description => "Help";
+    public CommandLevel CommandLevel => CommandLevel.User;
 
     private Map<string, string>? _commandDescriptions;
 

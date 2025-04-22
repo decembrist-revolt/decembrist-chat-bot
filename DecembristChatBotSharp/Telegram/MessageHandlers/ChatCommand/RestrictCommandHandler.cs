@@ -22,6 +22,7 @@ public class RestrictCommandHandler(
 
     public string Command => "/restrict";
     public string Description => "Restrict user in reply";
+    public CommandLevel CommandLevel => CommandLevel.Admin;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
