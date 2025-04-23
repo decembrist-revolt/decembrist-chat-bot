@@ -34,6 +34,7 @@ public class ReactionSpamCommandHandler(
     public string Command => CommandKey;
 
     public string Description => "All user messages will be cursed by certain emoji";
+    public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {

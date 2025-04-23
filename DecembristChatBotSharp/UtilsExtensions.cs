@@ -1,6 +1,6 @@
-﻿using System.Text;
-using System.Text.RegularExpressions;
-using System.Web;
+﻿using System.Text.RegularExpressions;
+using DecembristChatBotSharp.Telegram.MessageHandlers;
+using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using JasperFx.Core;
 using MongoDB.Driver;
 using Serilog;
@@ -150,4 +150,10 @@ public static class UtilsExtensions
             Log.Error(ex, "Failed to abort transaction");
             return false;
         });
+
+    public static BotCommand[] GetCommandsByLevel(this IEnumerable<ICommandHandler> handlers, CommandLevel level) =>
+        handlers.Where(handler => handler.CommandLevel == level)
+            .Select(handler => new BotCommand(handler.Command, handler.Description))
+            .OrderBy(command => command.Command)
+            .ToArray();
 }

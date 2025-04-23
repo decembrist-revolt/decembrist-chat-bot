@@ -1,7 +1,6 @@
-﻿using DecembristChatBotSharp.DI;
+﻿using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
-using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
@@ -18,6 +17,7 @@ public class BotHandler(
     NewMemberHandler newMemberHandler,
     PrivateMessageHandler privateMessageHandler,
     ChatMessageHandler chatMessageHandler,
+    TipsRegistrationService tipsRegistrationService,
     ChatBotAddHandler chatBotAddHandler,
     CancellationTokenSource cancelToken
 ) : IUpdateHandler
@@ -113,6 +113,8 @@ public class BotHandler(
 
     private bool CheckForLinkEntity(MessageEntity[]? entities) =>
         entities != null && entities.Any(e => e.Type is MessageEntityType.Url or MessageEntityType.TextLink);
+
+    public async Task RegisterTipsCommand() => await tipsRegistrationService.RegisterTipsCommand();
 
     private Task HandleChatMemberUpdateAsync(ChatMemberUpdated chatMember) =>
         chatMember switch

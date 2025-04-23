@@ -18,6 +18,7 @@ public class DislikeCommandHandler(
 {
     public string Command => "/dislike";
     public string Description => "Reply with this command to give the user a dislike";
+    public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {

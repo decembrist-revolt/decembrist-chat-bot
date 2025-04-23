@@ -22,6 +22,7 @@ public class FastReplyCommandHandler(
 
     public string Command => CommandKey;
     public string Description => "Creates new fast reply option '/fastreply' for help";
+    public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {

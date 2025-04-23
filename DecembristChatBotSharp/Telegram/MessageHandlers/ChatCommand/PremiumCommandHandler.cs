@@ -24,6 +24,7 @@ public class PremiumCommandHandler(
 
     public string Command => "/premium";
     public string Description => "Premium membership command";
+    public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -32,7 +33,7 @@ public class PremiumCommandHandler(
 
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
         if (!isAdmin) return await DoMemberPremiumCommand(telegramId, chatId, messageId);
-        
+
         if (parameters.ReplyToTelegramId.IsNone)
         {
             Log.Warning("Reply user for {0} not set in chat {1}", Command, chatId);
@@ -41,7 +42,6 @@ public class PremiumCommandHandler(
 
         return await parameters.ReplyToTelegramId.IfSomeAsync(premiumMemberId =>
             DoAdminPremiumCommand(premiumMemberId, chatId, messageId, text, telegramId));
-
     }
 
     private async Task<Unit> DoAdminPremiumCommand(
@@ -56,7 +56,7 @@ public class PremiumCommandHandler(
                 PremiumMemberOperationType.AddByAdmin,
                 DateTime.UtcNow.AddDays(days),
                 sourceTelegramId: adminTelegramId);
-            
+
             return await HandleAddResult(premiumMemberId, chatId, messageId, result, days);
         }
         else if (text.Split(' ') is [_, var subCommand])
@@ -132,7 +132,7 @@ public class PremiumCommandHandler(
             PremiumMemberOperationType.AddByAdmin,
             DateTime.UtcNow.AddDays(days),
             sourceTelegramId: adminTelegramId);
-        
+
         return await HandleAddResult(premiumMemberId, chatId, messageId, addResult, days);
     }
 

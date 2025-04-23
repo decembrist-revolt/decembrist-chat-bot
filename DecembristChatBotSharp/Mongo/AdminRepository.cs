@@ -25,5 +25,16 @@ public class AdminUserRepository(
             });
     }
 
+    public async Task<IReadOnlyList<AdminUser>> GetAdmins() =>
+        await GetCollection()
+            .Find(_ => true)
+            .ToListAsync()
+            .ToTryAsync()
+            .Match(identity, ex =>
+            {
+                Log.Error(ex, "Failed to get all admin users");
+                return [];
+            });
+
     private IMongoCollection<AdminUser> GetCollection() => db.GetCollection<AdminUser>(nameof(AdminUser));
 }
