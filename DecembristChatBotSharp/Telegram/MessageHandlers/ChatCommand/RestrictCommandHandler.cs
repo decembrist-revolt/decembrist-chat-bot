@@ -87,13 +87,9 @@ public class RestrictCommandHandler(
             .ToAsync()
             .IfNone(telegramId.ToString);
 
-        if (await restrictRepository.DeleteRestrictMember(id))
-        {
-            Log.Information("Clear restrict for {0} in chat {1} by {2}", chatId, telegramId, adminId);
-            return await SendRestrictClearMessage(chatId, username);
-        }
-
-        Log.Error("Restrict not cleared for {0} in chat {1} by {2}", chatId, telegramId, adminId);
+        var isDelete = await restrictRepository.DeleteRestrictMember(id);
+        LogAssistant.LogDeleteResult(isDelete, adminId, chatId, telegramId, Command);
+        if (isDelete) return await SendRestrictClearMessage(chatId, username);
         return unit;
     }
 

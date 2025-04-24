@@ -143,6 +143,8 @@ public record ReactionSpamConfig(
     [property: Required(AllowEmptyStrings = false)]
     string DuplicateMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string ReceiverNotSetMessage,
+    [property: Required(AllowEmptyStrings = false)]
     int DurationMinutes
 );
 

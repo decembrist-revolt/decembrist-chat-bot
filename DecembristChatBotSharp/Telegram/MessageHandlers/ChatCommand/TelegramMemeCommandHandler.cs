@@ -20,7 +20,7 @@ public class TelegramMemeCommandHandler(
 
     public string Command => CommandKey;
     public string Description => "Generate random telegram meme from random channel";
-    public CommandLevel CommandLevel => CommandLevel.User;
+    public CommandLevel CommandLevel => CommandLevel.Item;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {

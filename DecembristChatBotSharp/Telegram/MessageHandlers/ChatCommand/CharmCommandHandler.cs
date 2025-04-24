@@ -21,7 +21,7 @@ public class CharmCommandHandler(
     public const string CommandKey = "/charm";
     public string Command => CommandKey;
     public string Description => "Mutes a user with a phrase, they can’t chat until the charm wears off";
-    public CommandLevel CommandLevel => CommandLevel.User;
+    public CommandLevel CommandLevel => CommandLevel.Item;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -41,14 +41,13 @@ public class CharmCommandHandler(
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
         if (isAdmin && text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
         {
-            return await DeleteCharmMember(receiverId, chatId, telegramId);
+            var isDelete = await charmRepository.DeleteCharmMember((receiverId, chatId));
+            return LogAssistant.LogDeleteResult(isDelete, receiverId, chatId, telegramId, Command);
         }
 
         if (receiverId == telegramId) return await SendSelfMessage(chatId);
 
-        var maybePhrase = ParseText(text[Command.Length..].Trim());
-
-        return await maybePhrase.Match(
+        return await ParseText(text.Trim()).Match(
             None: async () => await SendHelpMessage(chatId),
             Some: async phrase =>
             {
@@ -67,22 +66,14 @@ public class CharmCommandHandler(
             });
     }
 
-    private async Task<Unit> DeleteCharmMember(long receiverId, long chatId, long telegramId)
+    private Option<string> ParseText(string text)
     {
-        if (await charmRepository.DeleteCharmMember((receiverId, chatId)))
-        {
-            Log.Information("Clear charm for {0} in chat {1} by {2}", receiverId, chatId, telegramId);
-        }
-        else
-        {
-            Log.Error("Charm not cleared for {0} in chat {1} by {2}", receiverId, chatId, telegramId);
-        }
+        var arg = text.Split(' ').ElementAtOrDefault(1);
+        if (string.IsNullOrEmpty(arg)) return None;
 
-        return unit;
+        return Optional(arg)
+            .Filter(_ => arg.Length > 0 && arg.Length <= appConfig.CharmConfig.CharacterLimit);
     }
-
-    private Option<string> ParseText(string text) => Optional(text)
-        .Filter(_ => text.Length > 0 && text.Length <= appConfig.CharmConfig.CharacterLimit);
 
     private async Task<Unit> SendReceiverNotSet(long chatId)
     {

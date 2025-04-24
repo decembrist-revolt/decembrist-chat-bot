@@ -34,123 +34,96 @@ public class ReactionSpamCommandHandler(
     public string Command => CommandKey;
 
     public string Description => "All user messages will be cursed by certain emoji";
-    public CommandLevel CommandLevel => CommandLevel.User;
+    public CommandLevel CommandLevel => CommandLevel.Item;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
-        var replyUserId = parameters.ReplyToTelegramId;
-        if (replyUserId.IsNone) return await SendHelpMessageWithLock(chatId, messageId);
-
-        var receiverId = replyUserId.ValueUnsafe();
-
-        var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
-        var maybeEmoji = ParseEmoji(text[Command.Length..].Trim());
-        if (isAdmin && text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
-        {
-            if (await reactionSpamRepository.DeleteReactionSpamMember((receiverId, chatId)))
-            {
-                Log.Information("Clear react spam member for {0} in chat {1} by {2}", receiverId, chatId, telegramId);
-            }
-            else
-            {
-                Log.Error("React spam member not cleared for {0} in chat {1} by {2}", receiverId, chatId, telegramId);
-            }
-
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
-        }
-
-        if (maybeEmoji.IsNone) return await SendHelpMessageWithLock(chatId, messageId);
-
-        var emoji = maybeEmoji.ValueUnsafe();
-
-        var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ReactionSpamConfig.DurationMinutes);
-        var reactMember = new ReactionSpamMember((receiverId, chatId), emoji, expireAt);
-
-        var result = await itemService.UseReactionSpam(chatId, telegramId, reactMember, isAdmin);
+        var taskResult = parameters.ReplyToTelegramId.Match(
+            async receiverId => await HandleCurse(telegramId, chatId, receiverId, text, messageId),
+            async () => await SendReceiverNotSet(chatId));
 
         return await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, Command),
-            HandleReactionSpamResult(result, chatId, reactMember.Id, emoji.Emoji)).WhenAll();
+            taskResult).WhenAll();
     }
 
-
-    private async Task<Unit> HandleReactionSpamResult(ReactionSpamResult result, long chatId,
-        CompositeId id, string emoji) =>
-        result switch
+    private async Task<Unit> HandleCurse(long telegramId, long chatId, long receiverId, string text,
+        int messageId)
+    {
+        var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
+        var compositeId = (receiverId, chatId);
+        if (isAdmin && text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
         {
-            ReactionSpamResult.NoItems => await messageAssistance.SendNoItems(chatId),
-            ReactionSpamResult.Failed => await SendHelpMessage(chatId),
-            ReactionSpamResult.Duplicate => await SendDuplicateMessage(chatId),
-            ReactionSpamResult.Success => await SendSuccessMessage(id, emoji),
-            _ => unit
-        };
+            var isDelete = await reactionSpamRepository.DeleteReactionSpamMember(compositeId);
+            return LogAssistant.LogDeleteResult(isDelete, telegramId, chatId, receiverId, Command);
+        }
+
+        return await ParseEmoji(text.Trim()).MatchAsync(
+            None: async () => await SendHelpMessageWithLock(chatId, messageId),
+            Some: async emoji =>
+            {
+                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ReactionSpamConfig.DurationMinutes);
+                var reactMember = new ReactionSpamMember(compositeId, emoji, expireAt);
+
+                var result = await itemService.UseReactionSpam(chatId, telegramId, reactMember, isAdmin);
+                return result switch
+                {
+                    ReactionSpamResult.NoItems => await messageAssistance.SendNoItems(chatId),
+                    ReactionSpamResult.Failed => await SendHelpMessageWithLock(chatId, messageId),
+                    ReactionSpamResult.Duplicate => await SendDuplicateMessage(chatId),
+                    ReactionSpamResult.Success => await SendSuccessMessage(compositeId, emoji.Emoji),
+                    _ => unit
+                };
+            });
+    }
+
+    private async Task<Unit> SendReceiverNotSet(long chatId)
+    {
+        var message = string.Format(appConfig.ReactionSpamConfig.ReceiverNotSetMessage, Command);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
 
     private async Task<Unit> SendDuplicateMessage(long chatId)
     {
         var message = appConfig.ReactionSpamConfig.DuplicateMessage;
-        return await botClient.SendMessageAndLog(chatId, message,
-            m =>
-            {
-                Log.Information("Sent reaction spam duplicate message to chat {0}", chatId);
-                expiredMessageRepository.QueueMessage(chatId, m.MessageId);
-            },
-            ex => Log.Error(ex, "Failed to send fast reply duplicate message to chat {0}", chatId),
-            cancelToken.Token);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
     private async Task<Unit> SendHelpMessageWithLock(long chatId, int messageId)
     {
-        var sendHelpOrNotReady = !await lockRepository.TryAcquire(chatId, Command)
-            ? messageAssistance.CommandNotReady(chatId, messageId, Command)
-            : SendHelpMessage(chatId);
+        if (!await lockRepository.TryAcquire(chatId, Command))
+        {
+            return await messageAssistance.CommandNotReady(chatId, messageId, Command);
+        }
 
-        return await Array(
-            sendHelpOrNotReady, messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
-    }
-
-    private async Task<Unit> SendHelpMessage(long chatId)
-    {
         var message = string.Format(appConfig.ReactionSpamConfig.HelpMessage, Command, EmojisString);
-        return await botClient.SendMessageAndLog(chatId, message,
-            (m) =>
-            {
-                Log.Information("Sent reaction spam help message to chat {0}", chatId);
-                expiredMessageRepository.QueueMessage(chatId, m.MessageId);
-            },
-            ex => Log.Error(ex, "Failed to send react spam help message to chat {0}", chatId),
-            cancelToken.Token);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
     private async Task<Unit> SendSuccessMessage(CompositeId id, string emoji)
     {
         var (receiverId, chatId) = id;
-        return await botClient
-            .GetUsername(chatId, receiverId, cancelToken.Token)
-            .IfSomeAsync(async username =>
+        var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
+            .ToAsync()
+            .IfNone(receiverId.ToString);
+        var message = string.Format(appConfig.ReactionSpamConfig.SuccessMessage, username, emoji);
+        const string logTemplate = "Curse message sent {0} ChatId: {1}, Emoji:{2} Receiver: {3}";
+        return await botClient.SendMessageAndLog(chatId, message,
+            m =>
             {
-                var message = string.Format(appConfig.ReactionSpamConfig.SuccessMessage, username, emoji);
-                var logTemplate = "Reaction spam message sent {0} ChatId: {1}, Emoji:{2} Receiver: {3}";
-                return await botClient.SendMessageAndLog(chatId, message,
-                    m =>
-                    {
-                        Log.Information(logTemplate, "success", chatId, emoji, receiverId);
-                        expiredMessageRepository.QueueMessage(chatId, m.MessageId);
-                    },
-                    ex => Log.Error(ex, logTemplate, "failed", chatId, emoji, receiverId),
-                    cancelToken.Token);
-            });
+                Log.Information(logTemplate, "success", chatId, emoji, receiverId);
+                expiredMessageRepository.QueueMessage(chatId, m.MessageId);
+            },
+            ex => Log.Error(ex, logTemplate, "failed", chatId, emoji, receiverId),
+            cancelToken.Token);
     }
 
     private Option<ReactionTypeEmoji> ParseEmoji(string text)
     {
-        var isEmoji = Emojis.Contains(text);
-        return isEmoji
-            ? new ReactionTypeEmoji
-            {
-                Emoji = text
-            }
-            : None;
+        var arg = text.Split(' ').ElementAtOrDefault(1);
+        if (arg != null && Emojis.Contains(arg)) return new ReactionTypeEmoji { Emoji = arg };
+        return None;
     }
 }

@@ -112,5 +112,20 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
             });
     }
 
+    public Task<bool> IsHaveItem(MemberItem.CompositeId id)
+    {
+        var collection = GetCollection();
+
+        return collection
+            .Find(reply => reply.Id == id && reply.Count > 0)
+            .AnyAsync(cancelToken.Token)
+            .ToTryAsync()
+            .Match(identity, ex =>
+            {
+                Log.Error(ex, "Failed to find member item with telegramId {0}", id);
+                return false;
+            });
+    }
+
     private IMongoCollection<MemberItem> GetCollection() => db.GetCollection<MemberItem>(nameof(MemberItem));
 }
