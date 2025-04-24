@@ -15,7 +15,7 @@ public class TipsRegistrationService(
     CancellationTokenSource cancelToken)
 {
     private readonly BotCommand[] _userCommands =
-        commandHandlers.Value.GetCommandsByLevel(CommandLevel.All & ~ CommandLevel.Admin);
+        commandHandlers.Value.GetCommandsByLevel(CommandLevel.All & ~CommandLevel.Admin);
 
     private readonly BotCommand[] _adminCommands = commandHandlers.Value.GetCommandsByLevel(CommandLevel.Admin);
 

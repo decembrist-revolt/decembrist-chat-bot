@@ -152,7 +152,7 @@ public static class UtilsExtensions
         });
 
     public static BotCommand[] GetCommandsByLevel(this IEnumerable<ICommandHandler> handlers, CommandLevel level) =>
-        handlers.Where(handler => handler.CommandLevel == level)
+        handlers.Where(handler => level.HasFlag(handler.CommandLevel))
             .Select(handler => new BotCommand(handler.Command, handler.Description))
             .OrderBy(command => command.Command)
             .ToArray();

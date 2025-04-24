@@ -40,6 +40,7 @@ public class ChatMessageHandler(
     ChatCommandHandler chatCommandHandler,
     FastReplyHandler fastReplyHandler,
     RestrictHandler restrictHandler,
+    MessageAssistance messageAssistance,
     CharmHandler charmHandler,
     ReactionSpamHandler reactionSpamHandler,
     WrongCommandHandler wrongCommandHandler
@@ -57,7 +58,19 @@ public class ChatMessageHandler(
         if (parameters.Payload is TextPayload { Text.Length: > 1, Text: var text })
         {
             var commandResult = await chatCommandHandler.Do(parameters);
-            if (commandResult == CommandResult.Ok) return unit;
+            if (commandResult != CommandResult.None)
+            {
+                if (commandResult == CommandResult.Ok) return unit;
+                var taskResult = commandResult switch
+                {
+                    CommandResult.NoAdmin => messageAssistance.SendAdminOnlyMessage(parameters.ChatId,
+                        parameters.TelegramId),
+                    CommandResult.NoItem => messageAssistance.SendNoItems(parameters.ChatId),
+                    _ => Task.FromResult(unit)
+                };
+                return await Array(taskResult,
+                    messageAssistance.DeleteCommandMessage(parameters.ChatId, parameters.MessageId, text)).WhenAll();
+            }
 
             if (await wrongCommandHandler.Do(parameters.ChatId, text, parameters.MessageId))
             {
