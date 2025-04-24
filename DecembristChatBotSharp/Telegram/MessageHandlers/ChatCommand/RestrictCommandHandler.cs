@@ -10,7 +10,6 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 public class RestrictCommandHandler(
     BotClient botClient,
     RestrictRepository restrictRepository,
-    AdminUserRepository adminRepository,
     CancellationTokenSource cancelToken,
     AppConfig appConfig,
     MessageAssistance messageAssistance
@@ -27,16 +26,13 @@ public class RestrictCommandHandler(
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
-        var isAdmin = await adminRepository.IsAdmin((telegramId, chatId));
-        var taskResult = !isAdmin
-            ? messageAssistance.SendAdminOnlyMessage(chatId, telegramId)
-            : parameters.ReplyToTelegramId.Match(
-                async receiverId => await HandleRestrict(text, receiverId, chatId, telegramId, messageId),
-                () =>
-                {
-                    Log.Warning("Reply user for {0} not set in chat {1}", Command, chatId);
-                    return Task.FromResult(unit);
-                });
+        var taskResult = parameters.ReplyToTelegramId.Match(
+            async receiverId => await HandleRestrict(text, receiverId, chatId, telegramId, messageId),
+            () =>
+            {
+                Log.Warning("Reply user for {0} not set in chat {1}", Command, chatId);
+                return Task.FromResult(unit);
+            });
 
         return await Array(taskResult,
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
