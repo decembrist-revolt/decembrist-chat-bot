@@ -38,11 +38,14 @@ public class MemberItemService(
         var itemType = GetRandomItem();
 
         var success = await memberItemRepository.AddMemberItem(chatId, telegramId, itemType, session);
+        var isBox = itemType == MemberItemType.Box;
+        if (isBox && success) success = await memberItemRepository.AddMemberItem(chatId, telegramId, itemType, session);
 
         if (success)
         {
+            var numberItems = isBox ? 2 : 1;
             await historyLogRepository.LogItem(
-                chatId, telegramId, itemType, 1, MemberItemSourceType.Box, session);
+                chatId, telegramId, itemType, numberItems, MemberItemSourceType.Box, session);
             if (await session.TryCommit(cancelToken.Token))
             {
                 Log.Information("{0} opened box and got {1} in chat {2}", telegramId, itemType, chatId);
