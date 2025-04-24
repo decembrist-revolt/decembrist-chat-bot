@@ -37,15 +37,18 @@ public class CharmHandler(
             await db.SetSecretMessageId((telegramId, chatId), null);
         }
 
-        if (payload is TextPayload { Text: var text } && text == member.SecretWord)
+        if (payload is TextPayload { Text: var text })
         {
-            if (await adminUserRepository.IsAdmin((telegramId, chatId)) && text.StartsWith('/')) return false;
+            if (text.StartsWith('/') && await adminUserRepository.IsAdmin((telegramId, chatId))) return false;
 
-            await db.SetSecretMessageId((telegramId, chatId), messageId);
-            await SetMessageReaction(chatId, messageId);
-            Log.Information("Clear charm user: {0} in chat: {1}", telegramId, chatId);
-            
-            return false;
+            if (text == member.SecretWord)
+            {
+                await db.SetSecretMessageId((telegramId, chatId), messageId);
+                await SetMessageReaction(chatId, messageId);
+                Log.Information("Clear charm user: {0} in chat: {1}", telegramId, chatId);
+
+                return false;
+            }
         }
 
         await botClient.DeleteMessageAndLog(chatId, messageId,
