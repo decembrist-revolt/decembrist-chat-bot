@@ -68,9 +68,11 @@ public class CharmCommandHandler(
 
     private Option<string> ParseText(string text)
     {
-        var arg = text.Split(' ').ElementAtOrDefault(1);
+        var argsPosition = text.IndexOf(' ');
+        var arg = argsPosition != -1 ? text[(argsPosition + 1)..] : string.Empty;
         if (string.IsNullOrEmpty(arg)) return None;
 
+        arg = Regex.Replace(arg, @"\s+", " ").Trim();
         return Optional(arg)
             .Filter(_ => arg.Length > 0 && arg.Length <= appConfig.CharmConfig.CharacterLimit);
     }

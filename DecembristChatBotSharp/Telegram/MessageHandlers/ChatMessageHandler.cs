@@ -58,19 +58,7 @@ public class ChatMessageHandler(
         if (parameters.Payload is TextPayload { Text.Length: > 1, Text: var text })
         {
             var commandResult = await chatCommandHandler.Do(parameters);
-            if (commandResult != CommandResult.None)
-            {
-                if (commandResult == CommandResult.Ok) return unit;
-                var taskResult = commandResult switch
-                {
-                    CommandResult.NoAdmin => messageAssistance.SendAdminOnlyMessage(parameters.ChatId,
-                        parameters.TelegramId),
-                    CommandResult.NoItem => messageAssistance.SendNoItems(parameters.ChatId),
-                    _ => Task.FromResult(unit)
-                };
-                return await Array(taskResult,
-                    messageAssistance.DeleteCommandMessage(parameters.ChatId, parameters.MessageId, text)).WhenAll();
-            }
+            if (commandResult != CommandResult.None) return await HandleCommandResult(parameters, commandResult, text);
 
             if (await wrongCommandHandler.Do(parameters.ChatId, text, parameters.MessageId))
             {
@@ -79,5 +67,20 @@ public class ChatMessageHandler(
         }
 
         return await fastReplyHandler.Do(parameters);
+    }
+
+    private async Task<Unit> HandleCommandResult(
+        ChatMessageHandlerParams parameters, CommandResult commandResult, string text)
+    {
+        var (messageId, telegramId, chatId) = parameters;
+        if (commandResult == CommandResult.Ok) return unit;
+        var taskResult = commandResult switch
+        {
+            CommandResult.NoAdmin => messageAssistance.SendAdminOnlyMessage(chatId, telegramId),
+            CommandResult.NoItem => messageAssistance.SendNoItems(chatId),
+            _ => throw new ArgumentOutOfRangeException(nameof(commandResult), commandResult, null)
+        };
+        return await Array(taskResult,
+            messageAssistance.DeleteCommandMessage(chatId, messageId, text)).WhenAll();
     }
 }

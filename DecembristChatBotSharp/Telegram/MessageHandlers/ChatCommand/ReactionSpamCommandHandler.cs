@@ -1,8 +1,8 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using System.Text.RegularExpressions;
+using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
-using LanguageExt.UnsafeValueAccess;
 using Serilog;
 using Telegram.Bot.Types;
 
@@ -95,7 +95,7 @@ public class ReactionSpamCommandHandler(
     {
         if (!await lockRepository.TryAcquire(chatId, Command))
         {
-            return await messageAssistance.CommandNotReady(chatId, messageId, Command);
+            return await messageAssistance.SendCommandNotReady(chatId, Command);
         }
 
         var message = string.Format(appConfig.ReactionSpamConfig.HelpMessage, Command, EmojisString);
@@ -122,8 +122,12 @@ public class ReactionSpamCommandHandler(
 
     private Option<ReactionTypeEmoji> ParseEmoji(string text)
     {
-        var arg = text.Split(' ').ElementAtOrDefault(1);
-        if (arg != null && Emojis.Contains(arg)) return new ReactionTypeEmoji { Emoji = arg };
+        var argsPosition = text.IndexOf(' ');
+        var arg = argsPosition != -1 ? text[(argsPosition + 1)..] : string.Empty;
+        if (string.IsNullOrEmpty(arg)) return None;
+
+        arg = Regex.Replace(arg, @"\s+", " ").Trim();
+        if (Emojis.Contains(arg)) return new ReactionTypeEmoji { Emoji = arg };
         return None;
     }
 }
