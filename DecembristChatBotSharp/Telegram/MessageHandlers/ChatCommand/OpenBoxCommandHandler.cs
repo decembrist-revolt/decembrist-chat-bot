@@ -47,16 +47,17 @@ public class OpenBoxCommandHandler(
             OpenBoxResult.NoItems => await messageAssistance.SendNoItems(chatId),
             OpenBoxResult.Failed => await SendFailedToOpenBox(chatId, telegramId),
             OpenBoxResult.Success => await SendBoxResult(itemType, chatId, telegramId),
+            OpenBoxResult.SuccessX2 => await SendBoxResult(itemType, chatId, telegramId, 2),
             _ => throw new ArgumentOutOfRangeException()
         };
     }
 
-    private Task<Unit> SendBoxResult(Option<MemberItemType> itemType, long chatId, long telegramId)
+    private Task<Unit> SendBoxResult(Option<MemberItemType> itemType, long chatId, long telegramId, int count = 1)
     {
         var maybeSend =
             from type in itemType.ToAsync()
             from username in botClient.GetUsername(chatId, telegramId, cancelToken.Token).ToAsync()
-            select messageAssistance.SendGetItemMessage(chatId, username, type);
+            select messageAssistance.SendGetItemMessage(chatId, username, type, count);
 
         return maybeSend.IfSome(identity);
     }

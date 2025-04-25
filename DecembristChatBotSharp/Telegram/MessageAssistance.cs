@@ -77,9 +77,10 @@ public class MessageAssistance(
             ex => Log.Error(ex, "Failed to send sticker not found message to chat {0}", chatId),
             cancelToken.Token);
 
-    public async Task<Unit> SendGetItemMessage(long chatId, string username, MemberItemType item)
+    public async Task<Unit> SendGetItemMessage(long chatId, string username, MemberItemType item, int count = 1)
     {
         var message = string.Format(appConfig.ItemConfig.GetItemMessage, username, item);
+        if (count > 1) message += "\n\n" + string.Format(appConfig.ItemConfig.MultipleItemMessage, count);
         return await botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Sent get item message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send get item message to chat {0}", chatId),

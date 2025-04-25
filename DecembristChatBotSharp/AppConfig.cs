@@ -191,6 +191,8 @@ public record ItemConfig(
     [property: Required(AllowEmptyStrings = false)]
     string GetItemMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string MultipleItemMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string EmptyInventoryMessage,
     [property: Required(AllowEmptyStrings = false)]
     string InviteInventoryMessage,
