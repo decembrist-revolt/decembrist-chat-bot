@@ -2,13 +2,14 @@
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
+using JasperFx.Core;
 using Lamar;
 using Serilog;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
-public class CharmCommandHandler(
+public partial class CharmCommandHandler(
     CharmRepository charmRepository,
     AdminUserRepository adminUserRepository,
     ExpiredMessageRepository expiredMessageRepository,
@@ -21,7 +22,10 @@ public class CharmCommandHandler(
     public const string CommandKey = "/charm";
     public string Command => CommandKey;
     public string Description => "Mutes a user with a phrase, they can’t chat until the charm wears off";
-    public CommandLevel CommandLevel => CommandLevel.User;
+    public CommandLevel CommandLevel => CommandLevel.Item;
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex ArgsRegex();
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -41,14 +45,13 @@ public class CharmCommandHandler(
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
         if (isAdmin && text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
         {
-            return await DeleteCharmMember(receiverId, chatId, telegramId);
+            var isDelete = await charmRepository.DeleteCharmMember((receiverId, chatId));
+            return LogAssistant.LogDeleteResult(isDelete, receiverId, chatId, telegramId, Command);
         }
 
         if (receiverId == telegramId) return await SendSelfMessage(chatId);
 
-        var maybePhrase = ParseText(text[Command.Length..].Trim());
-
-        return await maybePhrase.Match(
+        return await ParseText(text.Trim()).Match(
             None: async () => await SendHelpMessage(chatId),
             Some: async phrase =>
             {
@@ -67,22 +70,14 @@ public class CharmCommandHandler(
             });
     }
 
-    private async Task<Unit> DeleteCharmMember(long receiverId, long chatId, long telegramId)
+    private Option<string> ParseText(string text)
     {
-        if (await charmRepository.DeleteCharmMember((receiverId, chatId)))
-        {
-            Log.Information("Clear charm for {0} in chat {1} by {2}", receiverId, chatId, telegramId);
-        }
-        else
-        {
-            Log.Error("Charm not cleared for {0} in chat {1} by {2}", receiverId, chatId, telegramId);
-        }
-
-        return unit;
+        var argsPosition = text.IndexOf(' ');
+        return Optional(argsPosition != -1 ? text[(argsPosition + 1)..] : string.Empty)
+            .Filter(arg => arg.IsNotEmpty())
+            .Map(arg => ArgsRegex().Replace(arg, " ").Trim())
+            .Filter(arg => arg.Length > 0 && arg.Length <= appConfig.CharmConfig.CharacterLimit);
     }
-
-    private Option<string> ParseText(string text) => Optional(text)
-        .Filter(_ => text.Length > 0 && text.Length <= appConfig.CharmConfig.CharacterLimit);
 
     private async Task<Unit> SendReceiverNotSet(long chatId)
     {

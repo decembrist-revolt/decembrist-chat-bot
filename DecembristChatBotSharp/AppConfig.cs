@@ -143,6 +143,8 @@ public record ReactionSpamConfig(
     [property: Required(AllowEmptyStrings = false)]
     string DuplicateMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string ReceiverNotSetMessage,
+    [property: Required(AllowEmptyStrings = false)]
     int DurationMinutes
 );
 
@@ -188,6 +190,8 @@ public record ItemConfig(
     string NoItemsMessage,
     [property: Required(AllowEmptyStrings = false)]
     string GetItemMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string MultipleItemMessage,
     [property: Required(AllowEmptyStrings = false)]
     string EmptyInventoryMessage,
     [property: Required(AllowEmptyStrings = false)]

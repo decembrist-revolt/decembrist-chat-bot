@@ -5,7 +5,7 @@ using Lamar;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
-public class ChatCommandHandler(Lazy<IList<ICommandHandler>> handlers)
+public class ChatCommandHandler(Lazy<IList<ICommandHandler>> handlers, AccessLevelHandler accessLevelHandler)
 {
     public const string DeleteSubcommand = "clear";
 
@@ -14,14 +14,12 @@ public class ChatCommandHandler(Lazy<IList<ICommandHandler>> handlers)
         var command = parameters.Payload is TextPayload { Text: var text }
             ? text
             : throw new Exception("Payload is not a text payload");
+
         var maybeHandler = handlers.Value.Find(handler => MatchCommand(command, handler));
 
         return await maybeHandler
-            .MapAsync(handler => handler.Do(parameters))
-            .Match(
-                _ => CommandResult.Ok,
-                () => CommandResult.None
-            );
+            .MapAsync(async handler => await accessLevelHandler.Do(handler, parameters))
+            .IfNone(CommandResult.None);
     }
 
     private bool MatchCommand(string command, ICommandHandler handler)
@@ -35,12 +33,17 @@ public class ChatCommandHandler(Lazy<IList<ICommandHandler>> handlers)
 public enum CommandResult
 {
     None,
-    Ok
+    Ok,
+    NoItem,
+    NoAdmin
 }
 
-public enum CommandLevel
+[Flags]
+public enum CommandLevel : byte
 {
-    User,
-    Admin,
-    Owner
+    None = 0,
+    User = 1,
+    Admin = 2,
+    Item = 4,
+    All = User | Admin | Item
 }

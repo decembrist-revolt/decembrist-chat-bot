@@ -77,9 +77,10 @@ public class MessageAssistance(
             ex => Log.Error(ex, "Failed to send sticker not found message to chat {0}", chatId),
             cancelToken.Token);
 
-    public async Task<Unit> SendGetItemMessage(long chatId, string username, MemberItemType item)
+    public async Task<Unit> SendGetItemMessage(long chatId, string username, MemberItemType item, int count = 1)
     {
         var message = string.Format(appConfig.ItemConfig.GetItemMessage, username, item);
+        if (count > 1) message += "\n\n" + string.Format(appConfig.ItemConfig.MultipleItemMessage, count);
         return await botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Sent get item message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send get item message to chat {0}", chatId),
@@ -105,12 +106,13 @@ public class MessageAssistance(
         long chatId,
         string message,
         string commandName,
+        DateTime? expirationDate = null,
         [CallerMemberName] string callerName = "UnknownCaller") =>
         await botClient.SendMessageAndLog(chatId, message,
             message =>
             {
                 Log.Information("Sent response to command:'{0}' from {1} to chat {2}", commandName, callerName, chatId);
-                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId, expirationDate);
             },
             ex => Log.Error(ex, "Failed to send response to command: {0} from {1} to chat {2}",
                 commandName, callerName, chatId),

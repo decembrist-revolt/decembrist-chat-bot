@@ -1,5 +1,4 @@
-﻿using JasperFx.Core;
-using Lamar;
+﻿using Lamar;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
@@ -40,6 +39,7 @@ public class ChatMessageHandler(
     ChatCommandHandler chatCommandHandler,
     FastReplyHandler fastReplyHandler,
     RestrictHandler restrictHandler,
+    MessageAssistance messageAssistance,
     CharmHandler charmHandler,
     ReactionSpamHandler reactionSpamHandler,
     WrongCommandHandler wrongCommandHandler
@@ -57,7 +57,7 @@ public class ChatMessageHandler(
         if (parameters.Payload is TextPayload { Text.Length: > 1, Text: var text })
         {
             var commandResult = await chatCommandHandler.Do(parameters);
-            if (commandResult == CommandResult.Ok) return unit;
+            if (commandResult != CommandResult.None) return await HandleCommandResult(parameters, commandResult, text);
 
             if (await wrongCommandHandler.Do(parameters.ChatId, text, parameters.MessageId))
             {
@@ -66,5 +66,20 @@ public class ChatMessageHandler(
         }
 
         return await fastReplyHandler.Do(parameters);
+    }
+
+    private async Task<Unit> HandleCommandResult(
+        ChatMessageHandlerParams parameters, CommandResult commandResult, string text)
+    {
+        var (messageId, telegramId, chatId) = parameters;
+        if (commandResult == CommandResult.Ok) return unit;
+        var taskResult = commandResult switch
+        {
+            CommandResult.NoAdmin => messageAssistance.SendAdminOnlyMessage(chatId, telegramId),
+            CommandResult.NoItem => messageAssistance.SendNoItems(chatId),
+            _ => throw new ArgumentOutOfRangeException(nameof(commandResult), commandResult, null)
+        };
+        return await Array(taskResult,
+            messageAssistance.DeleteCommandMessage(chatId, messageId, text)).WhenAll();
     }
 }

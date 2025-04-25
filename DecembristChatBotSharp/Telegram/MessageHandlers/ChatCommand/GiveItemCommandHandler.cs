@@ -10,7 +10,6 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 public class GiveItemCommandHandler(
     BotClient botClient,
     MemberItemService memberItemService,
-    AdminUserRepository adminUserRepository,
     MessageAssistance messageAssistance,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
@@ -23,17 +22,10 @@ public class GiveItemCommandHandler(
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
-        var chatId = parameters.ChatId;
-        var telegramId = parameters.TelegramId;
-        var messageId = parameters.MessageId;
+        var (messageId, telegramId, chatId) = parameters;
         var maybeReplyTelegramId = parameters.ReplyToTelegramId;
 
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-
-        if (!await adminUserRepository.IsAdmin(new(telegramId, chatId)))
-        {
-            return await messageAssistance.SendAdminOnlyMessage(chatId, telegramId);
-        }
 
         if (maybeReplyTelegramId.IsNone)
         {

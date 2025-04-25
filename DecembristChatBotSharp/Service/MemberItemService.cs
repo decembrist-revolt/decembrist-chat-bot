@@ -53,7 +53,8 @@ public class MemberItemService(
             if (await session.TryCommit(cancelToken.Token))
             {
                 Log.Information("{0} opened box and got {1} in chat {2}", telegramId, itemType, chatId);
-                return (Some(itemType), OpenBoxResult.Success);
+                var result = numberItems == 2 ? OpenBoxResult.SuccessX2 : OpenBoxResult.Success;
+                return (Some(itemType),result);
             }
         }
 
@@ -328,6 +329,7 @@ public class MemberItemService(
 
 public enum OpenBoxResult
 {
+    SuccessX2,
     Success,
     NoItems,
     Failed

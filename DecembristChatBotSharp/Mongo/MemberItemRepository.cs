@@ -1,6 +1,5 @@
 ﻿using System.Linq.Expressions;
 using DecembristChatBotSharp.Entity;
-using JasperFx.Core;
 using Lamar;
 using MongoDB.Driver;
 using Serilog;
@@ -109,6 +108,22 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
             {
                 Log.Error(ex, "Failed to get items for telegramId:{0}, chatId: {1} ", telegramId, chatId);
                 return [];
+            });
+    }
+
+    public Task<bool> IsUserHasItem(long chatId, long telegramId, MemberItemType itemType)
+    {
+        var collection = GetCollection();
+
+        var id = new MemberItem.CompositeId(telegramId, chatId, itemType);
+        return collection
+            .Find(reply => reply.Id == id && reply.Count > 0)
+            .AnyAsync(cancelToken.Token)
+            .ToTryAsync()
+            .Match(identity, ex =>
+            {
+                Log.Error(ex, "Failed to find member item with telegramId {0}", id);
+                return false;
             });
     }
 

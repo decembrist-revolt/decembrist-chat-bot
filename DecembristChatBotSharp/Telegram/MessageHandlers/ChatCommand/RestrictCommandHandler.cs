@@ -7,36 +7,33 @@ using Serilog;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
-public class RestrictCommandHandler(
+public partial class RestrictCommandHandler(
     BotClient botClient,
     RestrictRepository restrictRepository,
-    AdminUserRepository adminRepository,
     CancellationTokenSource cancelToken,
     AppConfig appConfig,
     MessageAssistance messageAssistance
 ) : ICommandHandler
 {
-    private readonly Regex _regex = new(@"\b(link)\b", RegexOptions.IgnoreCase);
-
     public string Command => "/restrict";
     public string Description => "Restrict user in reply";
     public CommandLevel CommandLevel => CommandLevel.Admin;
+
+    [GeneratedRegex(@"\b(link)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex ArgsRegex();
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
-        var isAdmin = await adminRepository.IsAdmin((telegramId, chatId));
-        var taskResult = !isAdmin
-            ? messageAssistance.SendAdminOnlyMessage(chatId, telegramId)
-            : parameters.ReplyToTelegramId.Match(
-                async receiverId => await HandleRestrict(text, receiverId, chatId, telegramId, messageId),
-                () =>
-                {
-                    Log.Warning("Reply user for {0} not set in chat {1}", Command, chatId);
-                    return Task.FromResult(unit);
-                });
+        var taskResult = parameters.ReplyToTelegramId.Match(
+            async receiverId => await HandleRestrict(text, receiverId, chatId, telegramId, messageId),
+            () =>
+            {
+                Log.Warning("Reply user for {0} not set in chat {1}", Command, chatId);
+                return Task.FromResult(unit);
+            });
 
         return await Array(taskResult,
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
@@ -67,7 +64,7 @@ public class RestrictCommandHandler(
     private Option<RestrictType> ParseRestrictType(string input)
     {
         var result = RestrictType.None;
-        var matches = _regex.Matches(input);
+        var matches = ArgsRegex().Matches(input);
         foreach (Match match in matches)
         {
             if (!Enum.TryParse(match.Value, true, out RestrictType restrictType)) continue;
@@ -87,13 +84,9 @@ public class RestrictCommandHandler(
             .ToAsync()
             .IfNone(telegramId.ToString);
 
-        if (await restrictRepository.DeleteRestrictMember(id))
-        {
-            Log.Information("Clear restrict for {0} in chat {1} by {2}", chatId, telegramId, adminId);
-            return await SendRestrictClearMessage(chatId, username);
-        }
-
-        Log.Error("Restrict not cleared for {0} in chat {1} by {2}", chatId, telegramId, adminId);
+        var isDelete = await restrictRepository.DeleteRestrictMember(id);
+        LogAssistant.LogDeleteResult(isDelete, adminId, chatId, telegramId, Command);
+        if (isDelete) return await SendRestrictClearMessage(chatId, username);
         return unit;
     }
 

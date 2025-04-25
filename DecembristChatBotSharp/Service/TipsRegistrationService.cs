@@ -14,9 +14,12 @@ public class TipsRegistrationService(
     Lazy<IReadOnlyList<ICommandHandler>> commandHandlers,
     CancellationTokenSource cancelToken)
 {
-    private readonly BotCommand[] _userCommands = commandHandlers.Value.GetCommandsByLevel(CommandLevel.User);
+    private readonly BotCommand[] _userCommands =
+        commandHandlers.Value.GetCommandsByLevel(CommandLevel.All & ~CommandLevel.Admin);
 
     private readonly BotCommand[] _adminCommands = commandHandlers.Value.GetCommandsByLevel(CommandLevel.Admin);
+    private BotCommand[]? _allCommands;
+    private BotCommand[] GetAllCommands() => _allCommands ??= _userCommands.Concat(_adminCommands).ToArray();
 
     public async Task RegisterTipsCommand()
     {
@@ -32,7 +35,7 @@ public class TipsRegistrationService(
 
         var adminsScope = admins
             .Select(x => new BotCommandScopeChatMember { ChatId = x.Id.ChatId, UserId = x.Id.TelegramId });
-        var allCommands = _userCommands.Concat(_adminCommands).ToArray();
+        var allCommands = GetAllCommands();
         foreach (var admin in adminsScope)
         {
             await SetCommandsForScope(allCommands, scope: admin);
