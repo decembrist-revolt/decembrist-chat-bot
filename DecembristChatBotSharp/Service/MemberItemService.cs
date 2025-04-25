@@ -39,7 +39,11 @@ public class MemberItemService(
 
         var success = await memberItemRepository.AddMemberItem(chatId, telegramId, itemType, session);
         var isBox = itemType == MemberItemType.Box;
-        if (isBox && success) success = await memberItemRepository.AddMemberItem(chatId, telegramId, itemType, session);
+        if (isBox && success)
+        {
+            // If the item is a box, we need to add one more box
+            success = await memberItemRepository.AddMemberItem(chatId, telegramId, MemberItemType.Box, session);
+        }
 
         if (success)
         {
