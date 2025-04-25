@@ -105,12 +105,13 @@ public class MessageAssistance(
         long chatId,
         string message,
         string commandName,
+        DateTime? expirationDate = null,
         [CallerMemberName] string callerName = "UnknownCaller") =>
         await botClient.SendMessageAndLog(chatId, message,
             message =>
             {
                 Log.Information("Sent response to command:'{0}' from {1} to chat {2}", commandName, callerName, chatId);
-                expiredMessageRepository.QueueMessage(chatId, message.MessageId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId, expirationDate);
             },
             ex => Log.Error(ex, "Failed to send response to command: {0} from {1} to chat {2}",
                 commandName, callerName, chatId),

@@ -108,13 +108,14 @@ public class ReactionSpamCommandHandler(
         var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
             .ToAsync()
             .IfNone(receiverId.ToString);
+        var expireAt = appConfig.ReactionSpamConfig.DurationMinutes;
         var message = string.Format(appConfig.ReactionSpamConfig.SuccessMessage, username, emoji);
         const string logTemplate = "Curse message sent {0} ChatId: {1}, Emoji:{2} Receiver: {3}";
         return await botClient.SendMessageAndLog(chatId, message,
             m =>
             {
                 Log.Information(logTemplate, "success", chatId, emoji, receiverId);
-                expiredMessageRepository.QueueMessage(chatId, m.MessageId);
+                expiredMessageRepository.QueueMessage(chatId, m.MessageId, DateTime.UtcNow.AddMinutes(expireAt));
             },
             ex => Log.Error(ex, logTemplate, "failed", chatId, emoji, receiverId),
             cancelToken.Token);
