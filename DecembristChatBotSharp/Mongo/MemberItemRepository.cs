@@ -1,6 +1,5 @@
 ﻿using System.Linq.Expressions;
 using DecembristChatBotSharp.Entity;
-using JasperFx.Core;
 using Lamar;
 using MongoDB.Driver;
 using Serilog;
@@ -112,10 +111,11 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
             });
     }
 
-    public Task<bool> IsHaveItem(MemberItem.CompositeId id)
+    public Task<bool> IsUserHasItem(long chatId, long telegramId, MemberItemType itemType)
     {
         var collection = GetCollection();
 
+        var id = new MemberItem.CompositeId(telegramId, chatId, itemType);
         return collection
             .Find(reply => reply.Id == id && reply.Count > 0)
             .AnyAsync(cancelToken.Token)

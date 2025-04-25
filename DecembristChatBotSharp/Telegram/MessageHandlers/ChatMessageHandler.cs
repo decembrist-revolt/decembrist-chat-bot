@@ -1,5 +1,4 @@
-﻿using JasperFx.Core;
-using Lamar;
+﻿using Lamar;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 

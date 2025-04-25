@@ -2,13 +2,14 @@
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
+using JasperFx.Core;
 using Lamar;
 using Serilog;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
-public class CharmCommandHandler(
+public partial class CharmCommandHandler(
     CharmRepository charmRepository,
     AdminUserRepository adminUserRepository,
     ExpiredMessageRepository expiredMessageRepository,
@@ -22,6 +23,9 @@ public class CharmCommandHandler(
     public string Command => CommandKey;
     public string Description => "Mutes a user with a phrase, they can’t chat until the charm wears off";
     public CommandLevel CommandLevel => CommandLevel.Item;
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex ArgsRegex();
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -69,12 +73,10 @@ public class CharmCommandHandler(
     private Option<string> ParseText(string text)
     {
         var argsPosition = text.IndexOf(' ');
-        var arg = argsPosition != -1 ? text[(argsPosition + 1)..] : string.Empty;
-        if (string.IsNullOrEmpty(arg)) return None;
-
-        arg = Regex.Replace(arg, @"\s+", " ").Trim();
-        return Optional(arg)
-            .Filter(_ => arg.Length > 0 && arg.Length <= appConfig.CharmConfig.CharacterLimit);
+        return Optional(argsPosition != -1 ? text[(argsPosition + 1)..] : string.Empty)
+            .Filter(arg => arg.IsNotEmpty())
+            .Map(arg => ArgsRegex().Replace(arg, " ").Trim())
+            .Filter(arg => arg.Length > 0 && arg.Length <= appConfig.CharmConfig.CharacterLimit);
     }
 
     private async Task<Unit> SendReceiverNotSet(long chatId)

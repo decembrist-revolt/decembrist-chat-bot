@@ -2,6 +2,7 @@
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
+using JasperFx.Core;
 using Lamar;
 using Serilog;
 using Telegram.Bot.Types;
@@ -9,7 +10,7 @@ using Telegram.Bot.Types;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
-public class ReactionSpamCommandHandler(
+public partial class ReactionSpamCommandHandler(
     BotClient botClient,
     AppConfig appConfig,
     AdminUserRepository adminUserRepository,
@@ -35,6 +36,9 @@ public class ReactionSpamCommandHandler(
 
     public string Description => "All user messages will be cursed by certain emoji";
     public CommandLevel CommandLevel => CommandLevel.Item;
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex ArgsRegex();
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -124,11 +128,10 @@ public class ReactionSpamCommandHandler(
     private Option<ReactionTypeEmoji> ParseEmoji(string text)
     {
         var argsPosition = text.IndexOf(' ');
-        var arg = argsPosition != -1 ? text[(argsPosition + 1)..] : string.Empty;
-        if (string.IsNullOrEmpty(arg)) return None;
-
-        arg = Regex.Replace(arg, @"\s+", " ").Trim();
-        if (Emojis.Contains(arg)) return new ReactionTypeEmoji { Emoji = arg };
-        return None;
+        return Optional(argsPosition != -1 ? text[(argsPosition + 1)..] : string.Empty)
+            .Filter(arg => arg.IsNotEmpty())
+            .Map(arg => ArgsRegex().Replace(arg, " ").Trim())
+            .Filter(Emojis.Contains)
+            .Map(arg => new ReactionTypeEmoji { Emoji = arg });
     }
 }

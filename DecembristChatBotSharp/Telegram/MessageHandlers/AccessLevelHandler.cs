@@ -1,10 +1,9 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
-using DecembristChatBotSharp.Telegram.MessageHandlers;
 using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Lamar;
 
-namespace DecembristChatBotSharp.Service;
+namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
 public class AccessLevelHandler(
@@ -36,14 +35,9 @@ public class AccessLevelHandler(
 
     private async Task<CommandResult> CheckItemLevel(string command, CompositeId id)
     {
-        if (!Enum.TryParse(command[1..], ignoreCase: true, out MemberItemType itemType))
-        {
-            return CommandResult.None;
-        }
+        if (!Enum.TryParse(command[1..], ignoreCase: true, out MemberItemType itemType)) return CommandResult.None;
 
-        var itemId = new MemberItem.CompositeId(id.TelegramId, id.ChatId, itemType);
-        return await memberItemRepository.IsHaveItem(itemId) || await adminUserRepository.IsAdmin(id)
-            ? CommandResult.Ok
-            : CommandResult.NoItem;
+        var hasItem = await memberItemRepository.IsUserHasItem(id.ChatId, id.TelegramId, itemType);
+        return hasItem || await adminUserRepository.IsAdmin(id) ? CommandResult.Ok : CommandResult.NoItem;
     }
 }

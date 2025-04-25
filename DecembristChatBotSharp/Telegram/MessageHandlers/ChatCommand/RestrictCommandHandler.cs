@@ -7,7 +7,7 @@ using Serilog;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
-public class RestrictCommandHandler(
+public partial class RestrictCommandHandler(
     BotClient botClient,
     RestrictRepository restrictRepository,
     CancellationTokenSource cancelToken,
@@ -15,11 +15,12 @@ public class RestrictCommandHandler(
     MessageAssistance messageAssistance
 ) : ICommandHandler
 {
-    private readonly Regex _regex = new(@"\b(link)\b", RegexOptions.IgnoreCase);
-
     public string Command => "/restrict";
     public string Description => "Restrict user in reply";
     public CommandLevel CommandLevel => CommandLevel.Admin;
+
+    [GeneratedRegex(@"\b(link)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex ArgsRegex();
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -63,7 +64,7 @@ public class RestrictCommandHandler(
     private Option<RestrictType> ParseRestrictType(string input)
     {
         var result = RestrictType.None;
-        var matches = _regex.Matches(input);
+        var matches = ArgsRegex().Matches(input);
         foreach (Match match in matches)
         {
             if (!Enum.TryParse(match.Value, true, out RestrictType restrictType)) continue;
