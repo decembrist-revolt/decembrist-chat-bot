@@ -16,11 +16,11 @@ public class ChatEditedHandler(
     public async Task<Unit> Do(Message message)
     {
         var chatId = message.Chat.Id;
-        var type = message.Type;
         var telegramId = message.From!.Id;
-        if (type is MessageType.Text && message.Text is { } text)
+        var messageText = message.Text ?? message.Caption;
+        if (!string.IsNullOrEmpty(messageText))
         {
-            await HandleCharm(message.MessageId, chatId, telegramId, text);
+            await HandleCharm(message.MessageId, chatId, telegramId, messageText);
         }
 
         return unit;
