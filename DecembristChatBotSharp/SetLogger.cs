@@ -1,4 +1,5 @@
 ﻿using Serilog;
+using Serilog.Events;
 
 namespace DecembristChatBotSharp;
 
@@ -12,10 +13,16 @@ public static class SetLogger
             .MinimumLevel.Information()
             .WriteTo.Console(outputTemplate: LogTemplate)
             .WriteTo.File(
+                path: $"logs/log-error-{DateTime.Now:yyyy-MM-dd}.log",
+                outputTemplate: LogTemplate,
+                rollingInterval: RollingInterval.Day,
+                restrictedToMinimumLevel: LogEventLevel.Error,
+                retainedFileCountLimit: 31)
+            .WriteTo.Async(a => a.File(
                 path: $"logs/log-{DateTime.Now:yyyy-MM-dd}.log",
                 outputTemplate: LogTemplate,
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 31)
+                retainedFileCountLimit: 31))
             .CreateLogger();
         return unit;
     }

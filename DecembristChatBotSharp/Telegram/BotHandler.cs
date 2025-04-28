@@ -17,6 +17,7 @@ public class BotHandler(
     NewMemberHandler newMemberHandler,
     PrivateMessageHandler privateMessageHandler,
     ChatMessageHandler chatMessageHandler,
+    ChatEditedHandler chatEditedHandler,
     TipsRegistrationService tipsRegistrationService,
     ChatBotAddHandler chatBotAddHandler,
     CancellationTokenSource cancelToken
@@ -29,6 +30,7 @@ public class BotHandler(
             AllowedUpdates =
             [
                 UpdateType.Message,
+                UpdateType.EditedMessage,
                 UpdateType.ChatMember
             ],
             Offset = int.MaxValue
@@ -59,9 +61,21 @@ public class BotHandler(
                     Date: var date
                 } chatMember
             } when IsValidUpdateDate(date) => HandleChatMemberUpdateAsync(chatMember),
+            {
+                Type: UpdateType.EditedMessage,
+                EditedMessage: { } editedMessage,
+            } => HandleChatEditedMessage(editedMessage),
             _ => Task.CompletedTask
         };
     }
+
+    private Task HandleChatEditedMessage(Message message) => message switch
+    {
+        {
+            From.Id: { },
+        } => chatEditedHandler.Do(message),
+        _ => Task.CompletedTask
+    };
 
     private Task HandlePrivateMessageUpdateAsync(Message message) => message switch
     {
