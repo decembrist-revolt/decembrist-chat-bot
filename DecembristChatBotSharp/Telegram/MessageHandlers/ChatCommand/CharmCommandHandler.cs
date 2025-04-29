@@ -63,11 +63,22 @@ public partial class CharmCommandHandler(
                 {
                     CharmResult.NoItems => await messageAssistance.SendNoItems(chatId),
                     CharmResult.Duplicate => await SendDuplicateMessage(chatId),
+                    CharmResult.Amulet => await SendAmuletMessage(chatId, receiverId),
                     CharmResult.Failed => await SendHelpMessage(chatId),
                     CharmResult.Success => await SendSuccessMessage(chatId, receiverId, phrase),
                     _ => unit
                 };
             });
+    }
+
+    private async Task<Unit> SendAmuletMessage(long chatId, long receiverId)
+    {
+        var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
+            .ToAsync()
+            .IfNone(receiverId.ToString);
+        var message = string.Format(appConfig.amuletConfig.AmuletBreaksMessage, username, Command);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command,
+            DateTime.UtcNow.AddMinutes(appConfig.amuletConfig.DurationMinutes));
     }
 
     private Option<string> ParseText(string text)

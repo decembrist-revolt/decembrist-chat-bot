@@ -32,6 +32,7 @@ public record AppConfig(
     ReactionSpamConfig ReactionSpamConfig,
     DislikeConfig DislikeConfig,
     CharmConfig CharmConfig,
+    AmuletConfig amuletConfig,
     ItemConfig ItemConfig,
     DateTime? DeployTime = null,
     List<long>? WhiteListIds = null)
@@ -121,6 +122,8 @@ public record BanConfig(
     [property: Required(AllowEmptyStrings = false)]
     string BanNoReasonMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string BanAmuletMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string BanReceiverNotSetMessage,
     [property: Required(AllowEmptyStrings = false)]
     string BanAdditionMessage,
@@ -184,6 +187,12 @@ public record CharmConfig(
     [property: Required(AllowEmptyStrings = false)]
     int DurationMinutes
 );
+
+public record AmuletConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string AmuletBreaksMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    int DurationMinutes);
 
 public record ItemConfig(
     Dictionary<MemberItemType, double> ItemChance,

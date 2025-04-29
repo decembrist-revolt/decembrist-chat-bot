@@ -54,7 +54,7 @@ public class MemberItemService(
             {
                 Log.Information("{0} opened box and got {1} in chat {2}", telegramId, itemType, chatId);
                 var result = numberItems == 2 ? OpenBoxResult.SuccessX2 : OpenBoxResult.Success;
-                return (Some(itemType),result);
+                return (Some(itemType), result);
             }
         }
 
@@ -241,11 +241,13 @@ public class MemberItemService(
 
         await historyLogRepository.LogItem(
             chatId, telegramId, MemberItemType.Curse, -1, MemberItemSourceType.Use, session);
+        var targetHasAmulet = await CheckAmulet(chatId, member.Id.TelegramId, session);
         switch (maybeResult)
         {
             case ReactionSpamResult.Success when await session.TryCommit(cancelToken.Token):
-                Log.Information("{0} used reaction spam in chat {1}", telegramId, chatId);
-                return ReactionSpamResult.Success;
+                Log.Information("{0} used reaction spam in chat {1}, amulet protect: {2}", telegramId, chatId,
+                    targetHasAmulet);
+                return SendSuccess();
             case ReactionSpamResult.Success:
                 await session.TryAbort(cancelToken.Token);
                 Log.Error("{0} failed to commit use reaction spam item in chat {1}", telegramId, chatId);
@@ -261,6 +263,8 @@ public class MemberItemService(
             default:
                 throw new ArgumentOutOfRangeException();
         }
+
+        ReactionSpamResult SendSuccess() => targetHasAmulet ? ReactionSpamResult.Amulet : ReactionSpamResult.Success;
     }
 
     public async Task<CharmResult> UseCharm(
@@ -282,11 +286,12 @@ public class MemberItemService(
 
         await historyLogRepository.LogItem(
             chatId, telegramId, MemberItemType.Charm, -1, MemberItemSourceType.Use, session);
+        var targetHasAmulet = await CheckAmulet(chatId, member.Id.TelegramId, session);
         switch (maybeResult)
         {
             case CharmResult.Success when await session.TryCommit(cancelToken.Token):
-                Log.Information("{0} used charm in chat {1}", telegramId, chatId);
-                return CharmResult.Success;
+                Log.Information("{0} used charm in chat {1}, amulet protect: {2}", telegramId, chatId, targetHasAmulet);
+                return SendSuccess();
             case CharmResult.Success:
                 await session.TryAbort(cancelToken.Token);
                 Log.Error("{0} failed to commit use charm in chat {1}", telegramId, chatId);
@@ -302,6 +307,8 @@ public class MemberItemService(
             default:
                 throw new ArgumentOutOfRangeException();
         }
+
+        CharmResult SendSuccess() => targetHasAmulet ? CharmResult.Amulet : CharmResult.Success;
     }
 
     private MemberItemType GetRandomItem()
@@ -325,6 +332,15 @@ public class MemberItemService(
 
         return itemChances.Keys.First();
     }
+
+    private async Task<bool> CheckAmulet(long chatId, long receiverId, IMongoSession session)
+    {
+        var hasAmulet = await memberItemRepository.RemoveMemberItem(chatId, receiverId, MemberItemType.Amulet);
+        if (hasAmulet)
+            await historyLogRepository.LogItem(chatId, receiverId, MemberItemType.Amulet, -1,
+                MemberItemSourceType.Use, session);
+        return hasAmulet;
+    }
 }
 
 public enum OpenBoxResult
@@ -346,6 +362,7 @@ public enum UseFastReplyResult
 public enum ReactionSpamResult
 {
     Success,
+    Amulet,
     NoItems,
     Duplicate,
     Failed
@@ -354,6 +371,7 @@ public enum ReactionSpamResult
 public enum CharmResult
 {
     Success,
+    Amulet,
     NoItems,
     Duplicate,
     Failed

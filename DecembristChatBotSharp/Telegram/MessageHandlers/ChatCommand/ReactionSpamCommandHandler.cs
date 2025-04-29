@@ -76,6 +76,7 @@ public partial class ReactionSpamCommandHandler(
                 {
                     ReactionSpamResult.NoItems => await messageAssistance.SendNoItems(chatId),
                     ReactionSpamResult.Failed => await SendHelpMessageWithLock(chatId, messageId),
+                    ReactionSpamResult.Amulet => await SendAmuletMessage(chatId, receiverId),
                     ReactionSpamResult.Duplicate => await SendDuplicateMessage(chatId),
                     ReactionSpamResult.Success => await SendSuccessMessage(compositeId, emoji.Emoji),
                     _ => unit
@@ -104,6 +105,16 @@ public partial class ReactionSpamCommandHandler(
 
         var message = string.Format(appConfig.ReactionSpamConfig.HelpMessage, Command, EmojisString);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private async Task<Unit> SendAmuletMessage(long chatId, long receiverId)
+    {
+        var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
+            .ToAsync()
+            .IfNone(receiverId.ToString);
+        var message = string.Format(appConfig.amuletConfig.AmuletBreaksMessage, username, Command);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command,
+            DateTime.UtcNow.AddMinutes(appConfig.amuletConfig.DurationMinutes));
     }
 
     private async Task<Unit> SendSuccessMessage(CompositeId id, string emoji)
