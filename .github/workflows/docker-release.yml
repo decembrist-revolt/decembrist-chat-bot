@@ -19,6 +19,10 @@ jobs:
           registry: ${{ secrets.REGISTRY_HOST }}
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
+          
+      - name: Set date (YYYYMMDD)
+        id: set-date
+        run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
