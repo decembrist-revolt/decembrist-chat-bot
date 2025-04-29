@@ -20,9 +20,9 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
           
-      - name: Set date (YYYYMMDD)
-        id: set-date
-        run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
+      - name: Set date and time (YYYYMMDD-HHMMSS)
+        id: set-datetime
+        run: echo "DATETIME=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
