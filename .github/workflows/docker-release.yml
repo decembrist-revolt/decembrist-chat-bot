@@ -31,4 +31,4 @@ jobs:
           push: true
           tags: |
             ${{ secrets.REGISTRY_HOST }}/chat-bot:latest
-            ${{ secrets.REGISTRY_HOST }}/chat-bot:${{ env.DATE }}-${{ github.sha }}
+            ${{ secrets.REGISTRY_HOST }}/chat-bot:${{ env.DATETIME }}-${{ github.sha }}
