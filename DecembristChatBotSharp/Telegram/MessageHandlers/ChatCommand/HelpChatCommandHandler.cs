@@ -95,6 +95,7 @@ public class HelpChatCommandHandler(
             MemberItemType.TelegramMeme => TelegramMemeCommandHandler.CommandKey,
             MemberItemType.Curse => ReactionSpamCommandHandler.CommandKey,
             MemberItemType.Charm => CharmCommandHandler.CommandKey,
+            MemberItemType.Amulet => AmuletCommandHandler.CommandKey,
             _ => None
         };
 
