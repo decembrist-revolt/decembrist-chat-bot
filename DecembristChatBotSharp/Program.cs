@@ -3,6 +3,7 @@ global using static LanguageExt.Prelude;
 global using BotClient = Telegram.Bot.ITelegramBotClient;
 using DecembristChatBotSharp;
 using DecembristChatBotSharp.DI;
+using DecembristChatBotSharp.Http;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Scheduler;
 using DecembristChatBotSharp.Telegram;
@@ -18,6 +19,8 @@ try
 {
     var container = DiContainer.GetInstance(cancelTokenSource);
     Log.Information("DI Container created");
+    var healthChecks = container.GetRequiredService<HealthCheckServer>();
+    healthChecks.Start();
     var mongoDatabase = container.GetRequiredService<MongoDatabase>();
     await mongoDatabase.CheckConnection();
     await mongoDatabase.EnsureIndexes();
@@ -27,6 +30,7 @@ try
     botHandler.Start();
     var jobManager = container.GetRequiredService<JobManager>();
     await jobManager.Start();
+    healthChecks.Ready = true;
     // Log.Information(container.WhatDidIScan());
     // Log.Information(container.WhatDoIHave());
 
