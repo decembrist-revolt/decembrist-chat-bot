@@ -1,9 +1,7 @@
-﻿using DecembristChatBotSharp.Entity;
-using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.Mongo;
 using Lamar;
 using Serilog;
 using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
