@@ -7,6 +7,7 @@ using Serilog;
 namespace DecembristChatBotSharp;
 
 public record AppConfig(
+    HttpConfig HttpConfig,
     [property: Required(AllowEmptyStrings = false)]
     string TelegramBotToken,
     [property: Required(AllowEmptyStrings = false)]
@@ -241,4 +242,11 @@ public record PremiumConfig(
     string DailyPremiumRewardCronUtc,
     [property: Required(AllowEmptyStrings = false)]
     string DailyPremiumRewardMessage
+);
+
+public record HttpConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    int Port,
+    [property: Required(AllowEmptyStrings = false)]
+    string Host
 );
