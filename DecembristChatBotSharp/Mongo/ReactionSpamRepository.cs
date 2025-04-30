@@ -29,7 +29,7 @@ public class ReactionSpamRepository(
         return unit;
     }
 
-    public async Task<ReactionSpamResult> AddReactionSpamMember(
+    public async Task<CurseResult> AddReactionSpamMember(
         ReactionSpamMember member, IMongoSession? session = null)
     {
         var collection = GetCollection();
@@ -38,17 +38,17 @@ public class ReactionSpamRepository(
             .Find(session, mmber => mmber.Id == member.Id)
             .SingleOrDefaultAsync(cancelToken.Token)
             .ToTryOption();
-        if (tryFind.IsSome()) return ReactionSpamResult.Duplicate;
+        if (tryFind.IsSome()) return CurseResult.Duplicate;
 
         return await collection
             .InsertOneAsync(session, member, cancellationToken: cancelToken.Token)
             .ToTryAsync()
             .Match(
-                _ => ReactionSpamResult.Success,
+                _ => CurseResult.Success,
                 ex =>
                 {
                     Log.Error(ex, "Failed to add reaction spam member {0}", member.Id);
-                    return ReactionSpamResult.Failed;
+                    return CurseResult.Failed;
                 });
     }
 

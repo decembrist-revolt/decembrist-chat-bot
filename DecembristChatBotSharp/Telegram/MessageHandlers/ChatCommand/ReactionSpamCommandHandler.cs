@@ -71,14 +71,14 @@ public partial class ReactionSpamCommandHandler(
                 var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ReactionSpamConfig.DurationMinutes);
                 var reactMember = new ReactionSpamMember(compositeId, emoji, expireAt);
 
-                var result = await itemService.UseReactionSpam(chatId, telegramId, reactMember, isAdmin);
+                var result = await itemService.UseCurse(chatId, telegramId, reactMember, isAdmin);
                 return result switch
                 {
-                    ReactionSpamResult.NoItems => await messageAssistance.SendNoItems(chatId),
-                    ReactionSpamResult.Failed => await SendHelpMessageWithLock(chatId),
-                    ReactionSpamResult.Amulet => await messageAssistance.SendAmuletMessage(chatId, receiverId, Command),
-                    ReactionSpamResult.Duplicate => await SendDuplicateMessage(chatId),
-                    ReactionSpamResult.Success => await SendSuccessMessage(compositeId, emoji.Emoji),
+                    CurseResult.NoItems => await messageAssistance.SendNoItems(chatId),
+                    CurseResult.Failed => await SendHelpMessageWithLock(chatId),
+                    CurseResult.Blocked => await messageAssistance.SendAmuletMessage(chatId, receiverId, Command),
+                    CurseResult.Duplicate => await SendDuplicateMessage(chatId),
+                    CurseResult.Success => await SendSuccessMessage(compositeId, emoji.Emoji),
                     _ => unit
                 };
             });

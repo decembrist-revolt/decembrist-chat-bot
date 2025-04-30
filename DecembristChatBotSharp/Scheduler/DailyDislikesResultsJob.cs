@@ -81,7 +81,7 @@ public class DailyDislikesResultsJob(
         var (topDislikesUserId, dislikers) = (group.DislikeUserId, group.Dislikers);
         var insertResult = await AddCurseTopDislikeUser(chatId, topDislikesUserId, session);
 
-        if (insertResult != ReactionSpamResult.Success)
+        if (insertResult != CurseResult.Success)
         {
             return await AbortSessionWrapper("Failed to add curse to the disliked user for chat {0}");
         }
@@ -130,7 +130,7 @@ public class DailyDislikesResultsJob(
         return unit;
     }
 
-    private async Task<ReactionSpamResult> AddCurseTopDislikeUser(
+    private async Task<CurseResult> AddCurseTopDislikeUser(
         long chatId, long topDislikesUserId, IMongoSession session)
     {
         var emoji = new ReactionTypeEmoji

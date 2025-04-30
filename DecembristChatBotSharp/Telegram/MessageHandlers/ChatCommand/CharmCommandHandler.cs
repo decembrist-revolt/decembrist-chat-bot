@@ -63,7 +63,7 @@ public partial class CharmCommandHandler(
                 {
                     CharmResult.NoItems => await messageAssistance.SendNoItems(chatId),
                     CharmResult.Duplicate => await SendDuplicateMessage(chatId),
-                    CharmResult.Amulet => await messageAssistance.SendAmuletMessage(chatId, receiverId, Command),
+                    CharmResult.Blocked => await messageAssistance.SendAmuletMessage(chatId, receiverId, Command),
                     CharmResult.Failed => await SendHelpMessage(chatId),
                     CharmResult.Success => await SendSuccessMessage(chatId, receiverId, phrase),
                     _ => unit
