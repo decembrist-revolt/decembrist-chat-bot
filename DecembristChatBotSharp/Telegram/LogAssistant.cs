@@ -4,8 +4,7 @@ using Serilog;
 
 namespace DecembristChatBotSharp.Telegram;
 
-[Singleton]
-public class LogAssistant
+public static class LogAssistant
 {
     public static Unit LogDeleteResult(
         bool isDelete,
@@ -27,5 +26,15 @@ public class LogAssistant
         }
 
         return unit;
+    }
+
+    public static T LogSuccessUsingItem<T>(this T maybeResult,
+        long chatId,
+        long telegramId,
+        [CallerMemberName] string callerName = "unknownCaller") where T : Enum
+    {
+        Log.Information("Item usage succeeded from: {0}, User: {1}, Chat: {2}, Result: {3}",
+            callerName, telegramId, chatId, maybeResult);
+        return maybeResult;
     }
 }
