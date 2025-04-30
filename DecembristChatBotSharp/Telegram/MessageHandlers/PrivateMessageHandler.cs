@@ -4,6 +4,7 @@ using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
@@ -27,10 +28,17 @@ public class PrivateMessageHandler(
         var chatId = message.Chat.Id;
         var type = message.Type;
         var telegramId = message.From!.Id;
+        if (message.ChatShared is not null)
+        {
+            Console.WriteLine(message.ChatShared.ChatId);
+        }
+
         var trySend = type switch
         {
+            MessageType.ChatShared => await SendProfile(message.ChatShared.ChatId, telegramId),
             MessageType.Sticker => SendStickerFileId(chatId, message.Sticker!.FileId),
             MessageType.Text when message.Text == MeCommand => SendMe(telegramId, chatId),
+            MessageType.Text when message.Text == StartCommand => SendButtons(telegramId, chatId),
             MessageType.Text when message.Text?.Contains(InventoryCommand) == true
                                   && message.Text.Split("=") is [_, var chatIdText]
                                   && long.TryParse(chatIdText, out var targetChatId) =>
@@ -44,6 +52,25 @@ public class PrivateMessageHandler(
             message => Log.Information("Sent private {0} to {1}", message.Text?.Replace('\n', ' '), telegramId),
             ex => Log.Error(ex, "Failed to send private message to {0}", telegramId)
         );
+    }
+
+    private async Task<TryAsync<Message>> SendProfile(long chatId, long telegramId)
+    {
+        var message = "profile";
+        var markup = new InlineKeyboardButton[] { "inventory", "lor" };
+        return TryAsync(botClient.SendMessage(telegramId, message,
+            replyMarkup: markup,
+            parseMode: ParseMode.MarkdownV2,
+            cancellationToken: cancelToken.Token));
+    }
+
+    private TryAsync<Message> SendButtons(long telegramId, long chatId)
+    {
+        var markup = new[]
+        {
+            KeyboardButton.WithRequestChat("Profile", 1, false)
+        };
+        return TryAsync(botClient.SendMessage(chatId, "OK", replyMarkup: markup, cancellationToken: cancelToken.Token));
     }
 
     private TryAsync<Message> SendStickerFileId(long chatId, string fileId)

@@ -31,7 +31,8 @@ public class BotHandler(
             [
                 UpdateType.Message,
                 UpdateType.EditedMessage,
-                UpdateType.ChatMember
+                UpdateType.ChatMember,
+                UpdateType.CallbackQuery
             ],
             Offset = int.MaxValue
         };
@@ -65,9 +66,21 @@ public class BotHandler(
                 Type: UpdateType.EditedMessage,
                 EditedMessage: { } editedMessage,
             } => HandleChatEditedMessage(editedMessage),
+            {
+                Type: UpdateType.CallbackQuery,
+                Message: { Chat.Type: ChatType.Private } message,
+            } => HandlePrivateCallback(message),
             _ => Task.CompletedTask
         };
     }
+
+    private Task HandlePrivateCallback(Message message) => message switch
+    {
+        {
+            From.Id: { },
+        } => chatEditedHandler.Do(message),
+        _ => Task.CompletedTask
+    };
 
     private Task HandleChatEditedMessage(Message message) => message switch
     {
