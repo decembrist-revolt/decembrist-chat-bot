@@ -102,6 +102,16 @@ public class MessageAssistance(
                 ex => Log.Error(ex, "Failed to send invite to direct message to chat {0}", chatId));
     }
 
+    public async Task<Unit> SendAmuletMessage(long chatId, long receiverId, string commandName)
+    {
+        var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
+            .ToAsync()
+            .IfNone(receiverId.ToString);
+        var message = string.Format(appConfig.amuletConfig.AmuletBreaksMessage, username, commandName);
+        return await SendCommandResponse(chatId, message, commandName,
+            DateTime.UtcNow.AddMinutes(appConfig.amuletConfig.DurationMinutes));
+    }
+
     public async Task<Unit> SendCommandResponse(
         long chatId,
         string message,

@@ -65,7 +65,7 @@ public partial class ReactionSpamCommandHandler(
         }
 
         return await ParseEmoji(text.Trim()).MatchAsync(
-            None: async () => await SendHelpMessageWithLock(chatId, messageId),
+            None: async () => await SendHelpMessageWithLock(chatId),
             Some: async emoji =>
             {
                 var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ReactionSpamConfig.DurationMinutes);
@@ -75,8 +75,8 @@ public partial class ReactionSpamCommandHandler(
                 return result switch
                 {
                     ReactionSpamResult.NoItems => await messageAssistance.SendNoItems(chatId),
-                    ReactionSpamResult.Failed => await SendHelpMessageWithLock(chatId, messageId),
-                    ReactionSpamResult.Amulet => await SendAmuletMessage(chatId, receiverId),
+                    ReactionSpamResult.Failed => await SendHelpMessageWithLock(chatId),
+                    ReactionSpamResult.Amulet => await messageAssistance.SendAmuletMessage(chatId, receiverId, Command),
                     ReactionSpamResult.Duplicate => await SendDuplicateMessage(chatId),
                     ReactionSpamResult.Success => await SendSuccessMessage(compositeId, emoji.Emoji),
                     _ => unit
@@ -96,7 +96,7 @@ public partial class ReactionSpamCommandHandler(
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendHelpMessageWithLock(long chatId, int messageId)
+    private async Task<Unit> SendHelpMessageWithLock(long chatId)
     {
         if (!await lockRepository.TryAcquire(chatId, Command))
         {
@@ -105,16 +105,6 @@ public partial class ReactionSpamCommandHandler(
 
         var message = string.Format(appConfig.ReactionSpamConfig.HelpMessage, Command, EmojisString);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
-    }
-
-    private async Task<Unit> SendAmuletMessage(long chatId, long receiverId)
-    {
-        var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
-            .ToAsync()
-            .IfNone(receiverId.ToString);
-        var message = string.Format(appConfig.amuletConfig.AmuletBreaksMessage, username, Command);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command,
-            DateTime.UtcNow.AddMinutes(appConfig.amuletConfig.DurationMinutes));
     }
 
     private async Task<Unit> SendSuccessMessage(CompositeId id, string emoji)
