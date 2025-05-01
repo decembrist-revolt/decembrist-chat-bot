@@ -77,7 +77,7 @@ public class MemberItemService(
         var isClear = (await Task.WhenAll(isCursedTask, isCharmedTask)).Any(x => x);
 
         if (!isClear) return false;
-        if (await isCursedTask) await curseRepository.DeleteReactionSpamMember(id, session);
+        if (await isCursedTask) await curseRepository.DeleteCurseMember(id, session);
         if (await isCharmedTask) await charmRepository.DeleteCharmMember(id, session);
         Log.Information("Amulet was activated from the box for user: {0}", id);
         return true;
@@ -262,7 +262,7 @@ public class MemberItemService(
                 chatId, telegramId, MemberItemType.Curse, -1, MemberItemSourceType.Use, localSession);
             return targetHasAmulet
                 ? CurseResult.Blocked
-                : await curseRepository.AddReactionSpamMember(member, localSession);
+                : await curseRepository.AddCurseMember(member, localSession);
         }
     }
 

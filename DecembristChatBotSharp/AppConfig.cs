@@ -29,7 +29,7 @@ public record AppConfig(
     CommandConfig CommandConfig,
     RedditConfig RedditConfig,
     RestrictConfig RestrictConfig,
-    ReactionSpamConfig ReactionSpamConfig,
+    CurseConfig CurseConfig,
     DislikeConfig DislikeConfig,
     CharmConfig CharmConfig,
     AmuletConfig amuletConfig,
@@ -139,7 +139,7 @@ public record RestrictConfig(
     string RestrictClearMessage
 );
 
-public record ReactionSpamConfig(
+public record CurseConfig(
     [property: Required(AllowEmptyStrings = false)]
     string HelpMessage,
     [property: Required(AllowEmptyStrings = false)]

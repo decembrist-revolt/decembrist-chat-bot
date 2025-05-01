@@ -10,7 +10,7 @@ using Telegram.Bot.Types;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
-public partial class ReactionSpamCommandHandler(
+public partial class CurseCommandHandler(
     BotClient botClient,
     AppConfig appConfig,
     AdminUserRepository adminUserRepository,
@@ -60,7 +60,7 @@ public partial class ReactionSpamCommandHandler(
         var compositeId = (receiverId, chatId);
         if (isAdmin && text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
         {
-            var isDelete = await curseRepository.DeleteReactionSpamMember(compositeId);
+            var isDelete = await curseRepository.DeleteCurseMember(compositeId);
             return LogAssistant.LogDeleteResult(isDelete, telegramId, chatId, receiverId, Command);
         }
 
@@ -68,7 +68,7 @@ public partial class ReactionSpamCommandHandler(
             None: async () => await SendHelpMessageWithLock(chatId),
             Some: async emoji =>
             {
-                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ReactionSpamConfig.DurationMinutes);
+                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.CurseConfig.DurationMinutes);
                 var reactMember = new ReactionSpamMember(compositeId, emoji, expireAt);
 
                 var result = await itemService.UseCurse(chatId, telegramId, reactMember, isAdmin);
@@ -86,13 +86,13 @@ public partial class ReactionSpamCommandHandler(
 
     private async Task<Unit> SendReceiverNotSet(long chatId)
     {
-        var message = string.Format(appConfig.ReactionSpamConfig.ReceiverNotSetMessage, Command);
+        var message = string.Format(appConfig.CurseConfig.ReceiverNotSetMessage, Command);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
     private async Task<Unit> SendDuplicateMessage(long chatId)
     {
-        var message = appConfig.ReactionSpamConfig.DuplicateMessage;
+        var message = appConfig.CurseConfig.DuplicateMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
@@ -103,7 +103,7 @@ public partial class ReactionSpamCommandHandler(
             return await messageAssistance.SendCommandNotReady(chatId, Command);
         }
 
-        var message = string.Format(appConfig.ReactionSpamConfig.HelpMessage, Command, EmojisString);
+        var message = string.Format(appConfig.CurseConfig.HelpMessage, Command, EmojisString);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
@@ -113,8 +113,8 @@ public partial class ReactionSpamCommandHandler(
         var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
             .ToAsync()
             .IfNone(receiverId.ToString);
-        var expireAt = appConfig.ReactionSpamConfig.DurationMinutes;
-        var message = string.Format(appConfig.ReactionSpamConfig.SuccessMessage, username, emoji);
+        var expireAt = appConfig.CurseConfig.DurationMinutes;
+        var message = string.Format(appConfig.CurseConfig.SuccessMessage, username, emoji);
         const string logTemplate = "Curse message sent {0} ChatId: {1}, Emoji:{2} Receiver: {3}";
         return await botClient.SendMessageAndLog(chatId, message,
             m =>

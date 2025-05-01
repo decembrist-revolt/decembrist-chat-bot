@@ -139,8 +139,8 @@ public class DailyDislikesResultsJob(
         };
         var expireAt = DateTime.UtcNow.AddMinutes(appConfig.DislikeConfig.EmojiDurationMinutes);
         var curseMember = new ReactionSpamMember((topDislikesUserId, chatId), emoji, expireAt);
-        await curseRepository.DeleteReactionSpamMember(curseMember.Id, session);
-        var result = await curseRepository.AddReactionSpamMember(curseMember, session);
+        await curseRepository.DeleteCurseMember(curseMember.Id, session);
+        var result = await curseRepository.AddCurseMember(curseMember, session);
         return result;
     }
 

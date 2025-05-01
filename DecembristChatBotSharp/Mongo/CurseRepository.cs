@@ -29,7 +29,7 @@ public class CurseRepository(
         return unit;
     }
 
-    public async Task<CurseResult> AddReactionSpamMember(
+    public async Task<CurseResult> AddCurseMember(
         ReactionSpamMember member, IMongoSession? session = null)
     {
         var collection = GetCollection();
@@ -64,7 +64,7 @@ public class CurseRepository(
             });
     }
 
-    public async Task<Option<ReactionSpamMember>> GetReactionSpamMember(CompositeId id) => await GetCollection()
+    public async Task<Option<ReactionSpamMember>> GetCurseMember(CompositeId id) => await GetCollection()
         .Find(m => m.Id == id)
         .SingleOrDefaultAsync(cancelToken.Token)
         .ToTryOption()
@@ -74,7 +74,7 @@ public class CurseRepository(
             return None;
         });
 
-    public async Task<bool> DeleteReactionSpamMember(CompositeId id, IMongoSession? session = null)
+    public async Task<bool> DeleteCurseMember(CompositeId id, IMongoSession? session = null)
     {
         var collection = GetCollection();
         var taskResult = session.IsNull()
