@@ -39,6 +39,7 @@ public class CharmHandler(
 
         if (payload is TextPayload { Text: var text })
         {
+            if (text.StartsWith("/openbox")) return false;
             if (text.StartsWith('/') && await adminUserRepository.IsAdmin((telegramId, chatId))) return false;
 
             if (text == member.SecretWord)

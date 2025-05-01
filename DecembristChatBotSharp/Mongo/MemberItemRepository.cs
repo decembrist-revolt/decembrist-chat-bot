@@ -14,12 +14,13 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
         long chatId,
         long telegramId,
         MemberItemType type,
-        IClientSessionHandle? session = null)
+        IClientSessionHandle? session = null,
+        int numberCount = 1)
     {
         var collection = GetCollection();
 
         var id = new MemberItem.CompositeId(telegramId, chatId, type);
-        var update = Builders<MemberItem>.Update.Inc(item => item.Count, 1);
+        var update = Builders<MemberItem>.Update.Inc(item => item.Count, numberCount);
         var options = new UpdateOptions { IsUpsert = true };
 
         Expression<Func<MemberItem, bool>> findExpr = item => item.Id == id;

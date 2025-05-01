@@ -34,11 +34,7 @@ public class CharmRepository(
     {
         var collection = GetCollection();
 
-        var tryFind = await collection
-            .Find(session, mmber => mmber.Id == member.Id)
-            .SingleOrDefaultAsync(cancelToken.Token)
-            .ToTryOption();
-        if (tryFind.IsSome()) return CharmResult.Duplicate;
+        if (await IsUserCharmed(member.Id, session)) return CharmResult.Duplicate;
 
         return await collection
             .InsertOneAsync(session, member, cancellationToken: cancelToken.Token)
@@ -50,6 +46,23 @@ public class CharmRepository(
                     Log.Error(ex, "Failed to add charm to repository {0}", member.Id);
                     return CharmResult.Failed;
                 });
+    }
+
+    public async Task<bool> IsUserCharmed(CompositeId id, IMongoSession? session = null)
+    {
+        var collection = GetCollection();
+        var filter = Builders<CharmMember>.Filter.Eq(member => member.Id, id);
+        var findTask = session.IsNull()
+            ? collection.Find(filter)
+            : collection.Find(session, filter);
+        return await findTask
+            .AnyAsync(cancelToken.Token)
+            .ToTryAsync()
+            .Match(identity, ex =>
+            {
+                Log.Error(ex, "Failed to find charm user with id: {0}", id);
+                return false;
+            });
     }
 
     public async Task<Option<CharmMember>> GetCharmMember(CompositeId id) => await GetCollection()
@@ -66,9 +79,10 @@ public class CharmRepository(
     public async Task<bool> DeleteCharmMember(CompositeId id, IMongoSession? session = null)
     {
         var collection = GetCollection();
+        var filter = Builders<CharmMember>.Filter.Eq(member => member.Id, id);
         var taskResult = session.IsNull()
-            ? collection.DeleteOneAsync(m => m.Id == id, cancellationToken: cancelToken.Token)
-            : collection.DeleteOneAsync(session, m => m.Id == id, cancellationToken: cancelToken.Token);
+            ? collection.DeleteOneAsync(filter, cancellationToken: cancelToken.Token)
+            : collection.DeleteOneAsync(session, filter, cancellationToken: cancelToken.Token);
         return await taskResult
             .ToTryAsync().Match(result => result.DeletedCount > 0,
                 ex =>

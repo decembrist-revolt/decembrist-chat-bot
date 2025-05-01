@@ -8,7 +8,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 [Singleton]
 public class ReactionSpamHandler(
     BotClient botClient,
-    ReactionSpamRepository db,
+    CurseRepository db,
     CancellationTokenSource cancelToken)
 {
     public async Task<bool> Do(ChatMessageHandlerParams parameters)

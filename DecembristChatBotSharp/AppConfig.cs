@@ -203,6 +203,8 @@ public record ItemConfig(
     [property: Required(AllowEmptyStrings = false)]
     string MultipleItemMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string AmuletBrokenMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string EmptyInventoryMessage,
     [property: Required(AllowEmptyStrings = false)]
     string InviteInventoryMessage,

@@ -14,7 +14,7 @@ public partial class ReactionSpamCommandHandler(
     BotClient botClient,
     AppConfig appConfig,
     AdminUserRepository adminUserRepository,
-    ReactionSpamRepository reactionSpamRepository,
+    CurseRepository curseRepository,
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
     MemberItemService itemService,
@@ -60,7 +60,7 @@ public partial class ReactionSpamCommandHandler(
         var compositeId = (receiverId, chatId);
         if (isAdmin && text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
         {
-            var isDelete = await reactionSpamRepository.DeleteReactionSpamMember(compositeId);
+            var isDelete = await curseRepository.DeleteReactionSpamMember(compositeId);
             return LogAssistant.LogDeleteResult(isDelete, telegramId, chatId, receiverId, Command);
         }
 

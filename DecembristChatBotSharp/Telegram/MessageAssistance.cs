@@ -81,6 +81,8 @@ public class MessageAssistance(
     {
         var message = string.Format(appConfig.ItemConfig.GetItemMessage, username, item);
         if (count > 1) message += "\n\n" + string.Format(appConfig.ItemConfig.MultipleItemMessage, count);
+        if (count == 0 && item == MemberItemType.Amulet)
+            message += "\n\n" + string.Format(appConfig.ItemConfig.AmuletBrokenMessage);
         return await botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Sent get item message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send get item message to chat {0}", chatId),

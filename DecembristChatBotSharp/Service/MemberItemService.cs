@@ -14,7 +14,7 @@ public class MemberItemService(
     MemberItemRepository memberItemRepository,
     HistoryLogRepository historyLogRepository,
     FastReplyRepository fastReplyRepository,
-    ReactionSpamRepository reactionSpamRepository,
+    CurseRepository curseRepository,
     CharmRepository charmRepository,
     RedditService redditService,
     Random random,
@@ -40,30 +40,47 @@ public class MemberItemService(
 
         var itemType = GetRandomItem();
 
-        var success = await memberItemRepository.AddMemberItem(chatId, telegramId, itemType, session);
-        var isBox = itemType == MemberItemType.Box;
-        if (isBox && success)
+        return itemType switch
         {
-            // If the item is a box, we need to add one more box
-            success = await memberItemRepository.AddMemberItem(chatId, telegramId, MemberItemType.Box, session);
-        }
+            MemberItemType.Box => await HandleItemType(2, OpenBoxResult.SuccessX2, session),
+            MemberItemType.Amulet when await HandleAmuletItem((telegramId, chatId), session) =>
+                await HandleItemType(0, OpenBoxResult.AmuletActivated, session),
+            _ => await HandleItemType(1, OpenBoxResult.Success, session)
+        };
 
-        if (success)
+        async Task<(Option<MemberItemType>, OpenBoxResult)> HandleItemType(
+            int numberItems, OpenBoxResult result, IMongoSession localSession)
         {
-            var numberItems = isBox ? 2 : 1;
+            var success =
+                numberItems == 0 ||
+                await memberItemRepository.AddMemberItem(chatId, telegramId, itemType, localSession, numberItems);
             await historyLogRepository.LogItem(
-                chatId, telegramId, itemType, numberItems, MemberItemSourceType.Box, session);
-            if (await session.TryCommit(cancelToken.Token))
+                chatId, telegramId, itemType, numberItems, MemberItemSourceType.Box, localSession);
+
+            if (success && await localSession.TryCommit(cancelToken.Token))
             {
                 Log.Information("{0} opened box and got {1} in chat {2}", telegramId, itemType, chatId);
-                var result = numberItems == 2 ? OpenBoxResult.SuccessX2 : OpenBoxResult.Success;
-                return (Some(itemType), result);
+                return ((itemType), result);
             }
-        }
 
-        await session.TryAbort(cancelToken.Token);
-        Log.Error("Failed to open box for {0} in chat {1}", telegramId, chatId);
-        return (None, OpenBoxResult.Failed);
+            await localSession.TryAbort(cancelToken.Token);
+            Log.Error("Failed to open box for {0} in chat {1}", telegramId, chatId);
+            return (None, OpenBoxResult.Failed);
+        }
+    }
+
+    private async Task<bool> HandleAmuletItem(CompositeId id, IMongoSession session)
+    {
+        var isCursedTask = curseRepository.IsUserCursed(id, session);
+        var isCharmedTask = charmRepository.IsUserCharmed(id, session);
+
+        var isClear = (await Task.WhenAll(isCursedTask, isCharmedTask)).Any(x => x);
+
+        if (!isClear) return false;
+        if (await isCursedTask) await curseRepository.DeleteReactionSpamMember(id, session);
+        if (await isCharmedTask) await charmRepository.DeleteCharmMember(id, session);
+        Log.Information("Amulet was activated from the box for user: {0}", id);
+        return true;
     }
 
     public async Task<UseFastReplyResult> UseFastReply(long chatId, long telegramId, FastReply fastReply, bool isAdmin)
@@ -245,7 +262,7 @@ public class MemberItemService(
                 chatId, telegramId, MemberItemType.Curse, -1, MemberItemSourceType.Use, localSession);
             return targetHasAmulet
                 ? CurseResult.Blocked
-                : await reactionSpamRepository.AddReactionSpamMember(member, localSession);
+                : await curseRepository.AddReactionSpamMember(member, localSession);
         }
     }
 
@@ -356,6 +373,7 @@ public enum OpenBoxResult
 {
     SuccessX2,
     Success,
+    AmuletActivated,
     NoItems,
     Failed
 }

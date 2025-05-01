@@ -15,7 +15,7 @@ public class DailyDislikesResultsJob(
     MongoDatabase db,
     DislikeRepository dislikeRepository,
     MemberItemRepository memberItemRepository,
-    ReactionSpamRepository reactionSpamRepository,
+    CurseRepository curseRepository,
     HistoryLogRepository historyLogRepository,
     BotClient botClient,
     Random random,
@@ -139,8 +139,8 @@ public class DailyDislikesResultsJob(
         };
         var expireAt = DateTime.UtcNow.AddMinutes(appConfig.DislikeConfig.EmojiDurationMinutes);
         var curseMember = new ReactionSpamMember((topDislikesUserId, chatId), emoji, expireAt);
-        await reactionSpamRepository.DeleteReactionSpamMember(curseMember.Id, session);
-        var result = await reactionSpamRepository.AddReactionSpamMember(curseMember, session);
+        await curseRepository.DeleteReactionSpamMember(curseMember.Id, session);
+        var result = await curseRepository.AddReactionSpamMember(curseMember, session);
         return result;
     }
 

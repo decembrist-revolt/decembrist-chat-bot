@@ -7,7 +7,7 @@ using Serilog;
 namespace DecembristChatBotSharp.Mongo;
 
 [Singleton]
-public class ReactionSpamRepository(
+public class CurseRepository(
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
 {
@@ -33,12 +33,7 @@ public class ReactionSpamRepository(
         ReactionSpamMember member, IMongoSession? session = null)
     {
         var collection = GetCollection();
-
-        var tryFind = await collection
-            .Find(session, mmber => mmber.Id == member.Id)
-            .SingleOrDefaultAsync(cancelToken.Token)
-            .ToTryOption();
-        if (tryFind.IsSome()) return CurseResult.Duplicate;
+        if (await IsUserCursed(member.Id, session)) return CurseResult.Duplicate;
 
         return await collection
             .InsertOneAsync(session, member, cancellationToken: cancelToken.Token)
@@ -50,6 +45,23 @@ public class ReactionSpamRepository(
                     Log.Error(ex, "Failed to add reaction spam member {0}", member.Id);
                     return CurseResult.Failed;
                 });
+    }
+
+    public async Task<bool> IsUserCursed(CompositeId id, IMongoSession? session = null)
+    {
+        var collection = GetCollection();
+        var filter = Builders<ReactionSpamMember>.Filter.Eq(member => member.Id, id);
+        var findTask = session.IsNull()
+            ? collection.Find(filter)
+            : collection.Find(session, filter);
+        return await findTask
+            .AnyAsync(cancelToken.Token)
+            .ToTryAsync()
+            .Match(identity, ex =>
+            {
+                Log.Error(ex, "Failed to find curse user with id: {0}", id);
+                return false;
+            });
     }
 
     public async Task<Option<ReactionSpamMember>> GetReactionSpamMember(CompositeId id) => await GetCollection()
