@@ -28,18 +28,12 @@ public class MemberItemService(
 
         var hasBox = await memberItemRepository.RemoveMemberItem(chatId, telegramId, MemberItemType.Box, session);
 
-        if (!hasBox)
-        {
-            await session.AbortTransactionAsync(cancelToken.Token);
-            Log.Information("{0} tried to open non-existent box in chat {1}", telegramId, chatId);
-            return (None, OpenBoxResult.NoItems);
-        }
+        if (!hasBox) return (None, await AbortSessionAndLog(OpenBoxResult.NoItems, chatId, telegramId, session));
 
         await historyLogRepository.LogItem(
             chatId, telegramId, MemberItemType.Box, -1, MemberItemSourceType.Use, session);
 
         var itemType = GetRandomItem();
-
         return itemType switch
         {
             MemberItemType.Box => await HandleItemType(2, OpenBoxResult.SuccessX2, session),
@@ -54,13 +48,12 @@ public class MemberItemService(
             var success =
                 numberItems == 0 ||
                 await memberItemRepository.AddMemberItem(chatId, telegramId, itemType, localSession, numberItems);
-            await historyLogRepository.LogItem(
-                chatId, telegramId, itemType, numberItems, MemberItemSourceType.Box, localSession);
 
             if (success && await localSession.TryCommit(cancelToken.Token))
             {
-                Log.Information("{0} opened box and got {1} in chat {2}", telegramId, itemType, chatId);
-                return ((itemType), result);
+                await historyLogRepository.LogItem(
+                    chatId, telegramId, itemType, numberItems, MemberItemSourceType.Box, localSession);
+                return (Some(itemType.LogSuccessUsingItem(chatId, telegramId)), result);
             }
 
             await localSession.TryAbort(cancelToken.Token);
@@ -74,9 +67,9 @@ public class MemberItemService(
         var isCursedTask = curseRepository.IsUserCursed(id, session);
         var isCharmedTask = charmRepository.IsUserCharmed(id, session);
 
-        var isClear = (await Task.WhenAll(isCursedTask, isCharmedTask)).Any(x => x);
+        var isClear = await Array(isCursedTask, isCharmedTask).AwaitAll();
 
-        if (!isClear) return false;
+        if (!isClear.Any(x => x)) return false;
         if (await isCursedTask) await curseRepository.DeleteCurseMember(id, session);
         if (await isCharmedTask) await charmRepository.DeleteCharmMember(id, session);
         Log.Information("Amulet was activated from the box for user: {0}", id);
@@ -320,8 +313,8 @@ public class MemberItemService(
         [CallerMemberName] string callerName = "unknownCaller") where T : Enum
     {
         await session.TryAbort(cancelToken.Token);
-        Log.Error("Item usage failed from: {0}, User: {1}, Chat: {2}, Reason: {3}",
-            callerName, telegramId, chatId, reason);
+        Log.Error("Item usage FAILED from: {0}, Reason: {1}, User: {2}, Chat: {3}",
+            callerName, reason, telegramId, chatId);
         return maybeResult;
     }
 
@@ -333,8 +326,8 @@ public class MemberItemService(
         [CallerMemberName] string callerName = "unknownCaller") where T : Enum
     {
         await session.TryAbort(cancelToken.Token);
-        Log.Information("Item usage failed from: {0}, User: {1}, Chat: {2}, Reason: {3}",
-            callerName, telegramId, chatId, maybeResult);
+        Log.Information("Item usage FAILED from: {0}, Reason: {1}, User: {2}, Chat: {3}",
+            callerName, maybeResult, telegramId, chatId);
         return maybeResult;
     }
 

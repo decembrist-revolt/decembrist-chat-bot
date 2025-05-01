@@ -33,8 +33,8 @@ public static class LogAssistant
         long telegramId,
         [CallerMemberName] string callerName = "unknownCaller") where T : Enum
     {
-        Log.Information("Item usage succeeded from: {0}, User: {1}, Chat: {2}, Result: {3}",
-            callerName, telegramId, chatId, maybeResult);
+        Log.Information("Item usage SUCCESS from: {0}, Result: {1}, User: {2}, Chat: {3},",
+            callerName, maybeResult, telegramId, chatId);
         return maybeResult;
     }
 }

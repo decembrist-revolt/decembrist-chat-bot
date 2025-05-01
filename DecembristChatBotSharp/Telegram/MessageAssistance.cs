@@ -71,10 +71,10 @@ public class MessageAssistance(
         await botClient.SendMessageAndLog(chatId, appConfig.ItemConfig.NoItemsMessage,
             message =>
             {
-                Log.Information("Sent sticker not found message to chat {0}", chatId);
+                Log.Information("Sent no items message to chat {0}", chatId);
                 expiredMessageRepository.QueueMessage(chatId, message.MessageId);
             },
-            ex => Log.Error(ex, "Failed to send sticker not found message to chat {0}", chatId),
+            ex => Log.Error(ex, "Failed to send no items message to chat {0}", chatId),
             cancelToken.Token);
 
     public async Task<Unit> SendGetItemMessage(long chatId, string username, MemberItemType item, int count = 1)
