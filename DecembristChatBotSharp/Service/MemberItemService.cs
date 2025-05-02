@@ -199,12 +199,16 @@ public class MemberItemService(
         });
     }
 
-    public async Task<bool> GiveItem(long chatId, long telegramId, long adminTelegramId, MemberItemType type)
+    public async Task<bool> GiveItem(
+        long chatId, long telegramId, long adminTelegramId, MemberItemType type, int countItems = 1)
     {
         using var session = await db.OpenSession();
         session.StartTransaction();
 
-        var success = await memberItemRepository.AddMemberItem(chatId, telegramId, type, session);
+        var isAmuletActivated = type == MemberItemType.Amulet && await HandleAmuletItem((telegramId, chatId), session);
+        countItems = isAmuletActivated ? countItems - 1 : countItems;
+        var success = (isAmuletActivated && countItems <= 0) ||
+                      await memberItemRepository.AddMemberItem(chatId, telegramId, type, session, countItems);
 
         if (!success)
         {
@@ -214,7 +218,7 @@ public class MemberItemService(
         }
 
         await historyLogRepository.LogItem(
-            chatId, telegramId, type, 1, MemberItemSourceType.Admin, session, adminTelegramId);
+            chatId, telegramId, type, countItems, MemberItemSourceType.Admin, session, adminTelegramId);
 
         if (await session.TryCommit(cancelToken.Token))
         {
