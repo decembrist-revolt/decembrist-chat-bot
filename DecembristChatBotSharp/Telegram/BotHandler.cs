@@ -17,6 +17,7 @@ public class BotHandler(
     NewMemberHandler newMemberHandler,
     PrivateMessageHandler privateMessageHandler,
     ChatMessageHandler chatMessageHandler,
+    PrivateCallbackHandler privateCallbackHandler,
     ChatEditedHandler chatEditedHandler,
     TipsRegistrationService tipsRegistrationService,
     ChatBotAddHandler chatBotAddHandler,
@@ -32,7 +33,7 @@ public class BotHandler(
                 UpdateType.Message,
                 UpdateType.EditedMessage,
                 UpdateType.ChatMember,
-                UpdateType.CallbackQuery
+                UpdateType.CallbackQuery,
             ],
             Offset = int.MaxValue
         };
@@ -68,17 +69,21 @@ public class BotHandler(
             } => HandleChatEditedMessage(editedMessage),
             {
                 Type: UpdateType.CallbackQuery,
-                Message: { Chat.Type: ChatType.Private } message,
-            } => HandlePrivateCallback(message),
+                CallbackQuery:
+                {
+                    Message.Chat.Type: ChatType.Private,
+                    Data: not null
+                } callbackQuery
+            } => HandlePrivateCallback(callbackQuery),
             _ => Task.CompletedTask
         };
     }
 
-    private Task HandlePrivateCallback(Message message) => message switch
+    private Task HandlePrivateCallback(CallbackQuery query) => query switch
     {
         {
             From.Id: { },
-        } => chatEditedHandler.Do(message),
+        } => privateCallbackHandler.Do(query),
         _ => Task.CompletedTask
     };
 

@@ -113,6 +113,13 @@ public static class UtilsExtensions
             return None;
         });
 
+    public static async Task<string> GetChatTitleOrId(this BotClient botClient,
+        long chatId,
+        CancellationToken cancelToken) =>
+        await botClient.GetChatTitle(chatId, cancelToken)
+            .ToAsync()
+            .IfNone(chatId.ToString);
+
     public static async Task<Option<string>> GetChatTitle(
         this BotClient botClient,
         long chatId,

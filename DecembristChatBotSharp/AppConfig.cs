@@ -27,6 +27,8 @@ public record AppConfig(
     AllowedChatConfig AllowedChatConfig,
     MongoConfig MongoConfig,
     CommandConfig CommandConfig,
+    MenuConfig MenuConfig,
+    LorConfig LorConfig,
     RedditConfig RedditConfig,
     RestrictConfig RestrictConfig,
     ReactionSpamConfig ReactionSpamConfig,
@@ -96,6 +98,48 @@ public record CommandConfig(
     int FastReplyDaysDuration,
     [property: Required(AllowEmptyStrings = false)]
     string WrongCommandMessage
+);
+
+public record MenuConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string WelcomeMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ChatNotAllowed,
+    [property: Required(AllowEmptyStrings = false)]
+    string ProfileTitle,
+    [property: Required(AllowEmptyStrings = false)]
+    string LorDescription
+);
+
+public record LorConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string LorContentRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string LorKeyRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string LorKeyDuplicate,
+    [property: Required(AllowEmptyStrings = false)]
+    string LorHelp,
+    [property: Required(AllowEmptyStrings = false)]
+    string LorContentSuccess,
+    [property: Required(AllowEmptyStrings = false)]
+    string LorContentDuplicate,
+    [property: Required(AllowEmptyStrings = false)]
+    string LorContentDefault,
+    [property: Required(AllowEmptyStrings = false)]
+    string LorKeyNotFound,
+    [property: Required(AllowEmptyStrings = false)]
+    string NotLorUser,
+    [property: Required(AllowEmptyStrings = false)]
+    string LorEditContentSuccess,
+    [property: Required(AllowEmptyStrings = false)]
+    string LorTip,
+    [property: Required(AllowEmptyStrings = false)]
+    string LorFailed,
+    [property: Required(AllowEmptyStrings = false)]
+    int LorContentLimit,
+    [property: Required(AllowEmptyStrings = false)]
+    int LorKeyLimit
 );
 
 public record RedditConfig(

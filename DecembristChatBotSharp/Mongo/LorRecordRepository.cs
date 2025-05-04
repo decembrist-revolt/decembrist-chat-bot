@@ -38,6 +38,21 @@ public class LorRecordRepository(
             });
     }
 
+    public Task<bool> IsLorRecordExist(LorRecord.CompositeId id)
+    {
+        var collection = GetCollection();
+
+        return collection
+            .Find(record => record.Id == id)
+            .AnyAsync(cancelToken.Token)
+            .ToTryAsync()
+            .Match(identity, ex =>
+            {
+                Log.Error(ex, "Failed to find lor record with id: {0}", id);
+                return false;
+            });
+    }
+
     public async Task<Option<LorRecord>> GetLorRecord(LorRecord.CompositeId id) => await GetCollection()
         .Find(m => m.Id == id)
         .SingleOrDefaultAsync(cancelToken.Token)
