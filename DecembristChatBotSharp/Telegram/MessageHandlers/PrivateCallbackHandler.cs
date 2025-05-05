@@ -1,5 +1,4 @@
 ﻿using DecembristChatBotSharp.Service;
-using DecembristChatBotSharp.Telegram.MessageHandlers.LorHandler;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
@@ -36,6 +35,7 @@ public class PrivateCallbackHandler(
                 _ when data.Contains(ProfileService.EditLorCallback) => SendRequestEdit(targetChatId, telegramId),
                 _ when data.Contains(PrivateMessageHandler.InventoryCommandSuffix)
                     => SendInventoryView(messageId, telegramId, targetChatId),
+                _ => throw new ArgumentOutOfRangeException()
             },
             _ => botClient.SendMessage(telegramId, "OK", cancellationToken: cancelToken.Token)
         };
@@ -76,8 +76,8 @@ public class PrivateCallbackHandler(
     private Task<Message> SendRequestEdit(long targetChatId, long chatId)
     {
         var markup = new ForceReplyMarkup { InputFieldPlaceholder = appConfig.LorConfig.LorTip };
-        var message = "Введите ключ для изменения содержания" + string.Format(appConfig.LorConfig.LorKeyRequest,
-            LorReplyHandler.GetLorTag(LorReplyHandler.LorContentEditSuffix, targetChatId));
+        var message = "Введите ключ для изменения содержания\n" +
+                      LorReplyHandler.GetLorTag(LorReplyHandler.LorEditSuffix, targetChatId);
         return botClient.SendMessage(chatId, message, replyMarkup: markup);
     }
 
@@ -85,7 +85,7 @@ public class PrivateCallbackHandler(
     {
         var markup = new ForceReplyMarkup { InputFieldPlaceholder = appConfig.LorConfig.LorTip };
         var message = string.Format(appConfig.LorConfig.LorKeyRequest,
-            LorReplyHandler.GetLorTag(LorReplyHandler.LorKeySuffix, targetChatId));
+            LorReplyHandler.GetLorTag(LorReplyHandler.LorCreateSuffix, targetChatId));
         return botClient.SendMessage(chatId, message, replyMarkup: markup);
     }
 }

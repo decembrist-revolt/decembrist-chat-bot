@@ -1,6 +1,4 @@
-﻿using DecembristChatBotSharp.Mongo;
-using DecembristChatBotSharp.Service;
-using DecembristChatBotSharp.Telegram.MessageHandlers.LorHandler;
+﻿using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
 using Telegram.Bot;

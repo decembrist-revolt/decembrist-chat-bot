@@ -1,43 +1,51 @@
 ﻿using System.Text.RegularExpressions;
+using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 
-namespace DecembristChatBotSharp.Telegram.MessageHandlers.LorHandler;
+namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
 public class LorReplyHandler(
     BotClient botClient,
     AppConfig appConfig,
     AdminUserRepository adminUserRepository,
+    MessageAssistance messageAssistance,
     LorUserRepository lorUserRepository,
     LorRecordRepository lorRecordRepository,
     CancellationTokenSource cancelToken)
 {
-    public const string LorTag = "#LorEdit";
-    public const string LorKeySuffix = "Key";
-    public const string LorContentEditSuffix = "ContentEdit";
-    public const string LorContentSuffix = "Content";
+    public const string LorTag = "#Lor";
+    public const string LorCreateSuffix = "Create";
+    public const string LorEditSuffix = "Edit";
 
     public async Task<TryAsync<Message>> Do(Message message)
     {
         var replyText = message.ReplyToMessage!.Text;
         var telegramId = message.From!.Id;
         var messageText = message.Text!;
+        var dateReply = message.ReplyToMessage.Date;
+
         return TryAsync(await ParseReplyText(replyText).MatchAsync(async tuple =>
             {
+                await messageAssistance.DeleteCommandMessage(telegramId, message.ReplyToMessage.Id, LorTag);
+                await messageAssistance.DeleteCommandMessage(telegramId, message.Id, LorTag);
                 var (key, lorChatId) = tuple;
                 return replyText switch
                 {
                     _ when !await IsLorUser(telegramId, tuple.LorChatId) => botClient.SendMessage(telegramId,
                         appConfig.LorConfig.NotLorUser, cancellationToken: cancelToken.Token),
-                    _ when MatchTag(replyText, LorKeySuffix) => HandleLorKey(messageText, lorChatId, telegramId),
-                    _ when MatchTag(replyText, LorContentEditSuffix)
+                    _ when MatchTag(replyText, LorCreateSuffix) && string.IsNullOrWhiteSpace(key)
+                        => HandleLorKey(messageText, lorChatId, telegramId),
+                    _ when MatchTag(replyText, LorCreateSuffix)
+                        => HandleLorContent(key, messageText, lorChatId, telegramId, dateReply),
+                    _ when MatchTag(replyText, LorEditSuffix) && string.IsNullOrWhiteSpace(key)
                         => HandleLorKeyEdit(messageText, lorChatId, telegramId),
-                    _ when replyText.Contains(LorContentSuffix)
-                        => HandleLorContent(key, messageText, lorChatId, telegramId),
+                    _ when MatchTag(replyText, LorEditSuffix) =>
+                        HandleLorContent(key, messageText, lorChatId, telegramId, dateReply),
                     _ => SendHelpMessage(telegramId)
                 };
             },
@@ -61,13 +69,15 @@ public class LorReplyHandler(
         await lorUserRepository.IsLorUser((telegramId, lorChatId))
         || await adminUserRepository.IsAdmin((telegramId, lorChatId));
 
-    private async Task<Message> HandleLorContent(string key, string content, long lorChatId, long telegramId)
+    private async Task<Message> HandleLorContent(string key, string content, long lorChatId, long telegramId,
+        DateTime date)
     {
         var lorConfig = appConfig.LorConfig;
         if (content.Length > lorConfig.LorContentLimit) return await SendHelpMessage(telegramId);
 
-        // if (DateTime.UtcNow >)
-        //     return await botClient.SendMessage(telegramId, lorConfig.LorKeyLimit, cancellationToken: cancelToken.Token);
+        if ((DateTime.UtcNow - date).TotalMinutes > 2)
+            return await botClient.SendMessage(telegramId, $"Ключ:{key}\nВремя редактирования истекло, начните заново",
+                cancellationToken: cancelToken.Token);
 
         var isExist = await lorRecordRepository.IsLorRecordExist((lorChatId, key.Trim()));
         if (!isExist) return await SendNotFound(key, telegramId);
@@ -79,13 +89,28 @@ public class LorReplyHandler(
         return await botClient.SendMessage(telegramId, text, cancellationToken: cancelToken.Token);
     }
 
-
     private async Task<Message> HandleLorKeyEdit(string key, long lorChatId, long telegramId)
     {
         var isExist = await lorRecordRepository.IsLorRecordExist((lorChatId, key));
         return isExist
-            ? await SendSuccessKeyMessage(key, lorChatId, telegramId)
+            ? await HandleLorRecord((lorChatId, key), telegramId)
             : await SendNotFound(key, telegramId);
+    }
+
+    private async Task<Message> HandleLorRecord(LorRecord.CompositeId id, long telegramId)
+    {
+        var record = await lorRecordRepository.GetLorRecord(id);
+        return await record.MatchAsync(lorRecord => SendLorRecord(lorRecord, telegramId),
+            () => SendNotFound(id.Record, telegramId));
+    }
+
+    private async Task<Message> SendLorRecord(LorRecord lorRecord, long telegramId)
+    {
+        var markup = new ForceReplyMarkup { InputFieldPlaceholder = "Впишите новое содержине..." };
+        var message = string.Format("Key:{0},\nContent:\n{1},\n{2}", lorRecord.Id.Record, lorRecord.Content,
+            GetLorTag(LorEditSuffix, lorRecord.Id.ChatId, lorRecord.Id.Record));
+        return await botClient.SendMessage(telegramId, message, replyMarkup: markup,
+            cancellationToken: cancelToken.Token);
     }
 
     private async Task<Message> HandleLorKey(string key, long lorChatId, long telegramId)
@@ -109,7 +134,7 @@ public class LorReplyHandler(
     private async Task<Message> SendSuccessKeyMessage(string key, long lorChatId, long telegramId)
     {
         var markup = new ForceReplyMarkup { InputFieldPlaceholder = $"Содержание для {key}..." };
-        var message = string.Format(appConfig.LorConfig.LorKeyRequest, GetLorTag(LorContentSuffix, lorChatId, key));
+        var message = string.Format(appConfig.LorConfig.LorKeyRequest, GetLorTag(LorCreateSuffix, lorChatId, key));
         return await botClient.SendMessage(telegramId, message, replyMarkup: markup);
     }
 

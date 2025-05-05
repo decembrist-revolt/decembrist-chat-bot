@@ -88,7 +88,6 @@ public static class UtilsExtensions
 
     public static TryOptionAsync<T> ToTryOption<T>(this Task<T> task) => TryOptionAsync(task);
 
-
     public static Task<Unit> WhenAll(this IEnumerable<Task> tasks) => Task.WhenAll(tasks).UnitTask();
 
     public static Task<T[]> AwaitAll<T>(this IEnumerable<Task<T>> tasks) => Task.WhenAll(tasks);
@@ -112,6 +111,12 @@ public static class UtilsExtensions
             Log.Error(ex, "Failed to get chat member in chat {0} with telegramId {1}", chatId, telegramId);
             return None;
         });
+
+    public static async Task<string> GetUsernameOrId(
+        this BotClient botClient, long telegramId, long chatId, CancellationToken cancelToken) =>
+        await botClient.GetUsername(chatId, telegramId, cancelToken)
+            .ToAsync()
+            .IfNone(telegramId.ToString);
 
     public static async Task<string> GetChatTitleOrId(this BotClient botClient,
         long chatId,
