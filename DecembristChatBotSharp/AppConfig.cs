@@ -230,7 +230,7 @@ public record AmuletConfig(
     [property: Required(AllowEmptyStrings = false)]
     string AmuletBreaksMessage,
     [property: Required(AllowEmptyStrings = false)]
-    int DurationMinutes);
+    int MessageExpirationMinutes);
 
 public record ItemConfig(
     Dictionary<MemberItemType, double> ItemChance,

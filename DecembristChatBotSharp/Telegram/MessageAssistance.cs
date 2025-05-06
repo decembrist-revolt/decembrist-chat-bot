@@ -111,7 +111,7 @@ public class MessageAssistance(
             .IfNone(receiverId.ToString);
         var message = string.Format(appConfig.amuletConfig.AmuletBreaksMessage, username, commandName);
         return await SendCommandResponse(chatId, message, commandName,
-            DateTime.UtcNow.AddMinutes(appConfig.amuletConfig.DurationMinutes));
+            DateTime.UtcNow.AddMinutes(appConfig.amuletConfig.MessageExpirationMinutes));
     }
 
     public async Task<Unit> SendCommandResponse(

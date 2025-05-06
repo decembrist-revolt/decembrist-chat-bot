@@ -6,7 +6,7 @@ using Serilog;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
-public class BanCommandHandler(
+public partial class BanCommandHandler(
     AppConfig appConfig,
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
@@ -18,6 +18,9 @@ public class BanCommandHandler(
     public string Command => "/ban";
     public string Description => "Ban user in reply. Set reason in format /ban This is ban reason";
     public CommandLevel CommandLevel => CommandLevel.User;
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex CommandRegex();
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -66,10 +69,13 @@ public class BanCommandHandler(
         var arg = argsPosition != -1 ? text[(argsPosition + 1)..] : string.Empty;
 
         var banConfig = appConfig.CommandConfig.BanConfig;
-        if (string.IsNullOrEmpty(arg)) arg = banConfig.BanNoReasonMessage;
+        if (string.IsNullOrEmpty(arg))
+        {
+            arg = banConfig.BanNoReasonMessage;
+        }
         else
         {
-            arg = Regex.Replace(arg, @"\s+", " ");
+            arg = CommandRegex().Replace(arg, " ");
 
             if (arg.Length > banConfig.ReasonLengthLimit)
             {

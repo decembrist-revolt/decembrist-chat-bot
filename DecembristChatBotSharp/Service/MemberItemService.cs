@@ -2,6 +2,7 @@
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Telegram;
+using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Lamar;
 using Serilog;
 
@@ -17,6 +18,7 @@ public class MemberItemService(
     CurseRepository curseRepository,
     CharmRepository charmRepository,
     RedditService redditService,
+    MessageAssistance messageAssistance,
     Random random,
     TelegramPostService telegramPostService,
     CancellationTokenSource cancelToken)
@@ -36,44 +38,12 @@ public class MemberItemService(
         var itemType = GetRandomItem();
         return itemType switch
         {
-            MemberItemType.Box => await HandleItemType(2, OpenBoxResult.SuccessX2, session),
+            MemberItemType.Box => await HandleItemType(
+                chatId, telegramId, itemType, 2, OpenBoxResult.SuccessX2, session),
             MemberItemType.Amulet when await HandleAmuletItem((telegramId, chatId), session) =>
-                await HandleItemType(0, OpenBoxResult.AmuletActivated, session),
-            _ => await HandleItemType(1, OpenBoxResult.Success, session)
+                await HandleItemType(chatId, telegramId, itemType, 0, OpenBoxResult.AmuletActivated, session),
+            _ => await HandleItemType(chatId, telegramId, itemType, 1, OpenBoxResult.Success, session)
         };
-
-        async Task<(Option<MemberItemType>, OpenBoxResult)> HandleItemType(
-            int numberItems, OpenBoxResult result, IMongoSession localSession)
-        {
-            var success =
-                numberItems == 0 ||
-                await memberItemRepository.AddMemberItem(chatId, telegramId, itemType, localSession, numberItems);
-
-            if (success && await localSession.TryCommit(cancelToken.Token))
-            {
-                await historyLogRepository.LogItem(
-                    chatId, telegramId, itemType, numberItems, MemberItemSourceType.Box, localSession);
-                return (Some(itemType.LogSuccessUsingItem(chatId, telegramId)), result);
-            }
-
-            await localSession.TryAbort(cancelToken.Token);
-            Log.Error("Failed to open box for {0} in chat {1}", telegramId, chatId);
-            return (None, OpenBoxResult.Failed);
-        }
-    }
-
-    private async Task<bool> HandleAmuletItem(CompositeId id, IMongoSession session)
-    {
-        var isCursedTask = curseRepository.IsUserCursed(id, session);
-        var isCharmedTask = charmRepository.IsUserCharmed(id, session);
-
-        var isClear = await Array(isCursedTask, isCharmedTask).AwaitAll();
-
-        if (!isClear.Any(x => x)) return false;
-        if (await isCursedTask) await curseRepository.DeleteCurseMember(id, session);
-        if (await isCharmedTask) await charmRepository.DeleteCharmMember(id, session);
-        Log.Information("Amulet was activated from the box for user: {0}", id);
-        return true;
     }
 
     public async Task<UseFastReplyResult> UseFastReply(long chatId, long telegramId, FastReply fastReply, bool isAdmin)
@@ -296,7 +266,52 @@ public class MemberItemService(
         }
     }
 
-    async Task<T> HandleSuccessUsingItem<T>(
+    private async Task<(Option<MemberItemType>, OpenBoxResult)> HandleItemType(
+        long chatId, long telegramId, MemberItemType itemType, int numberItems, OpenBoxResult result,
+        IMongoSession session)
+    {
+        var success =
+            numberItems == 0 ||
+            await memberItemRepository.AddMemberItem(chatId, telegramId, itemType, session, numberItems);
+
+        if (success && await session.TryCommit(cancelToken.Token))
+        {
+            await historyLogRepository.LogItem(
+                chatId, telegramId, itemType, numberItems, MemberItemSourceType.Box, session);
+            return (Some(itemType.LogSuccessUsingItem(chatId, telegramId)), result);
+        }
+
+        await session.TryAbort(cancelToken.Token);
+        Log.Error("Failed to open box for {0} in chat {1}", telegramId, chatId);
+        return (None, OpenBoxResult.Failed);
+    }
+
+    private async Task<bool> HandleAmuletItem(CompositeId id, IMongoSession session)
+    {
+        var isCursedResult = await curseRepository.IsUserCursed(id, session);
+        var hasCurse = !isCursedResult.IsLeft && isCursedResult.IfLeftThrow();
+        var isCharmedResult = await charmRepository.IsUserCharmed(id, session);
+        var hasCharm = !isCharmedResult.IsLeft && isCharmedResult.IfLeftThrow();
+
+        if (!hasCurse && !hasCharm) return false;
+        
+        if (hasCurse)
+        {
+            await curseRepository.DeleteCurseMember(id, session);
+            await messageAssistance.SendAmuletMessage(id.ChatId, id.TelegramId, CurseCommandHandler.CommandKey);
+        }
+
+        if (hasCharm)
+        {
+            await charmRepository.DeleteCharmMember(id, session);
+            await messageAssistance.SendAmuletMessage(id.ChatId, id.TelegramId, CharmCommandHandler.CommandKey);
+        }
+        
+        Log.Information("Amulet was activated from the box for user: {0}", id);
+        return true;
+    }
+
+    private async Task<T> HandleSuccessUsingItem<T>(
         T result,
         T failed,
         IMongoSession session,

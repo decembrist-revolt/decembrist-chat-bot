@@ -14,7 +14,7 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
         long chatId,
         long telegramId,
         MemberItemType type,
-        IClientSessionHandle? session = null,
+        IMongoSession? session = null,
         int countItems = 1)
     {
         if (countItems <= 0) return false;

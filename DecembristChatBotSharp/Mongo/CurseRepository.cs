@@ -1,6 +1,7 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Service;
 using Lamar;
+using LanguageExt.Common;
 using MongoDB.Driver;
 using Serilog;
 
@@ -33,7 +34,9 @@ public class CurseRepository(
         ReactionSpamMember member, IMongoSession? session = null)
     {
         var collection = GetCollection();
-        if (await IsUserCursed(member.Id, session)) return CurseResult.Duplicate;
+        var isCursedResult = await IsUserCursed(member.Id, session);
+        if (isCursedResult.IsLeft) return CurseResult.Failed;
+        if (isCursedResult.IfLeftThrow()) return CurseResult.Duplicate;
 
         return await collection
             .InsertOneAsync(session, member, cancellationToken: cancelToken.Token)
@@ -47,7 +50,7 @@ public class CurseRepository(
                 });
     }
 
-    public async Task<bool> IsUserCursed(CompositeId id, IMongoSession? session = null)
+    public async Task<Either<Error, bool>> IsUserCursed(CompositeId id, IMongoSession? session = null)
     {
         var collection = GetCollection();
         var filter = Builders<ReactionSpamMember>.Filter.Eq(member => member.Id, id);
@@ -57,10 +60,11 @@ public class CurseRepository(
         return await findTask
             .AnyAsync(cancelToken.Token)
             .ToTryAsync()
-            .Match(identity, ex =>
+            .ToEither()
+            .MapLeft(ex =>
             {
                 Log.Error(ex, "Failed to find curse user with id: {0}", id);
-                return false;
+                return ex;
             });
     }
 

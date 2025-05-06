@@ -1,6 +1,7 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Service;
 using Lamar;
+using LanguageExt.Common;
 using MongoDB.Driver;
 using Serilog;
 
@@ -34,7 +35,9 @@ public class CharmRepository(
     {
         var collection = GetCollection();
 
-        if (await IsUserCharmed(member.Id, session)) return CharmResult.Duplicate;
+        var isCharmedResult = await IsUserCharmed(member.Id, session);
+        if (isCharmedResult.IsLeft) return CharmResult.Failed;
+        if (isCharmedResult.IfLeftThrow()) return CharmResult.Duplicate;
 
         return await collection
             .InsertOneAsync(session, member, cancellationToken: cancelToken.Token)
@@ -48,7 +51,7 @@ public class CharmRepository(
                 });
     }
 
-    public async Task<bool> IsUserCharmed(CompositeId id, IMongoSession? session = null)
+    public async Task<Either<Error, bool>> IsUserCharmed(CompositeId id, IMongoSession? session = null)
     {
         var collection = GetCollection();
         var filter = Builders<CharmMember>.Filter.Eq(member => member.Id, id);
@@ -58,10 +61,11 @@ public class CharmRepository(
         return await findTask
             .AnyAsync(cancelToken.Token)
             .ToTryAsync()
-            .Match(identity, ex =>
+            .ToEither()
+            .MapLeft(ex =>
             {
                 Log.Error(ex, "Failed to find charm user with id: {0}", id);
-                return false;
+                return ex;
             });
     }
 
