@@ -113,33 +113,39 @@ public record MenuConfig(
 
 public record LorConfig(
     [property: Required(AllowEmptyStrings = false)]
-    string LorContentRequest,
+    string ChatTemplate,
     [property: Required(AllowEmptyStrings = false)]
-    string LorKeyRequest,
+    string ChatFailed,
     [property: Required(AllowEmptyStrings = false)]
-    string LorKeyDuplicate,
+    string ChatLorNotFound,
+    [property: Required(AllowEmptyStrings = false)]
+    string ContentRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string KeyRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string KeyDuplicate,
     [property: Required(AllowEmptyStrings = false)]
     string LorHelp,
     [property: Required(AllowEmptyStrings = false)]
-    string LorContentSuccess,
+    string ContentSuccess,
     [property: Required(AllowEmptyStrings = false)]
-    string LorContentDuplicate,
+    string ContentDefault,
     [property: Required(AllowEmptyStrings = false)]
-    string LorContentDefault,
-    [property: Required(AllowEmptyStrings = false)]
-    string LorKeyNotFound,
+    string KeyNotFound,
     [property: Required(AllowEmptyStrings = false)]
     string NotLorUser,
     [property: Required(AllowEmptyStrings = false)]
-    string LorEditContentSuccess,
+    string EditContentSuccess,
     [property: Required(AllowEmptyStrings = false)]
-    string LorTip,
+    string TipKey,
     [property: Required(AllowEmptyStrings = false)]
-    string LorFailed,
+    string TipContent,
     [property: Required(AllowEmptyStrings = false)]
-    int LorContentLimit,
+    string PrivateFailed,
     [property: Required(AllowEmptyStrings = false)]
-    int LorKeyLimit
+    int ContentLimit,
+    [property: Required(AllowEmptyStrings = false)]
+    int KeyLimit
 );
 
 public record RedditConfig(

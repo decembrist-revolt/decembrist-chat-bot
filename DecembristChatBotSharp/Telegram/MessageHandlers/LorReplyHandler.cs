@@ -87,16 +87,15 @@ public class LorReplyHandler(
 
     private async Task<Message> SendDuplicateKey(string key, long telegramId)
     {
-        var message = string.Format(appConfig.LorConfig.LorKeyDuplicate, key);
+        var message = string.Format(appConfig.LorConfig.KeyDuplicate, key);
         return await botClient.SendMessage(telegramId, message, cancellationToken: cancelToken.Token);
     }
 
     private async Task<Message> SendRequestContent(string key, long lorChatId, long telegramId)
     {
-        var markup = new ForceReplyMarkup { InputFieldPlaceholder = $"Содержание для {key}..." };
-        var message = string.Format(appConfig.LorConfig.LorKeyRequest,
+        var message = string.Format(appConfig.LorConfig.KeyRequest,
             LorService.GetLorTag(LorCreateSuffix, lorChatId, key));
-        return await botClient.SendMessage(telegramId, message, replyMarkup: markup);
+        return await botClient.SendMessage(telegramId, message, replyMarkup: lorService.GetContentTip());
     }
 
     private async Task<Message> HandleLorEdit(string key, long lorChatId, long telegramId)
@@ -119,10 +118,9 @@ public class LorReplyHandler(
 
     private async Task<Message> SendRequestEdit(LorRecord lorRecord, long telegramId)
     {
-        var markup = new ForceReplyMarkup { InputFieldPlaceholder = "Впишите новое содержине..." };
         var message = string.Format("Key:{0},\nContent:\n{1},\n{2}", lorRecord.Id.Record, lorRecord.Content,
             LorService.GetLorTag(LorEditSuffix, lorRecord.Id.ChatId, lorRecord.Id.Record));
-        return await botClient.SendMessage(telegramId, message, replyMarkup: markup,
+        return await botClient.SendMessage(telegramId, message, replyMarkup: lorService.GetContentTip(),
             cancellationToken: cancelToken.Token);
     }
 
@@ -142,26 +140,26 @@ public class LorReplyHandler(
 
     private async Task<Message> SendSuccessContent(string key, string content, long telegramId)
     {
-        var text = string.Format(appConfig.LorConfig.LorContentSuccess, key, content);
+        var text = string.Format(appConfig.LorConfig.ContentSuccess, key, content);
         return await botClient.SendMessage(telegramId, text, cancellationToken: cancelToken.Token);
     }
 
     private async Task<Message> SendNotFoundMessage(string key, long telegramId)
     {
-        var message = string.Format(appConfig.LorConfig.LorKeyNotFound, key);
+        var message = string.Format(appConfig.LorConfig.KeyNotFound, key);
         return await botClient.SendMessage(telegramId, message, cancellationToken: cancelToken.Token);
     }
 
     private async Task<Message> SendFailedMessage(long chatId)
     {
-        var message = appConfig.LorConfig.LorFailed;
+        var message = appConfig.LorConfig.PrivateFailed;
         return await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token);
     }
 
     private async Task<Message> SendHelpMessage(long chatId)
     {
         var lorConfig = appConfig.LorConfig;
-        var message = string.Format(lorConfig.LorHelp, lorConfig.LorKeyLimit, lorConfig.LorContentLimit);
+        var message = string.Format(lorConfig.LorHelp, lorConfig.KeyLimit, lorConfig.ContentLimit);
         return await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token);
     }
 }

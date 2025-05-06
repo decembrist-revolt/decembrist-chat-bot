@@ -9,17 +9,19 @@ namespace DecembristChatBotSharp.Mongo;
 [Singleton]
 public class LorRecordRepository(
     MongoDatabase db,
+    AppConfig appConfig,
     CancellationTokenSource cancelToken) : IRepository
 {
     public async Task<bool> AddLorRecord(
         LorRecord.CompositeId id,
         long telegramId,
-        string content = "Not filled in",
+        string? content = null,
         IClientSessionHandle? session = null)
     {
         var collection = GetCollection();
 
-        var update = Builders<LorRecord>.Update.Set(x => x.Content, content)
+        var update = Builders<LorRecord>.Update
+            .Set(x => x.Content, content ?? appConfig.LorConfig.ContentDefault)
             .AddToSet(x => x.authorsId, telegramId);
 
         var options = new UpdateOptions { IsUpsert = true };

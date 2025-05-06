@@ -1,6 +1,8 @@
-﻿using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace DecembristChatBotSharp.Service;
 
@@ -12,7 +14,7 @@ public class LorService(
     public async Task<LorResult> HandleLorContent(
         string key, string content, long lorChatId, long telegramId, DateTime date)
     {
-        if (content.Length > appConfig.LorConfig.LorContentLimit) return LorResult.Limit;
+        if (content.Length > appConfig.LorConfig.ContentLimit) return LorResult.Limit;
         if ((DateTime.UtcNow - date).TotalMinutes > 2) return LorResult.Expire;
 
         var isExist = await lorRecordRepository.IsLorRecordExist((lorChatId, key.Trim()));
@@ -24,7 +26,7 @@ public class LorService(
 
     public async Task<LorResult> HandleLorKey(string key, long lorChatId, long telegramId)
     {
-        if (key.Length > appConfig.LorConfig.LorKeyLimit) return LorResult.Limit;
+        if (key.Length > appConfig.LorConfig.KeyLimit) return LorResult.Limit;
 
         var isExist = await lorRecordRepository.IsLorRecordExist((lorChatId, key));
         if (isExist) return LorResult.Duplicate;
@@ -38,6 +40,24 @@ public class LorService(
             ? LorResult.Success
             : LorResult.NotFound;
 
+    public async Task<string> GetLorRecord(LorRecord.CompositeId id)
+    {
+        var content = await lorRecordRepository.GetLorRecord(id);
+        return content.Match(
+            record => string.Format(appConfig.LorConfig.ChatTemplate, record.Id.Record, record.Content),
+            () => appConfig.LorConfig.ChatFailed
+        );
+    }
+
+    public ForceReplyMarkup GetContentTip() => new()
+    {
+        InputFieldPlaceholder = string.Format(appConfig.LorConfig.TipContent, appConfig.LorConfig.ContentLimit),
+    };
+
+    public ForceReplyMarkup GetKeyTip() => new()
+    {
+        InputFieldPlaceholder = string.Format(appConfig.LorConfig.TipKey, appConfig.LorConfig.KeyLimit),
+    };
 
     public static string GetLorTag(string suffix, long targetChatId, string key = "") =>
         $"{LorReplyHandler.LorTag}{suffix}:{key}:{targetChatId}";
