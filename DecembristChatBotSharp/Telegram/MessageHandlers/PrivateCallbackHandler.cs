@@ -77,7 +77,7 @@ public class PrivateCallbackHandler(
     {
         var markup = new ForceReplyMarkup { InputFieldPlaceholder = appConfig.LorConfig.LorTip };
         var message = "Введите ключ для изменения содержания\n" +
-                      LorReplyHandler.GetLorTag(LorReplyHandler.LorEditSuffix, targetChatId);
+                      LorService.GetLorTag(LorReplyHandler.LorEditSuffix, targetChatId);
         return botClient.SendMessage(chatId, message, replyMarkup: markup);
     }
 
@@ -85,7 +85,7 @@ public class PrivateCallbackHandler(
     {
         var markup = new ForceReplyMarkup { InputFieldPlaceholder = appConfig.LorConfig.LorTip };
         var message = string.Format(appConfig.LorConfig.LorKeyRequest,
-            LorReplyHandler.GetLorTag(LorReplyHandler.LorCreateSuffix, targetChatId));
+            LorService.GetLorTag(LorReplyHandler.LorCreateSuffix, targetChatId));
         return botClient.SendMessage(chatId, message, replyMarkup: markup);
     }
 }

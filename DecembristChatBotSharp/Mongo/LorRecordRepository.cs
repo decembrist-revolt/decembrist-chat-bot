@@ -14,7 +14,7 @@ public class LorRecordRepository(
     public async Task<bool> AddLorRecord(
         LorRecord.CompositeId id,
         long telegramId,
-        string content,
+        string content = "Not filled in",
         IClientSessionHandle? session = null)
     {
         var collection = GetCollection();

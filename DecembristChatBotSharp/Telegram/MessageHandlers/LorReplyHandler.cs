@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -10,12 +11,13 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
 public class LorReplyHandler(
+    LorRecordRepository lorRecordRepository,
     BotClient botClient,
     AppConfig appConfig,
+    LorService lorService,
     AdminUserRepository adminUserRepository,
     MessageAssistance messageAssistance,
     LorUserRepository lorUserRepository,
-    LorRecordRepository lorRecordRepository,
     CancellationTokenSource cancelToken)
 {
     public const string LorTag = "#Lor";
@@ -36,27 +38,22 @@ public class LorReplyHandler(
                 var (key, lorChatId) = tuple;
                 return replyText switch
                 {
-                    _ when !await IsLorUser(telegramId, tuple.LorChatId) => botClient.SendMessage(telegramId,
-                        appConfig.LorConfig.NotLorUser, cancellationToken: cancelToken.Token),
+                    _ when !await IsLorUser(telegramId, tuple.LorChatId) => SendNotLorUserMessage(telegramId),
                     _ when MatchTag(replyText, LorCreateSuffix) && string.IsNullOrWhiteSpace(key)
                         => HandleLorKey(messageText, lorChatId, telegramId),
                     _ when MatchTag(replyText, LorCreateSuffix)
-                        => HandleLorContent(key, messageText, lorChatId, telegramId, dateReply),
-                    _ when MatchTag(replyText, LorEditSuffix) && string.IsNullOrWhiteSpace(key)
-                        => HandleLorKeyEdit(messageText, lorChatId, telegramId),
-                    _ when MatchTag(replyText, LorEditSuffix) =>
+                           || MatchTag(replyText, LorEditSuffix) =>
                         HandleLorContent(key, messageText, lorChatId, telegramId, dateReply),
+                    _ when MatchTag(replyText, LorEditSuffix) && string.IsNullOrWhiteSpace(key)
+                        => HandleLorEdit(messageText, lorChatId, telegramId),
                     _ => SendHelpMessage(telegramId)
                 };
             },
             () => SendHelpMessage(telegramId)));
     }
 
-    private bool MatchTag(string command, string tag)
-    {
-        var pattern = $"({LorTag}){tag}(:)";
-        return Regex.IsMatch(command, pattern, RegexOptions.IgnoreCase);
-    }
+    private Task<Message> SendNotLorUserMessage(long telegramId) =>
+        botClient.SendMessage(telegramId, appConfig.LorConfig.NotLorUser, cancellationToken: cancelToken.Token);
 
     private static Option<(string Key, long LorChatId)> ParseReplyText(string replyText) =>
         replyText.Split(LorTag) is [_, var keyAndId] &&
@@ -69,73 +66,90 @@ public class LorReplyHandler(
         await lorUserRepository.IsLorUser((telegramId, lorChatId))
         || await adminUserRepository.IsAdmin((telegramId, lorChatId));
 
-    private async Task<Message> HandleLorContent(string key, string content, long lorChatId, long telegramId,
-        DateTime date)
+    private bool MatchTag(string command, string tag)
     {
-        var lorConfig = appConfig.LorConfig;
-        if (content.Length > lorConfig.LorContentLimit) return await SendHelpMessage(telegramId);
-
-        if ((DateTime.UtcNow - date).TotalMinutes > 2)
-            return await botClient.SendMessage(telegramId, $"Ключ:{key}\nВремя редактирования истекло, начните заново",
-                cancellationToken: cancelToken.Token);
-
-        var isExist = await lorRecordRepository.IsLorRecordExist((lorChatId, key.Trim()));
-        if (!isExist) return await SendNotFound(key, telegramId);
-
-        var isChange = await lorRecordRepository.AddLorRecord((lorChatId, key), telegramId, content);
-        if (!isChange) return await SendFailedMessage(telegramId);
-
-        var text = string.Format(lorConfig.LorContentSuccess, key, content);
-        return await botClient.SendMessage(telegramId, text, cancellationToken: cancelToken.Token);
-    }
-
-    private async Task<Message> HandleLorKeyEdit(string key, long lorChatId, long telegramId)
-    {
-        var isExist = await lorRecordRepository.IsLorRecordExist((lorChatId, key));
-        return isExist
-            ? await HandleLorRecord((lorChatId, key), telegramId)
-            : await SendNotFound(key, telegramId);
-    }
-
-    private async Task<Message> HandleLorRecord(LorRecord.CompositeId id, long telegramId)
-    {
-        var record = await lorRecordRepository.GetLorRecord(id);
-        return await record.MatchAsync(lorRecord => SendLorRecord(lorRecord, telegramId),
-            () => SendNotFound(id.Record, telegramId));
-    }
-
-    private async Task<Message> SendLorRecord(LorRecord lorRecord, long telegramId)
-    {
-        var markup = new ForceReplyMarkup { InputFieldPlaceholder = "Впишите новое содержине..." };
-        var message = string.Format("Key:{0},\nContent:\n{1},\n{2}", lorRecord.Id.Record, lorRecord.Content,
-            GetLorTag(LorEditSuffix, lorRecord.Id.ChatId, lorRecord.Id.Record));
-        return await botClient.SendMessage(telegramId, message, replyMarkup: markup,
-            cancellationToken: cancelToken.Token);
+        var pattern = $"({LorTag}){tag}(:)";
+        return Regex.IsMatch(command, pattern, RegexOptions.IgnoreCase);
     }
 
     private async Task<Message> HandleLorKey(string key, long lorChatId, long telegramId)
     {
-        var lorConfig = appConfig.LorConfig;
-        if (key.Length > lorConfig.LorKeyLimit) return await SendHelpMessage(telegramId);
-
-        var isExist = await lorRecordRepository.IsLorRecordExist((lorChatId, key));
-        if (isExist)
+        var result = await lorService.HandleLorKey(key, lorChatId, telegramId);
+        return result switch
         {
-            var message = string.Format(lorConfig.LorKeyDuplicate, key);
-            return await botClient.SendMessage(telegramId, message, cancellationToken: cancelToken.Token);
-        }
-
-        var isAdd = await lorRecordRepository.AddLorRecord((lorChatId, key), telegramId, lorConfig.LorContentDefault);
-        return isAdd
-            ? await SendSuccessKeyMessage(key, lorChatId, telegramId)
-            : await SendFailedMessage(telegramId);
+            LorResult.Success => await SendRequestContent(key, lorChatId, telegramId),
+            LorResult.Duplicate => await SendDuplicateKey(key, telegramId),
+            LorResult.Limit => await SendHelpMessage(telegramId),
+            LorResult.Failed => await SendFailedMessage(telegramId),
+            _ => throw new ArgumentOutOfRangeException()
+        };
     }
 
-    private async Task<Message> SendSuccessKeyMessage(string key, long lorChatId, long telegramId)
+    private async Task<Message> SendDuplicateKey(string key, long telegramId)
+    {
+        var message = string.Format(appConfig.LorConfig.LorKeyDuplicate, key);
+        return await botClient.SendMessage(telegramId, message, cancellationToken: cancelToken.Token);
+    }
+
+    private async Task<Message> SendRequestContent(string key, long lorChatId, long telegramId)
     {
         var markup = new ForceReplyMarkup { InputFieldPlaceholder = $"Содержание для {key}..." };
-        var message = string.Format(appConfig.LorConfig.LorKeyRequest, GetLorTag(LorCreateSuffix, lorChatId, key));
+        var message = string.Format(appConfig.LorConfig.LorKeyRequest,
+            LorService.GetLorTag(LorCreateSuffix, lorChatId, key));
         return await botClient.SendMessage(telegramId, message, replyMarkup: markup);
+    }
+
+    private async Task<Message> HandleLorEdit(string key, long lorChatId, long telegramId)
+    {
+        var result = await lorService.HandleLorKeyEdit(key, lorChatId);
+        return result switch
+        {
+            LorResult.Success => await SendLorRecord((lorChatId, key), telegramId),
+            LorResult.NotFound => await SendNotFoundMessage(key, telegramId),
+            _ => throw new ArgumentOutOfRangeException()
+        };
+    }
+
+    private async Task<Message> SendLorRecord(LorRecord.CompositeId id, long telegramId)
+    {
+        var record = await lorRecordRepository.GetLorRecord(id);
+        return await record.MatchAsync(lorRecord => SendRequestEdit(lorRecord, telegramId),
+            () => SendNotFoundMessage(id.Record, telegramId));
+    }
+
+    private async Task<Message> SendRequestEdit(LorRecord lorRecord, long telegramId)
+    {
+        var markup = new ForceReplyMarkup { InputFieldPlaceholder = "Впишите новое содержине..." };
+        var message = string.Format("Key:{0},\nContent:\n{1},\n{2}", lorRecord.Id.Record, lorRecord.Content,
+            LorService.GetLorTag(LorEditSuffix, lorRecord.Id.ChatId, lorRecord.Id.Record));
+        return await botClient.SendMessage(telegramId, message, replyMarkup: markup,
+            cancellationToken: cancelToken.Token);
+    }
+
+    private async Task<Message> HandleLorContent(
+        string key, string content, long lorChatId, long telegramId, DateTime date)
+    {
+        var result = await lorService.HandleLorContent(key, content, lorChatId, telegramId, date);
+        return result switch
+        {
+            LorResult.Success => await SendSuccessContent(key, content, telegramId),
+            LorResult.NotFound => await SendNotFoundMessage(key, telegramId),
+            LorResult.Limit => await SendHelpMessage(telegramId),
+            LorResult.Failed => await SendFailedMessage(telegramId),
+            _ => throw new ArgumentOutOfRangeException()
+        };
+    }
+
+    private async Task<Message> SendSuccessContent(string key, string content, long telegramId)
+    {
+        var text = string.Format(appConfig.LorConfig.LorContentSuccess, key, content);
+        return await botClient.SendMessage(telegramId, text, cancellationToken: cancelToken.Token);
+    }
+
+    private async Task<Message> SendNotFoundMessage(string key, long telegramId)
+    {
+        var message = string.Format(appConfig.LorConfig.LorKeyNotFound, key);
+        return await botClient.SendMessage(telegramId, message, cancellationToken: cancelToken.Token);
     }
 
     private async Task<Message> SendFailedMessage(long chatId)
@@ -144,19 +158,10 @@ public class LorReplyHandler(
         return await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token);
     }
 
-    private async Task<Message> SendNotFound(string key, long telegramId)
-    {
-        var message = string.Format(appConfig.LorConfig.LorKeyNotFound, key);
-        return await botClient.SendMessage(telegramId, message, cancellationToken: cancelToken.Token);
-    }
-
     private async Task<Message> SendHelpMessage(long chatId)
     {
         var lorConfig = appConfig.LorConfig;
         var message = string.Format(lorConfig.LorHelp, lorConfig.LorKeyLimit, lorConfig.LorContentLimit);
         return await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token);
     }
-
-    public static string GetLorTag(string suffix, long targetChatId, string key = "") =>
-        $"{LorTag}{suffix}:{key}:{targetChatId}";
 }
