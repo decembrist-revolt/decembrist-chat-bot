@@ -117,4 +117,26 @@ public class MessageAssistance(
             ex => Log.Error(ex, "Failed to send response to command: {0} from {1} to chat {2}",
                 commandName, callerName, chatId),
             cancelToken.Token);
+    
+    public async Task<Unit> SendAddPremiumMessage(long chatId, long telegramId, int days)
+    {
+        var maybeUsername = await botClient.GetUsername(chatId, telegramId, cancelToken.Token);
+        var username = maybeUsername.IfNone("Anonymous");
+        var message = string.Format(appConfig.CommandConfig.PremiumConfig.AddPremiumMessage, username, days);
+        return await botClient.SendMessageAndLog(chatId, message,
+            _ => Log.Information("Sent add premium message to chat {0}", chatId),
+            ex => Log.Error(ex, "Failed to send add premium message to chat {0}", chatId),
+            cancelToken.Token);
+    }
+    
+    public async Task<Unit> SendUpdatePremiumMessage(long chatId, long telegramId, int days)
+    {
+        var maybeUsername = await botClient.GetUsername(chatId, telegramId, cancelToken.Token);
+        var username = maybeUsername.IfNone("Anonymous");
+        var message = string.Format(appConfig.CommandConfig.PremiumConfig.AddPremiumMessage, username, days);
+        return await botClient.SendMessageAndLog(chatId, message,
+            _ => Log.Information("Sent add premium message to chat {0}", chatId),
+            ex => Log.Error(ex, "Failed to send add premium message to chat {0}", chatId),
+            cancelToken.Token);
+    }
 }
