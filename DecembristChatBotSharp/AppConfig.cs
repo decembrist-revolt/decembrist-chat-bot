@@ -1,5 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.Collections;
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using System.Reflection;
 using DecembristChatBotSharp.Entity;
 using Microsoft.Extensions.Configuration;
 using Serilog;
@@ -29,10 +31,13 @@ public record AppConfig(
     CommandConfig CommandConfig,
     RedditConfig RedditConfig,
     RestrictConfig RestrictConfig,
-    ReactionSpamConfig ReactionSpamConfig,
+    CurseConfig CurseConfig,
     DislikeConfig DislikeConfig,
     CharmConfig CharmConfig,
+    AmuletConfig amuletConfig,
     ItemConfig ItemConfig,
+    PollPaymentConfig? PollPaymentConfig,
+    KeycloakConfig? KeycloakConfig = null,
     DateTime? DeployTime = null,
     List<long>? WhiteListIds = null)
 {
@@ -49,12 +54,46 @@ public record AppConfig(
 
         return Try(() => configBuilder.Build())
             .Map(config => config.Get<AppConfig>() ?? throw new Exception("AppConfig is null"))
-            .Do(config => Validator.ValidateObject(config, new ValidationContext(config), validateAllProperties: true))
+            .Do(ValidateRecursively)
             .IfFail(ex =>
             {
                 Log.Error(ex, "Failed to read appsettings.json");
                 throw ex;
             });
+    }
+    
+    private static void ValidateRecursively(object obj)
+    {
+        ArgumentNullException.ThrowIfNull(obj);
+
+        Validator.ValidateObject(
+            obj, 
+            new ValidationContext(obj), 
+            validateAllProperties: true
+        );
+        
+        var props = obj.GetType()
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.CanRead && p.GetIndexParameters().Length == 0);
+
+        foreach (var prop in props)
+        {
+            var value = prop.GetValue(obj);
+            if (value.IsNull()) continue;
+            
+            if (value is IEnumerable col && !(value is string))
+            {
+                foreach (var element in col)
+                {
+                    ValidateRecursively(element);
+                }
+            }
+            
+            else if (!prop.PropertyType.IsValueType && prop.PropertyType != typeof(string))
+            {
+                ValidateRecursively(value);
+            }
+        }
     }
 }
 
@@ -121,6 +160,8 @@ public record BanConfig(
     [property: Required(AllowEmptyStrings = false)]
     string BanNoReasonMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string BanAmuletMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string BanReceiverNotSetMessage,
     [property: Required(AllowEmptyStrings = false)]
     string BanAdditionMessage,
@@ -136,7 +177,7 @@ public record RestrictConfig(
     string RestrictClearMessage
 );
 
-public record ReactionSpamConfig(
+public record CurseConfig(
     [property: Required(AllowEmptyStrings = false)]
     string HelpMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -185,6 +226,12 @@ public record CharmConfig(
     int DurationMinutes
 );
 
+public record AmuletConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string AmuletBreaksMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    int MessageExpirationMinutes);
+
 public record ItemConfig(
     Dictionary<MemberItemType, double> ItemChance,
     [property: Required(AllowEmptyStrings = false)]
@@ -193,6 +240,8 @@ public record ItemConfig(
     string GetItemMessage,
     [property: Required(AllowEmptyStrings = false)]
     string MultipleItemMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string AmuletBrokenMessage,
     [property: Required(AllowEmptyStrings = false)]
     string EmptyInventoryMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -233,6 +282,8 @@ public record PremiumConfig(
     [property: Required(AllowEmptyStrings = false)]
     string AddPremiumMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string UpdatePremiumMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string RemovePremiumMessage,
     [property: Required(AllowEmptyStrings = false)]
     string NotPremiumMessage,
@@ -249,4 +300,26 @@ public record HttpConfig(
     int Port,
     [property: Required(AllowEmptyStrings = false)]
     string Host
+);
+
+public record PollPaymentConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string ServiceUrl,
+    [property: Required] int PollIntervalSeconds,
+    [property: Required] 
+    [property: MinLength(1)]
+    System.Collections.Generic.HashSet<ProductListItem>? ProductList
+);
+
+public record ProductListItem(string Regex, ProductType Type);
+
+public record KeycloakConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string ServerUrl,
+    [property: Required(AllowEmptyStrings = false)]
+    string Realm,
+    [property: Required(AllowEmptyStrings = false)]
+    string ClientId,
+    [property: Required(AllowEmptyStrings = false)]
+    string ClientSecret
 );

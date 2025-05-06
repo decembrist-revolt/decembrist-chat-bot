@@ -2,6 +2,7 @@
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using JasperFx.Core;
+using LanguageExt.UnsafeValueAccess;
 using MongoDB.Driver;
 using Serilog;
 using Telegram.Bot;
@@ -86,8 +87,55 @@ public static class UtilsExtensions
         return unit;
     });
 
-    public static TryOptionAsync<T> ToTryOption<T>(this Task<T> task) => TryOptionAsync(task);
+    public static TryAsync<T> Ensure<T>(this TryAsync<T> tryAsync,
+        Func<T, bool> predicate,
+        Func<T, Exception> exceptionFactory) =>
+        tryAsync.Bind(value => predicate(value) ? TryAsyncSucc(value) : TryAsyncFail<T>(exceptionFactory(value)));
 
+    public static TryAsync<T> Ensure<T>(this TryAsync<T> tryAsync,
+        Func<T, bool> predicate,
+        Func<T, string> exceptionMessageFactory) =>
+        tryAsync.Ensure(predicate, value => new Exception(exceptionMessageFactory(value)));
+    
+    public static TryAsync<T> Ensure<T>(this TryAsync<T> tryAsync, Func<T, bool> predicate, Exception exception) => 
+        tryAsync.Ensure(predicate, _ => exception);
+    
+    public static TryAsync<T> Ensure<T>(this TryAsync<T> tryAsync, Func<T, bool> predicate, string exceptionMessage) => 
+        tryAsync.Ensure(predicate, _ => new Exception(exceptionMessage));
+
+    public static TryOptionAsync<T> ToTryOption<T>(this Task<T> task) => TryOptionAsync(task);
+    
+    /// <summary>
+    /// Throws an exception if the given Option is None; otherwise, returns the value.
+    /// </summary>
+    /// <typeparam name="T">The type of the value contained in the Option.</typeparam>
+    /// <param name="option">The Option to evaluate.</param>
+    /// <returns>The value contained in the Option if it is Some.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if the Option is None.</exception>
+    public static T IfNoneThrow<T>(this Option<T> option) => 
+        option.IsSome ? option.ValueUnsafe() : throw new InvalidOperationException("Option is None");
+
+    /// <summary>
+    /// Throws an exception if the given Either is Left; otherwise, returns the Right value.
+    /// </summary>
+    /// <typeparam name="T">The type of the Left value.</typeparam>
+    /// <typeparam name="TR">The type of the Right value.</typeparam>
+    /// <param name="either">The Either to evaluate.</param>
+    /// <returns>The Right value if the Either is Right.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if the Either is Left.</exception>
+    public static TR IfLeftThrow<T, TR>(this Either<T, TR> either) =>
+        either.IsRight ? either.ValueUnsafe() : throw new InvalidOperationException("Either is Left");
+    
+    /// <summary>
+    /// Throws an exception if the given Either is Right; otherwise, returns the Left value.
+    /// /// </summary>
+    /// <typeparam name="T">The type of the Left value.</typeparam>
+    /// <typeparam name="TR">The type of the Right value.</typeparam>
+    /// <param name="either">The Either to evaluate.</param>
+    /// <returns>The Left value if the Either is Left.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if the Either is Right.</exception>
+    public static T IfRightThrow<T, TR>(this Either<T, TR> either) =>
+        either.IsLeft ? either.Swap().ValueUnsafe() : throw new InvalidOperationException("Either is Right");
 
     public static Task<Unit> WhenAll(this IEnumerable<Task> tasks) => Task.WhenAll(tasks).UnitTask();
 
@@ -152,7 +200,8 @@ public static class UtilsExtensions
         });
 
     public static BotCommand[] GetCommandsByLevel(this IEnumerable<ICommandHandler> handlers, CommandLevel level) =>
-        handlers.Where(handler => level.HasFlag(handler.CommandLevel))
+        handlers.Where(handler => handler.CommandLevel != CommandLevel.None)
+            .Where(handler => level.HasFlag(handler.CommandLevel))
             .Select(handler => new BotCommand(handler.Command, handler.Description))
             .OrderBy(command => command.Command)
             .ToArray();

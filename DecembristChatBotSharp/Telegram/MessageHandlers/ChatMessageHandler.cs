@@ -41,7 +41,7 @@ public class ChatMessageHandler(
     RestrictHandler restrictHandler,
     MessageAssistance messageAssistance,
     CharmHandler charmHandler,
-    ReactionSpamHandler reactionSpamHandler,
+    CurseHandler curseHandler,
     WrongCommandHandler wrongCommandHandler
 )
 {
@@ -50,7 +50,7 @@ public class ChatMessageHandler(
         var result = await captchaHandler.Do(parameters);
         if (result == Result.Captcha) return unit;
 
-        await reactionSpamHandler.Do(parameters);
+        await curseHandler.Do(parameters);
         if (await restrictHandler.Do(parameters)) return unit;
         if (await charmHandler.Do(parameters)) return unit;
 

@@ -13,6 +13,18 @@ public class PremiumMemberService(
     CancellationTokenSource cancelToken
 )
 {
+    /// <summary>
+    /// Adds or updates a premium member in the database.
+    /// If the member already exists, their expiration date is extended.
+    /// </summary>
+    /// <param name="chatId">The ID of the chat where the member is being added.</param>
+    /// <param name="telegramId">The Telegram ID of the member.</param>
+    /// <param name="operationType">The type of operation being performed (e.g., add or update).</param>
+    /// <param name="expirationDate">The expiration date of the premium membership.</param>
+    /// <param name="level">The level of the premium membership (default is 1).</param>
+    /// <param name="session">The MongoDB session for the operation (optional).</param>
+    /// <param name="sourceTelegramId">The Telegram ID of the source user (optional).</param>
+    /// <returns>The result of the add operation.</returns>
     public async Task<AddPremiumMemberResult> AddPremiumMember(
         long chatId,
         long telegramId,
@@ -22,21 +34,33 @@ public class PremiumMemberService(
         IMongoSession? session = null,
         long? sourceTelegramId = null)
     {
-        session ??= await db.OpenSession();
-        session.StartTransaction();
-
-        var premiumMember = new PremiumMember((telegramId, chatId), expirationDate, level);
-        var addResult = await premiumMemberRepository.AddPremiumMember(premiumMember, session);
-        if (addResult == AddPremiumMemberResult.Duplicate)
+        if (session == null)
         {
-            Log.Warning("Premium member {0} already exists in chat {1}", telegramId, chatId);
-            await session.TryAbort(cancelToken.Token);
-            return AddPremiumMemberResult.Duplicate;
+            session = await db.OpenSession();
+            session.StartTransaction();
         }
 
-        if (addResult != AddPremiumMemberResult.Success)
+        CompositeId id = (telegramId, chatId);
+        var getResult = await premiumMemberRepository.GetById(id, session);
+        if (getResult.IsLeft)
         {
             await session.TryAbort(cancelToken.Token);
+            var ex = getResult.IfRightThrow();
+            Log.Error(ex, "Failed to get premium member {0} in chat {1}", telegramId, chatId);
+            return AddPremiumMemberResult.Error;
+        }
+
+        var maybeMember = getResult.IfLeftThrow();
+        var member = maybeMember.Map(member => member with
+        {
+            ExpirationDate = expirationDate + (member.ExpirationDate - DateTime.UtcNow)
+        }).IfNone(new PremiumMember((telegramId, chatId), expirationDate, level));
+        var addResult = await premiumMemberRepository.AddPremiumMember(member, session);
+
+        if (addResult == AddPremiumMemberResult.Error)
+        {
+            await session.TryAbort(cancelToken.Token);
+            Log.Warning("Failed to add premium member {0} to chat {1}", telegramId, chatId);
             return AddPremiumMemberResult.Error;
         }
 
@@ -46,12 +70,13 @@ public class PremiumMemberService(
         if (!await session.TryCommit(cancelToken.Token))
         {
             await session.TryAbort(cancelToken.Token);
-            Log.Error("Failed to commit add premium member {0} in chat {1}", telegramId, chatId);
+            Log.Error("Failed to commit {0} premium member {1} in chat {2}", addResult, telegramId, chatId);
             return AddPremiumMemberResult.Error;
         }
 
-        Log.Information("Added premium member {0} to chat {1}", telegramId, chatId);
-        return AddPremiumMemberResult.Success;
+        Log.Information(
+            "{0} premium member {1} to chat {2} exp: {3}", addResult, telegramId, chatId, expirationDate);
+        return addResult;
     }
 
     public async Task<bool> RemovePremiumMember(
@@ -84,4 +109,7 @@ public class PremiumMemberService(
         Log.Information("Removed premium member {0} from chat {1}", telegramId, chatId);
         return true;
     }
+
+    public async Task<bool> IsPremium(long telegramId, long chatId) => 
+        await premiumMemberRepository.IsPremium((telegramId, chatId));
 }

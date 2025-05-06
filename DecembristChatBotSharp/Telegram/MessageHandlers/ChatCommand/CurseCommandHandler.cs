@@ -10,11 +10,11 @@ using Telegram.Bot.Types;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
-public partial class ReactionSpamCommandHandler(
+public partial class CurseCommandHandler(
     BotClient botClient,
     AppConfig appConfig,
     AdminUserRepository adminUserRepository,
-    ReactionSpamRepository reactionSpamRepository,
+    CurseRepository curseRepository,
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
     MemberItemService itemService,
@@ -60,24 +60,25 @@ public partial class ReactionSpamCommandHandler(
         var compositeId = (receiverId, chatId);
         if (isAdmin && text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
         {
-            var isDelete = await reactionSpamRepository.DeleteReactionSpamMember(compositeId);
+            var isDelete = await curseRepository.DeleteCurseMember(compositeId);
             return LogAssistant.LogDeleteResult(isDelete, telegramId, chatId, receiverId, Command);
         }
 
         return await ParseEmoji(text.Trim()).MatchAsync(
-            None: async () => await SendHelpMessageWithLock(chatId, messageId),
+            None: async () => await SendHelpMessageWithLock(chatId),
             Some: async emoji =>
             {
-                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ReactionSpamConfig.DurationMinutes);
+                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.CurseConfig.DurationMinutes);
                 var reactMember = new ReactionSpamMember(compositeId, emoji, expireAt);
 
-                var result = await itemService.UseReactionSpam(chatId, telegramId, reactMember, isAdmin);
+                var result = await itemService.UseCurse(chatId, telegramId, reactMember, isAdmin);
                 return result switch
                 {
-                    ReactionSpamResult.NoItems => await messageAssistance.SendNoItems(chatId),
-                    ReactionSpamResult.Failed => await SendHelpMessageWithLock(chatId, messageId),
-                    ReactionSpamResult.Duplicate => await SendDuplicateMessage(chatId),
-                    ReactionSpamResult.Success => await SendSuccessMessage(compositeId, emoji.Emoji),
+                    CurseResult.NoItems => await messageAssistance.SendNoItems(chatId),
+                    CurseResult.Failed => await SendHelpMessageWithLock(chatId),
+                    CurseResult.Blocked => await messageAssistance.SendAmuletMessage(chatId, receiverId, Command),
+                    CurseResult.Duplicate => await SendDuplicateMessage(chatId),
+                    CurseResult.Success => await SendSuccessMessage(compositeId, emoji.Emoji),
                     _ => unit
                 };
             });
@@ -85,24 +86,24 @@ public partial class ReactionSpamCommandHandler(
 
     private async Task<Unit> SendReceiverNotSet(long chatId)
     {
-        var message = string.Format(appConfig.ReactionSpamConfig.ReceiverNotSetMessage, Command);
+        var message = string.Format(appConfig.CurseConfig.ReceiverNotSetMessage, Command);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
     private async Task<Unit> SendDuplicateMessage(long chatId)
     {
-        var message = appConfig.ReactionSpamConfig.DuplicateMessage;
+        var message = appConfig.CurseConfig.DuplicateMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendHelpMessageWithLock(long chatId, int messageId)
+    private async Task<Unit> SendHelpMessageWithLock(long chatId)
     {
         if (!await lockRepository.TryAcquire(chatId, Command))
         {
             return await messageAssistance.SendCommandNotReady(chatId, Command);
         }
 
-        var message = string.Format(appConfig.ReactionSpamConfig.HelpMessage, Command, EmojisString);
+        var message = string.Format(appConfig.CurseConfig.HelpMessage, Command, EmojisString);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
@@ -112,8 +113,8 @@ public partial class ReactionSpamCommandHandler(
         var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
             .ToAsync()
             .IfNone(receiverId.ToString);
-        var expireAt = appConfig.ReactionSpamConfig.DurationMinutes;
-        var message = string.Format(appConfig.ReactionSpamConfig.SuccessMessage, username, emoji);
+        var expireAt = appConfig.CurseConfig.DurationMinutes;
+        var message = string.Format(appConfig.CurseConfig.SuccessMessage, username, emoji);
         const string logTemplate = "Curse message sent {0} ChatId: {1}, Emoji:{2} Receiver: {3}";
         return await botClient.SendMessageAndLog(chatId, message,
             m =>
