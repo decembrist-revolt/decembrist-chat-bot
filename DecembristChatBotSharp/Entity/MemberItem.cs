@@ -17,6 +17,7 @@ public enum MemberItemType
     // reaction spam
     Curse = 4,
     Charm = 5,
+    Amulet = 6,
 }
 
 public record MemberItemHistoryLogData(

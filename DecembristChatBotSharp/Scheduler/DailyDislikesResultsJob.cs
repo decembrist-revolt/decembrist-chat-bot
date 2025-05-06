@@ -15,7 +15,7 @@ public class DailyDislikesResultsJob(
     MongoDatabase db,
     DislikeRepository dislikeRepository,
     MemberItemRepository memberItemRepository,
-    ReactionSpamRepository reactionSpamRepository,
+    CurseRepository curseRepository,
     HistoryLogRepository historyLogRepository,
     BotClient botClient,
     Random random,
@@ -81,7 +81,7 @@ public class DailyDislikesResultsJob(
         var (topDislikesUserId, dislikers) = (group.DislikeUserId, group.Dislikers);
         var insertResult = await AddCurseTopDislikeUser(chatId, topDislikesUserId, session);
 
-        if (insertResult != ReactionSpamResult.Success)
+        if (insertResult != CurseResult.Success)
         {
             return await AbortSessionWrapper("Failed to add curse to the disliked user for chat {0}");
         }
@@ -130,7 +130,7 @@ public class DailyDislikesResultsJob(
         return unit;
     }
 
-    private async Task<ReactionSpamResult> AddCurseTopDislikeUser(
+    private async Task<CurseResult> AddCurseTopDislikeUser(
         long chatId, long topDislikesUserId, IMongoSession session)
     {
         var emoji = new ReactionTypeEmoji
@@ -139,8 +139,8 @@ public class DailyDislikesResultsJob(
         };
         var expireAt = DateTime.UtcNow.AddMinutes(appConfig.DislikeConfig.EmojiDurationMinutes);
         var curseMember = new ReactionSpamMember((topDislikesUserId, chatId), emoji, expireAt);
-        await reactionSpamRepository.DeleteReactionSpamMember(curseMember.Id, session);
-        var result = await reactionSpamRepository.AddReactionSpamMember(curseMember, session);
+        await curseRepository.DeleteCurseMember(curseMember.Id, session);
+        var result = await curseRepository.AddCurseMember(curseMember, session);
         return result;
     }
 

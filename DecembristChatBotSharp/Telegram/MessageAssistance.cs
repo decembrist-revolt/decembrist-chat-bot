@@ -71,16 +71,18 @@ public class MessageAssistance(
         await botClient.SendMessageAndLog(chatId, appConfig.ItemConfig.NoItemsMessage,
             message =>
             {
-                Log.Information("Sent sticker not found message to chat {0}", chatId);
+                Log.Information("Sent no items message to chat {0}", chatId);
                 expiredMessageRepository.QueueMessage(chatId, message.MessageId);
             },
-            ex => Log.Error(ex, "Failed to send sticker not found message to chat {0}", chatId),
+            ex => Log.Error(ex, "Failed to send no items message to chat {0}", chatId),
             cancelToken.Token);
 
     public async Task<Unit> SendGetItemMessage(long chatId, string username, MemberItemType item, int count = 1)
     {
         var message = string.Format(appConfig.ItemConfig.GetItemMessage, username, item);
         if (count > 1) message += "\n\n" + string.Format(appConfig.ItemConfig.MultipleItemMessage, count);
+        if (count == 0 && item == MemberItemType.Amulet)
+            message += "\n\n" + string.Format(appConfig.ItemConfig.AmuletBrokenMessage);
         return await botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Sent get item message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send get item message to chat {0}", chatId),
@@ -100,6 +102,16 @@ public class MessageAssistance(
                     expiredMessageRepository.QueueMessage(chatId, message.MessageId);
                 },
                 ex => Log.Error(ex, "Failed to send invite to direct message to chat {0}", chatId));
+    }
+
+    public async Task<Unit> SendAmuletMessage(long chatId, long receiverId, string commandName)
+    {
+        var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
+            .ToAsync()
+            .IfNone(receiverId.ToString);
+        var message = string.Format(appConfig.amuletConfig.AmuletBreaksMessage, username, commandName);
+        return await SendCommandResponse(chatId, message, commandName,
+            DateTime.UtcNow.AddMinutes(appConfig.amuletConfig.MessageExpirationMinutes));
     }
 
     public async Task<Unit> SendCommandResponse(

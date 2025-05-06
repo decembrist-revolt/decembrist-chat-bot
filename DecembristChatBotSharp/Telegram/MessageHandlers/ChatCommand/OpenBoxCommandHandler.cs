@@ -48,6 +48,7 @@ public class OpenBoxCommandHandler(
             OpenBoxResult.Failed => await SendFailedToOpenBox(chatId, telegramId),
             OpenBoxResult.Success => await SendBoxResult(itemType, chatId, telegramId),
             OpenBoxResult.SuccessX2 => await SendBoxResult(itemType, chatId, telegramId, 2),
+            OpenBoxResult.AmuletActivated => await SendBoxResult(itemType, chatId, telegramId, 0),
             _ => throw new ArgumentOutOfRangeException()
         };
     }

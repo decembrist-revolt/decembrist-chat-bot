@@ -31,9 +31,10 @@ public record AppConfig(
     CommandConfig CommandConfig,
     RedditConfig RedditConfig,
     RestrictConfig RestrictConfig,
-    ReactionSpamConfig ReactionSpamConfig,
+    CurseConfig CurseConfig,
     DislikeConfig DislikeConfig,
     CharmConfig CharmConfig,
+    AmuletConfig amuletConfig,
     ItemConfig ItemConfig,
     PollPaymentConfig? PollPaymentConfig,
     KeycloakConfig? KeycloakConfig = null,
@@ -159,6 +160,8 @@ public record BanConfig(
     [property: Required(AllowEmptyStrings = false)]
     string BanNoReasonMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string BanAmuletMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string BanReceiverNotSetMessage,
     [property: Required(AllowEmptyStrings = false)]
     string BanAdditionMessage,
@@ -174,7 +177,7 @@ public record RestrictConfig(
     string RestrictClearMessage
 );
 
-public record ReactionSpamConfig(
+public record CurseConfig(
     [property: Required(AllowEmptyStrings = false)]
     string HelpMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -223,6 +226,12 @@ public record CharmConfig(
     int DurationMinutes
 );
 
+public record AmuletConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string AmuletBreaksMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    int MessageExpirationMinutes);
+
 public record ItemConfig(
     Dictionary<MemberItemType, double> ItemChance,
     [property: Required(AllowEmptyStrings = false)]
@@ -231,6 +240,8 @@ public record ItemConfig(
     string GetItemMessage,
     [property: Required(AllowEmptyStrings = false)]
     string MultipleItemMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string AmuletBrokenMessage,
     [property: Required(AllowEmptyStrings = false)]
     string EmptyInventoryMessage,
     [property: Required(AllowEmptyStrings = false)]

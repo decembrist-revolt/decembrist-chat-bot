@@ -6,16 +6,16 @@ using Serilog;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
-public class ReactionSpamHandler(
+public class CurseHandler(
     BotClient botClient,
-    ReactionSpamRepository db,
+    CurseRepository db,
     CancellationTokenSource cancelToken)
 {
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
 
-        return await db.GetReactionSpamMember(new(telegramId, chatId))
+        return await db.GetCurseMember(new(telegramId, chatId))
             .MatchAsync(member => SetReaction(member, messageId),
             () => false);
     }
