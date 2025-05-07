@@ -5,6 +5,7 @@ using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
+using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace DecembristChatBotSharp.Telegram;
@@ -117,4 +118,48 @@ public class MessageAssistance(
             ex => Log.Error(ex, "Failed to send response to command: {0} from {1} to chat {2}",
                 commandName, callerName, chatId),
             cancelToken.Token);
+
+    public async Task<Unit> SendMessageWithMarkup(
+        long chatId,
+        string message,
+        ReplyMarkup replyMarkup,
+        string commandName,
+        ParseMode parseMode = ParseMode.None,
+        [CallerMemberName] string callerName = "UnknownCaller") =>
+        await botClient.SendMessageAndLog(chatId, message,
+            message =>
+            {
+                Log.Information("Sent markup message:'{0}' from {1} to chat {2}", commandName, callerName, chatId);
+            },
+            ex => Log.Error(ex, "Failed to send markup message: {0} from {1} to chat {2}",
+                commandName, callerName, chatId),
+            cancelToken.Token, replyMarkup, parseMode);
+
+    public async Task<Unit> EditMessageAndLog(
+        long chatId,
+        int messageId,
+        string message,
+        InlineKeyboardMarkup? replyMarkup = null,
+        ParseMode parseMode = ParseMode.None,
+        [CallerMemberName] string callerName = "UnknownCaller") =>
+        await botClient.EditMessageAndLog(chatId, messageId, message,
+            _ =>
+                Log.Information("Edit message: from: {0}, message: {1}, chat:{2}", callerName, messageId, chatId),
+            ex =>
+                Log.Error(ex, "Failed to edit message: from {0}, message:{1} to chat {2}", callerName, messageId,
+                    chatId),
+            cancelToken: cancelToken.Token,
+            parseMode: parseMode,
+            replyMarkup
+        );
+
+    public async Task<Unit> EditProfileMessage(
+        long telegramId, long chatId, int messageId, InlineKeyboardMarkup replyMarkup, string text)
+    {
+        var chatTitle = await botClient.GetChatTitleOrId(chatId, cancelToken.Token);
+        var message = string.Format(appConfig.MenuConfig.ProfileTitle, chatTitle, text);
+        return await EditMessageAndLog(telegramId, messageId, message,
+            replyMarkup: replyMarkup,
+            parseMode: ParseMode.MarkdownV2);
+    }
 }

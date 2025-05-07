@@ -1,5 +1,4 @@
-﻿using System.Linq.Expressions;
-using DecembristChatBotSharp.Entity;
+﻿using DecembristChatBotSharp.Entity;
 using Lamar;
 using MongoDB.Driver;
 using Serilog;
@@ -7,26 +6,26 @@ using Serilog;
 namespace DecembristChatBotSharp.Mongo;
 
 [Singleton]
-public class LorRecordRepository(
+public class LoreRecordRepository(
     MongoDatabase db,
     AppConfig appConfig,
     CancellationTokenSource cancelToken) : IRepository
 {
-    public async Task<bool> AddLorRecord(
-        LorRecord.CompositeId id,
+    public async Task<bool> AddLoreRecord(
+        LoreRecord.CompositeId id,
         long telegramId,
         string? content = null,
-        IClientSessionHandle? session = null)
+        IMongoSession? session = null)
     {
         var collection = GetCollection();
 
-        var update = Builders<LorRecord>.Update
-            .Set(x => x.Content, content ?? appConfig.LorConfig.ContentDefault)
-            .AddToSet(x => x.authorsId, telegramId);
+        var update = Builders<LoreRecord>.Update
+            .Set(x => x.Content, content ?? appConfig.LoreConfig.ContentDefault)
+            .AddToSet(x => x.authorIds, telegramId);
 
         var options = new UpdateOptions { IsUpsert = true };
 
-        var filter = Builders<LorRecord>.Filter.Eq(x => x.Id, id);
+        var filter = Builders<LoreRecord>.Filter.Eq(x => x.Id, id);
         var updateTask = not(session.IsNull())
             ? collection.UpdateOneAsync(session, filter, update, options, cancelToken.Token)
             : collection.UpdateOneAsync(filter, update, options, cancelToken.Token);
@@ -40,7 +39,7 @@ public class LorRecordRepository(
             });
     }
 
-    public Task<bool> IsLorRecordExist(LorRecord.CompositeId id)
+    public Task<bool> IsLoreRecordExist(LoreRecord.CompositeId id)
     {
         var collection = GetCollection();
 
@@ -55,7 +54,7 @@ public class LorRecordRepository(
             });
     }
 
-    public async Task<Option<LorRecord>> GetLorRecord(LorRecord.CompositeId id) => await GetCollection()
+    public async Task<Option<LoreRecord>> GetLoreRecord(LoreRecord.CompositeId id) => await GetCollection()
         .Find(m => m.Id == id)
         .SingleOrDefaultAsync(cancelToken.Token)
         .ToTryAsync()
@@ -66,7 +65,7 @@ public class LorRecordRepository(
                 return None;
             });
 
-    public async Task<bool> DeleteLogRecord(LorRecord.CompositeId id) =>
+    public async Task<bool> DeleteLogRecord(LoreRecord.CompositeId id) =>
         await GetCollection().DeleteOneAsync(m => m.Id == id, cancelToken.Token)
             .ToTryAsync()
             .Match(
@@ -77,5 +76,5 @@ public class LorRecordRepository(
                     return false;
                 });
 
-    private IMongoCollection<LorRecord> GetCollection() => db.GetCollection<LorRecord>(nameof(LorRecord));
+    private IMongoCollection<LoreRecord> GetCollection() => db.GetCollection<LoreRecord>(nameof(LoreRecord));
 }

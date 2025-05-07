@@ -7,6 +7,7 @@ using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace DecembristChatBotSharp;
 
@@ -17,6 +18,7 @@ public static class UtilsExtensions
     public static Task<Unit> UnitTask(this Task? task) => task?.ContinueWith(_ => unit) ?? Task.FromResult(unit);
 
     public static Unit Ignore(this object any) => unit;
+
 
     public static Task<Unit> SendMessageAndLog(
         this BotClient botClient,
@@ -54,6 +56,35 @@ public static class UtilsExtensions
             cancellationToken: cancelToken)
         .ToTryAsync()
         .Match(onSent, onError);
+
+    public static Task<Unit> SendMessageAndLog(
+        this BotClient botClient,
+        long chatId,
+        string message,
+        Action<Message> onSent,
+        Action<Exception> onError,
+        CancellationToken cancelToken,
+        ReplyMarkup replyMarkup,
+        ParseMode parseMode = ParseMode.None) =>
+        botClient.SendMessage(chatId, message, parseMode: parseMode, replyMarkup: replyMarkup,
+                cancellationToken: cancelToken)
+            .ToTryAsync()
+            .Match(onSent, onError);
+
+    public static Task<Unit> EditMessageAndLog(
+        this BotClient botClient,
+        long chatId,
+        int messageId,
+        string message,
+        Action<Message> onEdit,
+        Action<Exception> onError,
+        CancellationToken cancelToken,
+        ParseMode parseMode = ParseMode.None,
+        InlineKeyboardMarkup? replyMarkup = null) =>
+        botClient.EditMessageText(chatId, messageId, message,
+                replyMarkup: replyMarkup, parseMode: parseMode, cancellationToken: cancelToken)
+            .ToTryAsync()
+            .Match(onEdit, onError);
 
     public static Task<Unit> DeleteMessageAndLog(
         this BotClient botClient,

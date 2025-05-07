@@ -6,13 +6,13 @@ public record LorUser(
     [property: BsonId] CompositeId Id
 );
 
-public record LorRecord(
-    [property: BsonId] LorRecord.CompositeId Id,
-    long[] authorsId,
+public record LoreRecord(
+    [property: BsonId] LoreRecord.CompositeId Id,
+    long[] authorIds,
     string Content
 )
 {
-    public record CompositeId(long ChatId, string Record)
+    public record CompositeId(long ChatId, string Key)
     {
         public static implicit operator CompositeId((long, string) tuple) => new(tuple.Item1, tuple.Item2);
     }

@@ -15,7 +15,7 @@ public class PrivateMessageHandler(
     MessageAssistance messageAssistance,
     InventoryService inventoryService,
     ProfileService profileService,
-    LorReplyHandler lorReplyHandler,
+    LoreReplyHandler loreReplyHandler,
     CancellationTokenSource cancelToken)
 {
     public const string StartCommand = "/start";
@@ -45,7 +45,7 @@ public class PrivateMessageHandler(
             MessageType.Text when message.Text is { } text && text.StartsWith(FastReplyHandler.StickerPrefix) =>
                 SendSticker(chatId, text[FastReplyHandler.StickerPrefix.Length..]),
             MessageType.Text when message is { Text: not null, ReplyToMessage.Text: { } replyText }
-                                  && replyText.Contains(LorReplyHandler.LorTag) => await lorReplyHandler.Do(message),
+                                  && replyText.Contains(LoreReplyHandler.LoreTag) => await loreReplyHandler.Do(message),
             MessageType.ChatShared when message.ChatShared is { ChatId: var sharedChatId } =>
                 await SendProfile(sharedChatId, chatId),
             _ => TryAsync(botClient.SendMessage(chatId, "OK", cancellationToken: cancelToken.Token))

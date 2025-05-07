@@ -1,11 +1,12 @@
 ﻿using System.Runtime.CompilerServices;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
 
 namespace DecembristChatBotSharp.Telegram;
 
 [Singleton]
-public class LogAssistant
+public static class LogAssistant
 {
     public static Unit LogDeleteResult(
         bool isDelete,
@@ -27,5 +28,32 @@ public class LogAssistant
         }
 
         return unit;
+    }
+
+    public static LoreResult LogLore(this LoreResult result,
+        long telegramId,
+        long chatId,
+        string key,
+        string content = "-",
+        [CallerMemberName] string callerName = "UnknownCaller")
+    {
+        switch (result)
+        {
+            case LoreResult.Success:
+                Log.Information("Lore operation SUCCESS: from: {0}, key: {1}, content:{2}, chat: {3}, by: {4}",
+                    callerName, key, content, chatId, telegramId);
+                break;
+            case LoreResult.Failed:
+                Log.Error("Lore operation FAILED: reason: {0}, from: {1}, key: {2}, content:{3}, chat: {4}, by: {5}",
+                    result, callerName, key, content, chatId, telegramId);
+                break;
+            default:
+                Log.Information(
+                    "Lore operation FAILED: reason: {0}, from: {1}, key: {2}, content:{3}, chat: {4}, by: {5}",
+                    result, callerName, key, content, chatId, telegramId);
+                break;
+        }
+
+        return result;
     }
 }
