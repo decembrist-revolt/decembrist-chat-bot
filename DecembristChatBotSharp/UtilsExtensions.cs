@@ -38,8 +38,10 @@ public static class UtilsExtensions
         ParseMode parseMode,
         Action<Message> onSent,
         Action<Exception> onError,
-        CancellationToken cancelToken) =>
-        botClient.SendMessage(chatId, message, parseMode: parseMode, cancellationToken: cancelToken)
+        CancellationToken cancelToken,
+        ReplyMarkup? replyMarkup = null) =>
+        botClient.SendMessage(chatId, message, parseMode: parseMode, replyMarkup: replyMarkup,
+                cancellationToken: cancelToken)
             .ToTryAsync()
             .Match(onSent, onError);
 
@@ -57,20 +59,6 @@ public static class UtilsExtensions
             cancellationToken: cancelToken)
         .ToTryAsync()
         .Match(onSent, onError);
-
-    public static Task<Unit> SendMessageAndLog(
-        this BotClient botClient,
-        long chatId,
-        string message,
-        Action<Message> onSent,
-        Action<Exception> onError,
-        CancellationToken cancelToken,
-        ReplyMarkup replyMarkup,
-        ParseMode parseMode = ParseMode.None) =>
-        botClient.SendMessage(chatId, message, parseMode: parseMode, replyMarkup: replyMarkup,
-                cancellationToken: cancelToken)
-            .ToTryAsync()
-            .Match(onSent, onError);
 
     public static Task<Unit> EditMessageAndLog(
         this BotClient botClient,

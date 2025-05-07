@@ -2,7 +2,6 @@
 using Lamar;
 using Telegram.Bot;
 using Telegram.Bot.Types;
-using Telegram.Bot.Types.ReplyMarkups;
 using static DecembristChatBotSharp.Service.ProfileService;
 using static Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton;
 
@@ -68,15 +67,15 @@ public class PrivateCallbackHandler(
     {
         var message = string.Format(appConfig.LoreConfig.EditRequest,
             LoreService.GetLoreTag(LoreReplyHandler.LorEditSuffix, targetChatId));
-        return messageAssistance.SendMessageWithMarkup(
-            chatId, message, replyMarkup: loreService.GetKeyTip(), nameof(PrivateMessageHandler));
+        return messageAssistance.SendCommandResponse(
+            chatId, message, nameof(PrivateMessageHandler), replyMarkup: loreService.GetKeyTip());
     }
 
     private Task<Unit> SendRequestLorKey(long targetChatId, long chatId)
     {
         var message = string.Format(appConfig.LoreConfig.KeyRequest,
             LoreService.GetLoreTag(LoreReplyHandler.LorCreateSuffix, targetChatId));
-        return messageAssistance.SendMessageWithMarkup(
-            chatId, message, replyMarkup: loreService.GetKeyTip(), nameof(PrivateMessageHandler));
+        return messageAssistance.SendCommandResponse(
+            chatId, message, nameof(PrivateMessageHandler), replyMarkup: loreService.GetKeyTip());
     }
 }

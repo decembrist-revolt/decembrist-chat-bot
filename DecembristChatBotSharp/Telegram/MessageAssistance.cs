@@ -120,8 +120,10 @@ public class MessageAssistance(
         string message,
         string commandName,
         DateTime? expirationDate = null,
+        ReplyMarkup? replyMarkup = null,
+        ParseMode parseMode = ParseMode.None,
         [CallerMemberName] string callerName = "UnknownCaller") =>
-        await botClient.SendMessageAndLog(chatId, message,
+        await botClient.SendMessageAndLog(chatId, message, parseMode,
             message =>
             {
                 Log.Information("Sent response to command:'{0}' from {1} to chat {2}", commandName, callerName, chatId);
@@ -129,23 +131,7 @@ public class MessageAssistance(
             },
             ex => Log.Error(ex, "Failed to send response to command: {0} from {1} to chat {2}",
                 commandName, callerName, chatId),
-            cancelToken.Token);
-
-    public async Task<Unit> SendMessageWithMarkup(
-        long chatId,
-        string message,
-        ReplyMarkup replyMarkup,
-        string commandName,
-        ParseMode parseMode = ParseMode.None,
-        [CallerMemberName] string callerName = "UnknownCaller") =>
-        await botClient.SendMessageAndLog(chatId, message,
-            message =>
-            {
-                Log.Information("Sent markup message:'{0}' from {1} to chat {2}", commandName, callerName, chatId);
-            },
-            ex => Log.Error(ex, "Failed to send markup message: {0} from {1} to chat {2}",
-                commandName, callerName, chatId),
-            cancelToken.Token, replyMarkup, parseMode);
+            cancelToken.Token, replyMarkup);
 
     public async Task<Unit> EditMessageAndLog(
         long chatId,
@@ -172,8 +158,9 @@ public class MessageAssistance(
         var message = string.Format(appConfig.MenuConfig.ProfileTitle, chatTitle, text);
         return await EditMessageAndLog(telegramId, messageId, message,
             replyMarkup: replyMarkup,
-            parseMode: ParseMode.MarkdownV2);}
-    
+            parseMode: ParseMode.MarkdownV2);
+    }
+
     public async Task<Unit> SendAddPremiumMessage(long chatId, long telegramId, int days)
     {
         var maybeUsername = await botClient.GetUsername(chatId, telegramId, cancelToken.Token);
