@@ -52,7 +52,7 @@ public partial class LoreCommandHandler(
 
     private async Task<Unit> SendNotFound(long chatId)
     {
-        var message = appConfig.LoreConfig.LoreNotFound;
+        var message = string.Format(appConfig.LoreConfig.LoreNotFound, Command);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 }

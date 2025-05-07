@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Service;
+using DecembristChatBotSharp.Telegram.CallbackHandlers;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
 using Serilog;

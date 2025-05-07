@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Service;
+using DecembristChatBotSharp.Telegram.LoreHandlers;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
@@ -15,16 +16,18 @@ public class PrivateMessageHandler(
     MessageAssistance messageAssistance,
     InventoryService inventoryService,
     ProfileService profileService,
-    LoreReplyHandler loreReplyHandler,
+    LoreHandler loreHandler,
     CancellationTokenSource cancelToken)
 {
     public const string StartCommand = "/start";
+    public const string SplitSymbol = "=";
     public const string ProfileCommand = "/profile";
-    public const string InventoryCommandSuffix = "getInventoryForChat=";
+    public const string InventoryCommandSuffix = "getInventoryForChat";
 
     private const string MeCommand = "/me";
     private const string StatusCommand = "/status";
-    private const string InventoryCommand = StartCommand + " " + InventoryCommandSuffix;
+    private const string InventoryCommand = StartCommand + " " + InventoryCommandSuffix + SplitSymbol;
+    public static string GetCommandForChat(string command, long chatId) => command + SplitSymbol + chatId;
 
     public async Task<Unit> Do(Message message)
     {
@@ -45,7 +48,7 @@ public class PrivateMessageHandler(
             MessageType.Text when message.Text is { } text && text.StartsWith(FastReplyHandler.StickerPrefix) =>
                 SendSticker(chatId, text[FastReplyHandler.StickerPrefix.Length..]),
             MessageType.Text when message is { Text: not null, ReplyToMessage.Text: { } replyText }
-                                  && replyText.Contains(LoreReplyHandler.LoreTag) => await loreReplyHandler.Do(message),
+                                  && replyText.Contains(LoreHandler.Tag) => await loreHandler.Do(message),
             MessageType.ChatShared when message.ChatShared is { ChatId: var sharedChatId } =>
                 await SendProfile(sharedChatId, chatId),
             _ => TryAsync(botClient.SendMessage(chatId, "OK", cancellationToken: cancelToken.Token))
@@ -63,7 +66,6 @@ public class PrivateMessageHandler(
         var markup = await profileService.GetProfileMarkup(privateChatId, chatId);
         return TryAsync(botClient.SendMessage(privateChatId, message,
             replyMarkup: markup,
-            parseMode: ParseMode.MarkdownV2,
             cancellationToken: cancelToken.Token));
     }
 

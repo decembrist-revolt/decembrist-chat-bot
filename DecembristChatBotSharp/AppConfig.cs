@@ -153,15 +153,19 @@ public record LoreConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ChatTemplate,
     [property: Required(AllowEmptyStrings = false)]
+    string EditTemplate,
+    [property: Required(AllowEmptyStrings = false)]
     string ChatFailed,
     [property: Required(AllowEmptyStrings = false)]
     string LoreNotFound,
     [property: Required(AllowEmptyStrings = false)]
     string KeyRequest,
     [property: Required(AllowEmptyStrings = false)]
-    string EditRequest,
+    string DeleteRequest,
     [property: Required(AllowEmptyStrings = false)]
-    string KeyDuplicate,
+    string MessageExpired,
+    [property: Required(AllowEmptyStrings = false)]
+    string DeleteSuccess,
     [property: Required(AllowEmptyStrings = false)]
     string LoreHelp,
     [property: Required(AllowEmptyStrings = false)]
@@ -179,6 +183,7 @@ public record LoreConfig(
     [property: Required(AllowEmptyStrings = false)]
     string PrivateFailed,
     [property: Range(1, int.MaxValue)] int ContentEditExpiration,
+    [property: Range(1, int.MaxValue)] int DeleteExpiration,
     [property: Range(1, int.MaxValue)] int ChatLoreExpiration,
     [property: Range(1, int.MaxValue)] int ContentLimit,
     [property: Range(1, int.MaxValue)] int KeyLimit

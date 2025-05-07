@@ -1,7 +1,8 @@
 ﻿using DecembristChatBotSharp.Mongo;
-using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
 using Telegram.Bot.Types.ReplyMarkups;
+using static DecembristChatBotSharp.Telegram.CallbackHandlers.ProfileCallbackHandler;
+using static DecembristChatBotSharp.Telegram.MessageHandlers.PrivateMessageHandler;
 using static Telegram.Bot.Types.ReplyMarkups.InlineKeyboardButton;
 
 namespace DecembristChatBotSharp.Service;
@@ -11,21 +12,19 @@ public class ProfileService(
     LoreUserRepository loreUserRepository,
     AdminUserRepository adminUserRepository)
 {
-    public const string LorViewCallback = "lorForChat=";
-    public const string CreateLoreCallback = "createLorForChat=";
-    public const string EditLoreCallback = "editLorForChat=";
-    public const string BackCallback = "goBack=";
+    public static string GetProfileCallback(string callback, long chatId) =>
+        Prefix + SplitSymbol + callback + SplitSymbol + chatId;
 
     public async Task<InlineKeyboardMarkup> GetProfileMarkup(long telegramId, long chatId)
     {
         var markup = new List<InlineKeyboardButton[]>();
         markup.Add([
-            WithCallbackData("Inventory", PrivateMessageHandler.InventoryCommandSuffix + chatId),
+            WithCallbackData("Inventory", GetProfileCallback(InventoryCommandSuffix, chatId)),
         ]);
         var id = (telegramId, chatId);
         if (await loreUserRepository.IsLoreUser(id) || await adminUserRepository.IsAdmin(id))
         {
-            markup.Add([WithCallbackData("Lor", LorViewCallback + chatId),]);
+            markup.Add([WithCallbackData("Lor", GetProfileCallback(LorViewCallback, chatId)),]);
         }
 
         return new InlineKeyboardMarkup(markup);
@@ -35,9 +34,14 @@ public class ProfileService(
     {
         InlineKeyboard =
         [
-            [WithCallbackData("Create Lore", CreateLoreCallback + chatId)],
-            [WithCallbackData("Edit Lore", EditLoreCallback + chatId)],
-            [WithCallbackData("Back", BackCallback + chatId)]
+            [WithCallbackData("Create Lore", GetProfileCallback(CreateLoreCallback, chatId))],
+            [WithCallbackData("Delete Lore", GetProfileCallback(DeleteLoreCallback, chatId))],
+            GetBackButton(chatId)
         ]
     };
+
+    public static InlineKeyboardButton[] GetBackButton(long chatId) =>
+    [
+        WithCallbackData("Back", GetProfileCallback(BackCallback, chatId))
+    ];
 }

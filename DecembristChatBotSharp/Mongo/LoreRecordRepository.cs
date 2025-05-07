@@ -1,6 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
 using Lamar;
-using LanguageExt.Common;
 using MongoDB.Driver;
 using Serilog;
 

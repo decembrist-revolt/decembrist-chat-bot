@@ -156,9 +156,7 @@ public class MessageAssistance(
     {
         var chatTitle = await botClient.GetChatTitleOrId(chatId, cancelToken.Token);
         var message = string.Format(appConfig.MenuConfig.ProfileTitle, chatTitle, text);
-        return await EditMessageAndLog(telegramId, messageId, message,
-            replyMarkup: replyMarkup,
-            parseMode: ParseMode.MarkdownV2);
+        return await EditMessageAndLog(telegramId, messageId, message, replyMarkup: replyMarkup);
     }
 
     public async Task<Unit> SendAddPremiumMessage(long chatId, long telegramId, int days)

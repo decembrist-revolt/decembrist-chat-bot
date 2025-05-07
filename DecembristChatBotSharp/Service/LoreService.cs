@@ -1,5 +1,5 @@
 ﻿using DecembristChatBotSharp.Mongo;
-using DecembristChatBotSharp.Telegram.MessageHandlers;
+using DecembristChatBotSharp.Telegram.LoreHandlers;
 using Lamar;
 using Telegram.Bot.Types.ReplyMarkups;
 
@@ -36,10 +36,14 @@ public class LoreService(
         return isAdd ? LoreResult.Success : LoreResult.Failed;
     }
 
-    public async Task<LoreResult> ValidateKeyEdit(string key, long loreChatId) =>
-        await loreRecordRepository.IsLoreRecordExist((loreChatId, key))
+    public async Task<LoreResult> DeleteLoreRecord(string key, long loreChatId, DateTime date)
+    {
+        if ((DateTime.UtcNow - date).TotalMinutes > appConfig.LoreConfig.DeleteExpiration)
+            return LoreResult.Expire;
+        return await loreRecordRepository.DeleteLogRecord((loreChatId, key))
             ? LoreResult.Success
             : LoreResult.NotFound;
+    }
 
     public async Task<string> GetLoreRecord(long chatId, string key)
     {
@@ -62,7 +66,7 @@ public class LoreService(
     };
 
     public static string GetLoreTag(string suffix, long targetChatId, string key = "") =>
-        $"\n{LoreReplyHandler.LoreTag}{suffix}:{key}:{targetChatId}";
+        $"\n{LoreHandler.Tag}{suffix}:{key}:{targetChatId}";
 }
 
 public enum LoreResult
