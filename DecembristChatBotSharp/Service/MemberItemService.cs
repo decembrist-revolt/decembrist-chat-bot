@@ -1,5 +1,8 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using System.Runtime.CompilerServices;
+using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Telegram;
+using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Lamar;
 using Serilog;
 
@@ -12,9 +15,11 @@ public class MemberItemService(
     MemberItemRepository memberItemRepository,
     HistoryLogRepository historyLogRepository,
     FastReplyRepository fastReplyRepository,
-    ReactionSpamRepository reactionSpamRepository,
+    CurseRepository curseRepository,
     CharmRepository charmRepository,
     RedditService redditService,
+    MessageAssistance messageAssistance,
+    Random random,
     TelegramPostService telegramPostService,
     CancellationTokenSource cancelToken)
 {
@@ -25,42 +30,20 @@ public class MemberItemService(
 
         var hasBox = await memberItemRepository.RemoveMemberItem(chatId, telegramId, MemberItemType.Box, session);
 
-        if (!hasBox)
-        {
-            await session.AbortTransactionAsync(cancelToken.Token);
-            Log.Information("{0} tried to open non-existent box in chat {1}", telegramId, chatId);
-            return (None, OpenBoxResult.NoItems);
-        }
+        if (!hasBox) return (None, await AbortSessionAndLog(OpenBoxResult.NoItems, chatId, telegramId, session));
 
         await historyLogRepository.LogItem(
             chatId, telegramId, MemberItemType.Box, -1, MemberItemSourceType.Use, session);
 
         var itemType = GetRandomItem();
-
-        var success = await memberItemRepository.AddMemberItem(chatId, telegramId, itemType, session);
-        var isBox = itemType == MemberItemType.Box;
-        if (isBox && success)
+        return itemType switch
         {
-            // If the item is a box, we need to add one more box
-            success = await memberItemRepository.AddMemberItem(chatId, telegramId, MemberItemType.Box, session);
-        }
-
-        if (success)
-        {
-            var numberItems = isBox ? 2 : 1;
-            await historyLogRepository.LogItem(
-                chatId, telegramId, itemType, numberItems, MemberItemSourceType.Box, session);
-            if (await session.TryCommit(cancelToken.Token))
-            {
-                Log.Information("{0} opened box and got {1} in chat {2}", telegramId, itemType, chatId);
-                var result = numberItems == 2 ? OpenBoxResult.SuccessX2 : OpenBoxResult.Success;
-                return (Some(itemType),result);
-            }
-        }
-
-        await session.TryAbort(cancelToken.Token);
-        Log.Error("Failed to open box for {0} in chat {1}", telegramId, chatId);
-        return (None, OpenBoxResult.Failed);
+            MemberItemType.Box => await HandleItemType(
+                chatId, telegramId, itemType, 2, OpenBoxResult.SuccessX2, session),
+            MemberItemType.Amulet when await HandleAmuletItem((telegramId, chatId), session) =>
+                await HandleItemType(chatId, telegramId, itemType, 0, OpenBoxResult.AmuletActivated, session),
+            _ => await HandleItemType(chatId, telegramId, itemType, 1, OpenBoxResult.Success, session)
+        };
     }
 
     public async Task<UseFastReplyResult> UseFastReply(long chatId, long telegramId, FastReply fastReply, bool isAdmin)
@@ -71,12 +54,7 @@ public class MemberItemService(
         var hasItem = isAdmin || await memberItemRepository
             .RemoveMemberItem(chatId, telegramId, MemberItemType.FastReply, session);
 
-        if (!hasItem)
-        {
-            await session.TryAbort(cancelToken.Token);
-            Log.Information("{0} tried to use non-existent fast reply in chat {1}", telegramId, chatId);
-            return UseFastReplyResult.NoItems;
-        }
+        if (!hasItem) return await AbortSessionAndLog(UseFastReplyResult.NoItems, chatId, telegramId, session);
 
         await historyLogRepository.LogItem(
             chatId, telegramId, MemberItemType.FastReply, -1, MemberItemSourceType.Use, session);
@@ -94,13 +72,10 @@ public class MemberItemService(
                     fastReply.Id.Message, chatId);
                 return UseFastReplyResult.Failed;
             case FastReplyRepository.InsertResult.Failed:
-                await session.TryAbort(cancelToken.Token);
-                Log.Error("Failed to use fast reply for {0} in chat {1}", telegramId, chatId);
-                return UseFastReplyResult.Failed;
+                return await AbortSessionAndLog(UseFastReplyResult.Failed, chatId, telegramId,
+                    reason: nameof(addResult), session);
             case FastReplyRepository.InsertResult.Duplicate:
-                await session.TryAbort(cancelToken.Token);
-                Log.Information("{0} tried to use duplicate fast reply in chat {1}", telegramId, chatId);
-                return UseFastReplyResult.Duplicate;
+                return await AbortSessionAndLog(UseFastReplyResult.Duplicate, chatId, telegramId, session);
             default:
                 throw new ArgumentOutOfRangeException();
         }
@@ -194,12 +169,16 @@ public class MemberItemService(
         });
     }
 
-    public async Task<bool> GiveItem(long chatId, long telegramId, long adminTelegramId, MemberItemType type)
+    public async Task<bool> GiveItem(
+        long chatId, long telegramId, long adminTelegramId, MemberItemType type, int countItems = 1)
     {
         using var session = await db.OpenSession();
         session.StartTransaction();
 
-        var success = await memberItemRepository.AddMemberItem(chatId, telegramId, type, session);
+        var isAmuletActivated = type == MemberItemType.Amulet && await HandleAmuletItem((telegramId, chatId), session);
+        countItems = isAmuletActivated ? countItems - 1 : countItems;
+        var success = (isAmuletActivated && countItems <= 0) ||
+                      await memberItemRepository.AddMemberItem(chatId, telegramId, type, session, countItems);
 
         if (!success)
         {
@@ -209,7 +188,7 @@ public class MemberItemService(
         }
 
         await historyLogRepository.LogItem(
-            chatId, telegramId, type, 1, MemberItemSourceType.Admin, session, adminTelegramId);
+            chatId, telegramId, type, countItems, MemberItemSourceType.Admin, session, adminTelegramId);
 
         if (await session.TryCommit(cancelToken.Token))
         {
@@ -222,7 +201,7 @@ public class MemberItemService(
         return false;
     }
 
-    public async Task<ReactionSpamResult> UseReactionSpam(
+    public async Task<CurseResult> UseCurse(
         long chatId, long telegramId, ReactionSpamMember member, bool isAdmin)
     {
         using var session = await db.OpenSession();
@@ -230,36 +209,27 @@ public class MemberItemService(
 
         var hasItem = isAdmin || await memberItemRepository
             .RemoveMemberItem(chatId, telegramId, MemberItemType.Curse, session);
-        if (!hasItem)
-        {
-            await session.TryAbort(cancelToken.Token);
-            Log.Information("{0} tried to use non-existent reaction spam in chat {1}", telegramId, chatId);
-            return ReactionSpamResult.NoItems;
-        }
+        var maybeResult = !hasItem ? CurseResult.NoItems : await HandleItem(session);
 
-        var maybeResult = await reactionSpamRepository.AddReactionSpamMember(member, session);
-
-        await historyLogRepository.LogItem(
-            chatId, telegramId, MemberItemType.Curse, -1, MemberItemSourceType.Use, session);
-        switch (maybeResult)
+        return maybeResult switch
         {
-            case ReactionSpamResult.Success when await session.TryCommit(cancelToken.Token):
-                Log.Information("{0} used reaction spam in chat {1}", telegramId, chatId);
-                return ReactionSpamResult.Success;
-            case ReactionSpamResult.Success:
-                await session.TryAbort(cancelToken.Token);
-                Log.Error("{0} failed to commit use reaction spam item in chat {1}", telegramId, chatId);
-                return ReactionSpamResult.Failed;
-            case ReactionSpamResult.Failed:
-                await session.TryAbort(cancelToken.Token);
-                Log.Error("Failed to use reaction spam item for {0} in chat {1}", telegramId, chatId);
-                return ReactionSpamResult.Failed;
-            case ReactionSpamResult.Duplicate:
-                await session.TryAbort(cancelToken.Token);
-                Log.Information("{0} tried to use duplicate curse in chat {1}", telegramId, chatId);
-                return ReactionSpamResult.Duplicate;
-            default:
-                throw new ArgumentOutOfRangeException();
+            CurseResult.Success or CurseResult.Blocked => await HandleSuccessUsingItem(maybeResult, CurseResult.Failed,
+                session, chatId, telegramId),
+            CurseResult.Failed => await AbortSessionAndLog(CurseResult.Failed, chatId, telegramId,
+                reason: nameof(CurseResult.Failed), session),
+            CurseResult.NoItems or CurseResult.Duplicate => await AbortSessionAndLog(maybeResult, chatId, telegramId,
+                session),
+            _ => throw new ArgumentOutOfRangeException()
+        };
+
+        async Task<CurseResult> HandleItem(IMongoSession localSession)
+        {
+            var targetHasAmulet = await CheckAmulet(chatId, member.Id.TelegramId, localSession);
+            await historyLogRepository.LogItem(
+                chatId, telegramId, MemberItemType.Curse, -1, MemberItemSourceType.Use, localSession);
+            return targetHasAmulet
+                ? CurseResult.Blocked
+                : await curseRepository.AddCurseMember(member, localSession);
         }
     }
 
@@ -271,43 +241,118 @@ public class MemberItemService(
 
         var hasItem = isAdmin || await memberItemRepository
             .RemoveMemberItem(chatId, telegramId, MemberItemType.Charm, session);
-        if (!hasItem)
-        {
-            await session.TryAbort(cancelToken.Token);
-            Log.Information("{0} tried to use non-existent charm in chat {1}", telegramId, chatId);
-            return CharmResult.NoItems;
-        }
 
-        var maybeResult = await charmRepository.AddCharmMember(member, session);
+        var maybeResult = !hasItem ? CharmResult.NoItems : await HandleCharm(session);
 
-        await historyLogRepository.LogItem(
-            chatId, telegramId, MemberItemType.Charm, -1, MemberItemSourceType.Use, session);
-        switch (maybeResult)
+        return maybeResult switch
         {
-            case CharmResult.Success when await session.TryCommit(cancelToken.Token):
-                Log.Information("{0} used charm in chat {1}", telegramId, chatId);
-                return CharmResult.Success;
-            case CharmResult.Success:
-                await session.TryAbort(cancelToken.Token);
-                Log.Error("{0} failed to commit use charm in chat {1}", telegramId, chatId);
-                return CharmResult.Failed;
-            case CharmResult.Failed:
-                await session.TryAbort(cancelToken.Token);
-                Log.Error("Failed to use charm for {0} in chat {1}", telegramId, chatId);
-                return CharmResult.Failed;
-            case CharmResult.Duplicate:
-                await session.TryAbort(cancelToken.Token);
-                Log.Information("{0} tried to use duplicate charm in chat {1}", telegramId, chatId);
-                return CharmResult.Duplicate;
-            default:
-                throw new ArgumentOutOfRangeException();
+            CharmResult.Success or CharmResult.Blocked =>
+                await HandleSuccessUsingItem(maybeResult, CharmResult.Failed, session, chatId, telegramId),
+            CharmResult.Failed => await AbortSessionAndLog(maybeResult, chatId, telegramId,
+                reason: nameof(CharmResult.Failed), session),
+            CharmResult.NoItems or CharmResult.Duplicate =>
+                await AbortSessionAndLog(maybeResult, chatId, telegramId, session),
+            _ => throw new ArgumentOutOfRangeException()
+        };
+
+        async Task<CharmResult> HandleCharm(IMongoSession localSession)
+        {
+            var targetHasAmulet = await CheckAmulet(chatId, member.Id.TelegramId, localSession);
+            await historyLogRepository.LogItem(
+                chatId, telegramId, MemberItemType.Charm, -1, MemberItemSourceType.Use, localSession);
+            return targetHasAmulet
+                ? CharmResult.Blocked
+                : await charmRepository.AddCharmMember(member, localSession);
         }
     }
 
+    private async Task<(Option<MemberItemType>, OpenBoxResult)> HandleItemType(
+        long chatId, long telegramId, MemberItemType itemType, int numberItems, OpenBoxResult result,
+        IMongoSession session)
+    {
+        var success =
+            numberItems == 0 ||
+            await memberItemRepository.AddMemberItem(chatId, telegramId, itemType, session, numberItems);
+
+        if (success && await session.TryCommit(cancelToken.Token))
+        {
+            await historyLogRepository.LogItem(
+                chatId, telegramId, itemType, numberItems, MemberItemSourceType.Box, session);
+            return (Some(itemType.LogSuccessUsingItem(chatId, telegramId)), result);
+        }
+
+        await session.TryAbort(cancelToken.Token);
+        Log.Error("Failed to open box for {0} in chat {1}", telegramId, chatId);
+        return (None, OpenBoxResult.Failed);
+    }
+
+    private async Task<bool> HandleAmuletItem(CompositeId id, IMongoSession session)
+    {
+        var isCursedResult = await curseRepository.IsUserCursed(id, session);
+        var hasCurse = !isCursedResult.IsLeft && isCursedResult.IfLeftThrow();
+        var isCharmedResult = await charmRepository.IsUserCharmed(id, session);
+        var hasCharm = !isCharmedResult.IsLeft && isCharmedResult.IfLeftThrow();
+
+        if (!hasCurse && !hasCharm) return false;
+        
+        if (hasCurse)
+        {
+            await curseRepository.DeleteCurseMember(id, session);
+            await messageAssistance.SendAmuletMessage(id.ChatId, id.TelegramId, CurseCommandHandler.CommandKey);
+        }
+
+        if (hasCharm)
+        {
+            await charmRepository.DeleteCharmMember(id, session);
+            await messageAssistance.SendAmuletMessage(id.ChatId, id.TelegramId, CharmCommandHandler.CommandKey);
+        }
+        
+        Log.Information("Amulet was activated from the box for user: {0}", id);
+        return true;
+    }
+
+    private async Task<T> HandleSuccessUsingItem<T>(
+        T result,
+        T failed,
+        IMongoSession session,
+        long chatId,
+        long telegramId,
+        [CallerMemberName] string callerName = "unknownCaller") where T : Enum =>
+        await session.TryCommit(cancelToken.Token)
+            ? result.LogSuccessUsingItem(chatId, telegramId, callerName)
+            : await AbortSessionAndLog(failed, chatId, telegramId, "Failed to commit", session, callerName);
+
+
+    private async Task<T> AbortSessionAndLog<T>(
+        T maybeResult,
+        long chatId,
+        long telegramId,
+        string reason,
+        IMongoSession session,
+        [CallerMemberName] string callerName = "unknownCaller") where T : Enum
+    {
+        await session.TryAbort(cancelToken.Token);
+        Log.Error("Item usage FAILED from: {0}, Reason: {1}, User: {2}, Chat: {3}",
+            callerName, reason, telegramId, chatId);
+        return maybeResult;
+    }
+
+    private async Task<T> AbortSessionAndLog<T>(
+        T maybeResult,
+        long chatId,
+        long telegramId,
+        IMongoSession session,
+        [CallerMemberName] string callerName = "unknownCaller") where T : Enum
+    {
+        await session.TryAbort(cancelToken.Token);
+        Log.Information("Item usage FAILED from: {0}, Reason: {1}, User: {2}, Chat: {3}",
+            callerName, maybeResult, telegramId, chatId);
+        return maybeResult;
+    }
+
+
     private MemberItemType GetRandomItem()
     {
-        var random = new Random();
-
         var itemChances = appConfig.ItemConfig.ItemChance;
         var total = itemChances.Values.Sum();
         var roll = random.NextDouble() * total;
@@ -325,12 +370,22 @@ public class MemberItemService(
 
         return itemChances.Keys.First();
     }
+
+    private async Task<bool> CheckAmulet(long chatId, long receiverId, IMongoSession session)
+    {
+        var hasAmulet = await memberItemRepository.RemoveMemberItem(chatId, receiverId, MemberItemType.Amulet, session);
+        if (hasAmulet)
+            await historyLogRepository.LogItem(chatId, receiverId, MemberItemType.Amulet, -1,
+                MemberItemSourceType.Use, session);
+        return hasAmulet;
+    }
 }
 
 public enum OpenBoxResult
 {
     SuccessX2,
     Success,
+    AmuletActivated,
     NoItems,
     Failed
 }
@@ -343,9 +398,10 @@ public enum UseFastReplyResult
     Failed
 }
 
-public enum ReactionSpamResult
+public enum CurseResult
 {
     Success,
+    Blocked,
     NoItems,
     Duplicate,
     Failed
@@ -354,6 +410,7 @@ public enum ReactionSpamResult
 public enum CharmResult
 {
     Success,
+    Blocked,
     NoItems,
     Duplicate,
     Failed

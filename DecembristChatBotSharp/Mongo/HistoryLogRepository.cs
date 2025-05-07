@@ -79,11 +79,12 @@ public class HistoryLogRepository(
         DateTime expirationDate,
         int level,
         IMongoSession session,
-        long? sourceTelegramId = null)
+        long? sourceTelegramId = null,
+        string? userProductId = null)
     {
         var collection = GetCollection<PremiumMemberHistoryLogData>();
         var id = CreateId<PremiumMemberHistoryLogData>(chatId, telegramId);
-        var data = new PremiumMemberHistoryLogData(operationType, expirationDate, level, sourceTelegramId);
+        var data = new PremiumMemberHistoryLogData(operationType, expirationDate, level, sourceTelegramId, userProductId);
         var log = new HistoryLog<PremiumMemberHistoryLogData>(id, HistoryLogType.PremiumMember, data);
 
         return await collection.InsertOneAsync(session, log, cancellationToken: cancelToken.Token)

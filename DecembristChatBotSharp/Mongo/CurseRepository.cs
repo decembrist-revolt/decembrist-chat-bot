@@ -1,13 +1,14 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Service;
 using Lamar;
+using LanguageExt.Common;
 using MongoDB.Driver;
 using Serilog;
 
 namespace DecembristChatBotSharp.Mongo;
 
 [Singleton]
-public class ReactionSpamRepository(
+public class CurseRepository(
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
 {
@@ -29,30 +30,45 @@ public class ReactionSpamRepository(
         return unit;
     }
 
-    public async Task<ReactionSpamResult> AddReactionSpamMember(
+    public async Task<CurseResult> AddCurseMember(
         ReactionSpamMember member, IMongoSession? session = null)
     {
         var collection = GetCollection();
-
-        var tryFind = await collection
-            .Find(session, mmber => mmber.Id == member.Id)
-            .SingleOrDefaultAsync(cancelToken.Token)
-            .ToTryOption();
-        if (tryFind.IsSome()) return ReactionSpamResult.Duplicate;
+        var isCursedResult = await IsUserCursed(member.Id, session);
+        if (isCursedResult.IsLeft) return CurseResult.Failed;
+        if (isCursedResult.IfLeftThrow()) return CurseResult.Duplicate;
 
         return await collection
             .InsertOneAsync(session, member, cancellationToken: cancelToken.Token)
             .ToTryAsync()
             .Match(
-                _ => ReactionSpamResult.Success,
+                _ => CurseResult.Success,
                 ex =>
                 {
                     Log.Error(ex, "Failed to add reaction spam member {0}", member.Id);
-                    return ReactionSpamResult.Failed;
+                    return CurseResult.Failed;
                 });
     }
 
-    public async Task<Option<ReactionSpamMember>> GetReactionSpamMember(CompositeId id) => await GetCollection()
+    public async Task<Either<Error, bool>> IsUserCursed(CompositeId id, IMongoSession? session = null)
+    {
+        var collection = GetCollection();
+        var filter = Builders<ReactionSpamMember>.Filter.Eq(member => member.Id, id);
+        var findTask = session.IsNull()
+            ? collection.Find(filter)
+            : collection.Find(session, filter);
+        return await findTask
+            .AnyAsync(cancelToken.Token)
+            .ToTryAsync()
+            .ToEither()
+            .MapLeft(ex =>
+            {
+                Log.Error(ex, "Failed to find curse user with id: {0}", id);
+                return ex;
+            });
+    }
+
+    public async Task<Option<ReactionSpamMember>> GetCurseMember(CompositeId id) => await GetCollection()
         .Find(m => m.Id == id)
         .SingleOrDefaultAsync(cancelToken.Token)
         .ToTryOption()
@@ -62,7 +78,7 @@ public class ReactionSpamRepository(
             return None;
         });
 
-    public async Task<bool> DeleteReactionSpamMember(CompositeId id, IMongoSession? session = null)
+    public async Task<bool> DeleteCurseMember(CompositeId id, IMongoSession? session = null)
     {
         var collection = GetCollection();
         var taskResult = session.IsNull()

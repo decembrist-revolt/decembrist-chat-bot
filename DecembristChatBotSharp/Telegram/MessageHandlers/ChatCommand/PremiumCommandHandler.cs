@@ -8,23 +8,23 @@ using Serilog;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
-public class PremiumCommandHandler(
+public partial class PremiumCommandHandler(
     AppConfig appConfig,
     MessageAssistance messageAssistance,
     AdminUserRepository adminUserRepository,
     PremiumMemberService premiumMemberService,
-    PremiumMemberRepository premiumMemberRepository,
     BotClient botClient,
     ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
-    private static readonly Regex DaysRegex = new(@"^days@(\d+)$", RegexOptions.Compiled);
-
-    public const string RemoveSubcommand = "remove";
+    public const string RemoveSubcommand = "clear";
 
     public string Command => "/premium";
     public string Description => "Premium membership command";
     public CommandLevel CommandLevel => CommandLevel.User;
+
+    [GeneratedRegex(@"^days@(\d+)$", RegexOptions.Compiled)]
+    private static partial Regex DaysRegex();
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
@@ -49,7 +49,7 @@ public class PremiumCommandHandler(
     {
         if (!text.Contains(' '))
         {
-            var days = 365;
+            const int days = 365;
             var result = await premiumMemberService.AddPremiumMember(
                 chatId,
                 premiumMemberId,
@@ -59,13 +59,14 @@ public class PremiumCommandHandler(
 
             return await HandleAddResult(premiumMemberId, chatId, messageId, result, days);
         }
-        else if (text.Split(' ') is [_, var subCommand])
+
+        if (text.Split(' ') is [_, var subCommand])
         {
             return subCommand switch
             {
                 RemoveSubcommand => await RemovePremiumMember(chatId, premiumMemberId, messageId, adminTelegramId),
                 _ when GetDays(subCommand) is var days && days > 0 =>
-                    await AddPremiumMember(chatId, premiumMemberId, days, messageId, text, adminTelegramId),
+                    await AddPremiumMember(chatId, premiumMemberId, days, messageId, adminTelegramId),
                 _ => WrongCommandFormat(chatId, text)
             };
         }
@@ -76,30 +77,30 @@ public class PremiumCommandHandler(
     private async Task<Unit> HandleAddResult(
         long premiumMemberId, long chatId, int messageId, AddPremiumMemberResult result, int days)
     {
-        if (result == AddPremiumMemberResult.Success)
+        if (result == AddPremiumMemberResult.Add)
         {
             return await Array(
-                SendAddPremiumMessage(chatId, premiumMemberId, days),
+                messageAssistance.SendAddPremiumMessage(chatId, premiumMemberId, days),
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
 
-        if (result == AddPremiumMemberResult.Duplicate)
+        if (result == AddPremiumMemberResult.Update)
         {
-            Log.Warning("Member {0} already has premium in chat {1}", premiumMemberId, chatId);
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+            return await Array(
+                messageAssistance.SendUpdatePremiumMessage(chatId, premiumMemberId, days),
+                messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
-
         // ignore error
         return unit;
     }
 
-    private int GetDays(string subCommand) => DaysRegex.Match(subCommand) is { Success: true } match
+    private int GetDays(string subCommand) => DaysRegex().Match(subCommand) is { Success: true } match
         ? int.Parse(match.Groups[1].Value)
         : 0;
 
     private async Task<Unit> DoMemberPremiumCommand(long telegramId, long chatId, int messageId)
     {
-        var isPremium = await premiumMemberRepository.IsPremium((telegramId, chatId));
+        var isPremium = await premiumMemberService.IsPremium(telegramId, chatId);
         var sendTask = isPremium
             ? SendImPremiumMessage(chatId, messageId)
             : SendNotPremiumMessage(chatId, messageId);
@@ -124,7 +125,7 @@ public class PremiumCommandHandler(
     }
 
     private async Task<Unit> AddPremiumMember(
-        long chatId, long premiumMemberId, int days, int messageId, string text, long adminTelegramId)
+        long chatId, long premiumMemberId, int days, int messageId, long adminTelegramId)
     {
         var addResult = await premiumMemberService.AddPremiumMember(
             chatId,
@@ -140,17 +141,6 @@ public class PremiumCommandHandler(
     {
         Log.Warning("Wrong premium command format {0} in chat {1}", text, chatId);
         return unit;
-    }
-
-    private async Task<Unit> SendAddPremiumMessage(long chatId, long telegramId, int days)
-    {
-        var maybeUsername = await botClient.GetUsername(chatId, telegramId, cancelToken.Token);
-        var username = maybeUsername.IfNone("Anonymous");
-        var message = string.Format(appConfig.CommandConfig.PremiumConfig.AddPremiumMessage, username, days);
-        return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent add premium message to chat {0}", chatId),
-            ex => Log.Error(ex, "Failed to send add premium message to chat {0}", chatId),
-            cancelToken.Token);
     }
 
     private async Task<Unit> SendRemovePremiumMessage(long chatId, long telegramId)

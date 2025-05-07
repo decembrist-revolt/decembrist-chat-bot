@@ -13,12 +13,13 @@ public record PremiumMemberHistoryLogData(
     PremiumMemberOperationType OperationType,
     DateTime ExpirationDate,
     int Level,
-    long? SourceTelegramId = null
+    long? SourceTelegramId = null,
+    string? UserProductId = null
 ) : IHistoryLogData;
 
 public enum PremiumMemberOperationType
 {
     AddByAdmin,
     RemoveByAdmin,
-    Expired
+    Payment,
 }

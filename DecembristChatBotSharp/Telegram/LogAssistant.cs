@@ -56,4 +56,13 @@ public static class LogAssistant
 
         return result;
     }
+    public static T LogSuccessUsingItem<T>(this T maybeResult,
+        long chatId,
+        long telegramId,
+        [CallerMemberName] string callerName = "unknownCaller") where T : Enum
+    {
+        Log.Information("Item usage SUCCESS from: {0}, Result: {1}, User: {2}, Chat: {3},",
+            callerName, maybeResult, telegramId, chatId);
+        return maybeResult;
+    }
 }
