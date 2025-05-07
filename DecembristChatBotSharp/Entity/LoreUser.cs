@@ -2,7 +2,7 @@
 
 namespace DecembristChatBotSharp.Entity;
 
-public record LorUser(
+public record LoreUser(
     [property: BsonId] CompositeId Id
 );
 

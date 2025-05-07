@@ -6,11 +6,11 @@ using Serilog;
 namespace DecembristChatBotSharp.Mongo;
 
 [Singleton]
-public class LorUserRepository(
+public class LoreUserRepository(
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
 {
-    public Task<bool> IsLorUser(CompositeId id)
+    public Task<bool> IsLoreUser(CompositeId id)
     {
         var collection = GetCollection();
 
@@ -25,7 +25,7 @@ public class LorUserRepository(
             });
     }
 
-    public async Task<bool> AddLogUser(LorUser user)
+    public async Task<bool> AddLoreUser(LoreUser user)
     {
         var collection = GetCollection();
 
@@ -39,12 +39,12 @@ public class LorUserRepository(
             .Match(_ => true,
                 ex =>
                 {
-                    Log.Error(ex, "Failed to add log user {0}", user.Id);
+                    Log.Error(ex, "Failed to add lor user {0}", user.Id);
                     return false;
                 });
     }
 
-    public async Task<bool> DeleteLogUser(CompositeId id) =>
+    public async Task<bool> DeleteLoreUser(CompositeId id) =>
         await GetCollection().DeleteOneAsync(m => m.Id == id, cancelToken.Token)
             .ToTryAsync()
             .Match(
@@ -55,5 +55,5 @@ public class LorUserRepository(
                     return false;
                 });
 
-    private IMongoCollection<LorUser> GetCollection() => db.GetCollection<LorUser>(nameof(LorUser));
+    private IMongoCollection<LoreUser> GetCollection() => db.GetCollection<LoreUser>(nameof(LoreUser));
 }

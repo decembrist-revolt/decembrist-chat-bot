@@ -8,7 +8,7 @@ namespace DecembristChatBotSharp.Service;
 
 [Singleton]
 public class ProfileService(
-    LorUserRepository lorUserRepository,
+    LoreUserRepository loreUserRepository,
     AdminUserRepository adminUserRepository)
 {
     public const string LorViewCallback = "lorForChat=";
@@ -23,7 +23,7 @@ public class ProfileService(
             WithCallbackData("Inventory", PrivateMessageHandler.InventoryCommandSuffix + chatId),
         ]);
         var id = (telegramId, chatId);
-        if (await lorUserRepository.IsLorUser(id) || await adminUserRepository.IsAdmin(id))
+        if (await loreUserRepository.IsLoreUser(id) || await adminUserRepository.IsAdmin(id))
         {
             markup.Add([WithCallbackData("Lor", LorViewCallback + chatId),]);
         }

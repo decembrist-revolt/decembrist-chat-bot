@@ -16,7 +16,7 @@ public class LoreReplyHandler(
     LoreService loreService,
     AdminUserRepository adminUserRepository,
     MessageAssistance messageAssistance,
-    LorUserRepository lorUserRepository,
+    LoreUserRepository loreUserRepository,
     CancellationTokenSource cancelToken)
 {
     public const string LoreTag = "#Lor";
@@ -61,7 +61,7 @@ public class LoreReplyHandler(
             : None;
 
     private async Task<bool> IsLorUser(long telegramId, long lorChatId) =>
-        await lorUserRepository.IsLorUser((telegramId, lorChatId))
+        await loreUserRepository.IsLoreUser((telegramId, lorChatId))
         || await adminUserRepository.IsAdmin((telegramId, lorChatId));
 
     private bool MatchTag(string command, string tag)
