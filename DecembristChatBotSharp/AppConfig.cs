@@ -202,6 +202,10 @@ public record DislikeConfig(
     [property: Required(AllowEmptyStrings = false)]
     string DailyResultMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string CurseSuccess,
+    [property: Required(AllowEmptyStrings = false)]
+    string CurseBlocked,
+    [property: Required(AllowEmptyStrings = false)]
     string DailyResultCronUtc,
     [property: Required(AllowEmptyStrings = false)]
     string DailyResultEmoji,

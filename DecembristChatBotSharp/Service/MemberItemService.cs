@@ -12,6 +12,7 @@ namespace DecembristChatBotSharp.Service;
 public class MemberItemService(
     AppConfig appConfig,
     MongoDatabase db,
+    AmuletService amuletService,
     MemberItemRepository memberItemRepository,
     HistoryLogRepository historyLogRepository,
     FastReplyRepository fastReplyRepository,
@@ -224,7 +225,7 @@ public class MemberItemService(
 
         async Task<CurseResult> HandleItem(IMongoSession localSession)
         {
-            var targetHasAmulet = await CheckAmulet(chatId, member.Id.TelegramId, localSession);
+            var targetHasAmulet = await amuletService.RemoveAmuletIfExists(chatId, member.Id.TelegramId, localSession);
             await historyLogRepository.LogItem(
                 chatId, telegramId, MemberItemType.Curse, -1, MemberItemSourceType.Use, localSession);
             return targetHasAmulet
@@ -257,7 +258,7 @@ public class MemberItemService(
 
         async Task<CharmResult> HandleCharm(IMongoSession localSession)
         {
-            var targetHasAmulet = await CheckAmulet(chatId, member.Id.TelegramId, localSession);
+            var targetHasAmulet = await amuletService.RemoveAmuletIfExists(chatId, member.Id.TelegramId, localSession);
             await historyLogRepository.LogItem(
                 chatId, telegramId, MemberItemType.Charm, -1, MemberItemSourceType.Use, localSession);
             return targetHasAmulet
@@ -350,7 +351,6 @@ public class MemberItemService(
         return maybeResult;
     }
 
-
     private MemberItemType GetRandomItem()
     {
         var itemChances = appConfig.ItemConfig.ItemChance;
@@ -369,15 +369,6 @@ public class MemberItemService(
         }
 
         return itemChances.Keys.First();
-    }
-
-    private async Task<bool> CheckAmulet(long chatId, long receiverId, IMongoSession session)
-    {
-        var hasAmulet = await memberItemRepository.RemoveMemberItem(chatId, receiverId, MemberItemType.Amulet, session);
-        if (hasAmulet)
-            await historyLogRepository.LogItem(chatId, receiverId, MemberItemType.Amulet, -1,
-                MemberItemSourceType.Use, session);
-        return hasAmulet;
     }
 }
 
