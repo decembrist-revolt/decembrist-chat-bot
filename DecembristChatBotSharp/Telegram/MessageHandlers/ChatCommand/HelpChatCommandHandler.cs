@@ -45,17 +45,19 @@ public class HelpChatCommandHandler(
             maybeMessage = await GetCommandsHelp(chatId, parameters.MessageId);
         }
 
-        var sentResult =
-            from message in maybeMessage.ToTryOptionAsync()
-            from sentMessage in botClient.SendMessage(chatId, message).ToTryOption()
-            select fun(() =>
+        var task = (from message in maybeMessage.ToTryOptionAsync()
+                from sentMessage in botClient.SendMessage(chatId, message).ToTryOption()
+                select sentMessage
+            ).Map(sentMessage =>
             {
                 Log.Information("Sent help message for {0} to chat {1}", text, chatId);
                 expiredMessageRepository.QueueMessage(chatId, sentMessage.MessageId);
-            });
+                return unit;
+            })
+            .IfFail(ex => Log.Error(ex, "Failed to send help message for {0} to chat {1}", text, chatId));
 
-        return await sentResult.IfFail(ex =>
-            Log.Error(ex, "Failed to send help message for {0} to chat {1}", text, chatId));
+        return await Array(task,
+            messageAssistance.DeleteCommandMessage(chatId, parameters.MessageId, Command)).WhenAll();
     }
 
     private async Task<Option<string>> GetCommandsHelp(long chatId, int messageId)

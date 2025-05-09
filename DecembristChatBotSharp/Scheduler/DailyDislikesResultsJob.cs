@@ -13,6 +13,7 @@ namespace DecembristChatBotSharp.Scheduler;
 public class DailyDislikesResultsJob(
     AppConfig appConfig,
     MongoDatabase db,
+    AmuletService amuletService,
     DislikeRepository dislikeRepository,
     MemberItemRepository memberItemRepository,
     CurseRepository curseRepository,
@@ -79,11 +80,15 @@ public class DailyDislikesResultsJob(
     private async Task<Unit> HandleDislikeGroup(DislikesResultGroup group, long chatId, IMongoSession session)
     {
         var (topDislikesUserId, dislikers) = (group.DislikeUserId, group.Dislikers);
-        var insertResult = await AddCurseTopDislikeUser(chatId, topDislikesUserId, session);
-
-        if (insertResult != CurseResult.Success)
+        var isAmuletRemoved = await amuletService.RemoveAmuletIfExists(chatId, topDislikesUserId, session);
+        if (!isAmuletRemoved)
         {
-            return await AbortSessionWrapper("Failed to add curse to the disliked user for chat {0}");
+            var insertResult = await AddCurseTopDislikeUser(chatId, topDislikesUserId, session);
+            if (insertResult != CurseResult.Success)
+            {
+                return await AbortSessionWrapper(
+                    "Failed to add curse to the disliked user for chat {0}");
+            }
         }
 
         if (dislikers.Length == 0)
@@ -109,7 +114,7 @@ public class DailyDislikesResultsJob(
             return await AbortSessionWrapper("Failed to commit the dislike repository for chat {0}");
         }
 
-        if (!await SendDailyResultMessage(chatId, topDislikesUserId, randomDislikerId))
+        if (!await SendDailyResultMessage(chatId, topDislikesUserId, randomDislikerId, isAmuletRemoved))
         {
             Log.Error("Failed to send  dislikes result message for chat {0}", chatId);
         }
@@ -144,15 +149,16 @@ public class DailyDislikesResultsJob(
         return result;
     }
 
-    private async Task<bool> SendDailyResultMessage(long chatId, long dislikeUserId, long randomDislikerId)
+    private async Task<bool> SendDailyResultMessage(
+        long chatId, long dislikeUserId, long randomDislikerId, bool amuletRemoved)
     {
         var dislikeUsername = await GetUsername(dislikeUserId);
         var dislikerUsername = await GetUsername(randomDislikerId);
-        
+
         var message = string.Format(
-            appConfig.DislikeConfig.DailyResultMessage, 
-            dislikeUsername, 
-            appConfig.DislikeConfig.DailyResultEmoji, 
+            appConfig.DislikeConfig.DailyResultMessage,
+            dislikeUsername,
+            GetCurseText(amuletRemoved),
             dislikerUsername);
         return await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token)
             .ToTryAsync()
@@ -172,4 +178,9 @@ public class DailyDislikesResultsJob(
             .ToAsync()
             .IfNone(id.ToString);
     }
+
+    private string GetCurseText(bool isAmuletRemoved) => string.Format(
+        isAmuletRemoved ? appConfig.DislikeConfig.CurseBlocked : appConfig.DislikeConfig.CurseSuccess,
+        appConfig.DislikeConfig.DailyResultEmoji
+    );
 }
