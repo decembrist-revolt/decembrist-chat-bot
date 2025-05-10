@@ -17,7 +17,7 @@ public class HistoryLogRepository(
         MemberItemType type,
         int count,
         MemberItemSourceType sourceType,
-        IClientSessionHandle session,
+        IMongoSession session,
         long? sourceTelegramId = null)
     {
         var collection = GetCollection<MemberItemHistoryLogData>();
@@ -36,7 +36,7 @@ public class HistoryLogRepository(
         MemberItemType type,
         int count,
         MemberItemSourceType sourceType,
-        IClientSessionHandle session,
+        IMongoSession session,
         long? sourceTelegramId = null)
     {
         var collection = GetCollection<MemberItemHistoryLogData>();
@@ -56,7 +56,7 @@ public class HistoryLogRepository(
     public async Task<Unit> LogTopLikers(
         long chatId,
         IEnumerable<TopLiker> topLikers,
-        IClientSessionHandle session)
+        IMongoSession session)
     {
         var collection = GetCollection<TopLikerHistoryLogData>();
 

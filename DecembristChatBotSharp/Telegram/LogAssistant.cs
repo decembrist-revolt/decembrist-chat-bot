@@ -1,8 +1,10 @@
 ﻿using System.Runtime.CompilerServices;
+using Lamar;
 using Serilog;
 
 namespace DecembristChatBotSharp.Telegram;
 
+[Singleton]
 public static class LogAssistant
 {
     public static Unit LogDeleteResult(
@@ -26,7 +28,7 @@ public static class LogAssistant
 
         return unit;
     }
-
+    
     public static T LogSuccessUsingItem<T>(this T maybeResult,
         long chatId,
         long telegramId,

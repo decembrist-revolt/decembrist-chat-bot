@@ -46,7 +46,7 @@ public class FastReplyRepository(
             });
     }
     
-    public async Task<InsertResult> AddFastReply(FastReply fastReply, IClientSessionHandle session)
+    public async Task<InsertResult> AddFastReply(FastReply fastReply, IMongoSession session)
     {
         var collection = GetCollection();
 

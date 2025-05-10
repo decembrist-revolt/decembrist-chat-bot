@@ -12,7 +12,7 @@ public class RestrictRepository(
 {
     public async Task<bool> AddRestrict(
         RestrictMember member,
-        IClientSessionHandle? session = null)
+        IMongoSession? session = null)
     {
         var collection = GetCollection();
 

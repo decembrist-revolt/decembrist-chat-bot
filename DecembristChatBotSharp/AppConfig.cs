@@ -29,6 +29,8 @@ public record AppConfig(
     AllowedChatConfig AllowedChatConfig,
     MongoConfig MongoConfig,
     CommandConfig CommandConfig,
+    MenuConfig MenuConfig,
+    LoreConfig LoreConfig,
     RedditConfig RedditConfig,
     RestrictConfig RestrictConfig,
     CurseConfig CurseConfig,
@@ -132,9 +134,59 @@ public record CommandConfig(
     [property: Required(AllowEmptyStrings = false)]
     string FastReplyDuplicateMessage,
     [property: Required(AllowEmptyStrings = false)]
-    int FastReplyDaysDuration,
+    string WrongCommandMessage,
+    [property: Range(1, int.MaxValue)] int FastReplyDaysDuration
+);
+
+public record MenuConfig(
     [property: Required(AllowEmptyStrings = false)]
-    string WrongCommandMessage
+    string WelcomeMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ChatNotAllowed,
+    [property: Required(AllowEmptyStrings = false)]
+    string ProfileTitle,
+    [property: Required(AllowEmptyStrings = false)]
+    string LorDescription
+);
+
+public record LoreConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string ChatTemplate,
+    [property: Required(AllowEmptyStrings = false)]
+    string EditTemplate,
+    [property: Required(AllowEmptyStrings = false)]
+    string ChatFailed,
+    [property: Required(AllowEmptyStrings = false)]
+    string LoreNotFound,
+    [property: Required(AllowEmptyStrings = false)]
+    string KeyRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string DeleteRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string MessageExpired,
+    [property: Required(AllowEmptyStrings = false)]
+    string DeleteSuccess,
+    [property: Required(AllowEmptyStrings = false)]
+    string LoreHelp,
+    [property: Required(AllowEmptyStrings = false)]
+    string ContentSuccess,
+    [property: Required(AllowEmptyStrings = false)]
+    string ContentDefault,
+    [property: Required(AllowEmptyStrings = false)]
+    string ContentRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string KeyNotFound,
+    [property: Required(AllowEmptyStrings = false)]
+    string NotLoreUser,
+    [property: Required(AllowEmptyStrings = false)]
+    string Tip,
+    [property: Required(AllowEmptyStrings = false)]
+    string PrivateFailed,
+    [property: Range(1, int.MaxValue)] int ContentEditExpiration,
+    [property: Range(1, int.MaxValue)] int DeleteExpiration,
+    [property: Range(1, int.MaxValue)] int ChatLoreExpiration,
+    [property: Range(1, int.MaxValue)] int ContentLimit,
+    [property: Range(1, int.MaxValue)] int KeyLimit
 );
 
 public record RedditConfig(
@@ -186,8 +238,7 @@ public record CurseConfig(
     string DuplicateMessage,
     [property: Required(AllowEmptyStrings = false)]
     string ReceiverNotSetMessage,
-    [property: Required(AllowEmptyStrings = false)]
-    int DurationMinutes
+    [property: Range(1, int.MaxValue)] int DurationMinutes
 );
 
 public record DislikeConfig(
@@ -209,8 +260,7 @@ public record DislikeConfig(
     string DailyResultCronUtc,
     [property: Required(AllowEmptyStrings = false)]
     string DailyResultEmoji,
-    [property: Required(AllowEmptyStrings = false)]
-    int EmojiDurationMinutes
+    [property: Range(1, int.MaxValue)] int EmojiDurationMinutes
 );
 
 public record CharmConfig(
@@ -224,10 +274,8 @@ public record CharmConfig(
     string SelfMessage,
     [property: Required(AllowEmptyStrings = false)]
     string DuplicateMessage,
-    [property: Required(AllowEmptyStrings = false)]
-    int CharacterLimit,
-    [property: Required(AllowEmptyStrings = false)]
-    int DurationMinutes
+    [property: Range(1, int.MaxValue)] int CharacterLimit,
+    [property: Range(1, int.MaxValue)] int DurationMinutes
 );
 
 public record AmuletConfig(
