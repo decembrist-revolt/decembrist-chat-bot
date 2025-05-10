@@ -17,11 +17,12 @@ public class LoreDeleteHandler(
     {
         var key = messageText.ToLowerInvariant();
         var result = await loreService.DeleteLoreRecord(key, lorChatId, dateTime);
+        loreService.LogLore((uint) result, telegramId, lorChatId, key);
         return result switch
         {
-            LoreResult.Success => await SendSuccessDelete(key, telegramId),
-            LoreResult.NotFound => await loreMessageAssistant.SendNotFoundMessage(key, telegramId),
-            LoreResult.Expire => await loreMessageAssistant.SendExpiredMessage(key, telegramId),
+            DeleteLoreRecordResult.Success => await SendSuccessDelete(key, telegramId),
+            DeleteLoreRecordResult.NotFound => await loreMessageAssistant.SendNotFoundMessage(key, telegramId),
+            DeleteLoreRecordResult.Expire => await loreMessageAssistant.SendExpiredMessage(key, telegramId),
             _ => await loreMessageAssistant.SendFailedMessage(telegramId)
         };
     }

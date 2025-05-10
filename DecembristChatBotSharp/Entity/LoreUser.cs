@@ -8,7 +8,7 @@ public record LoreUser(
 
 public record LoreRecord(
     [property: BsonId] LoreRecord.CompositeId Id,
-    long[] authorIds,
+    long[] AuthorIds,
     string Content
 )
 {

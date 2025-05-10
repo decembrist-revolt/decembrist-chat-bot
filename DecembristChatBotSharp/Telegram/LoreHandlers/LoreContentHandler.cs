@@ -18,14 +18,14 @@ public class LoreContentHandler(
     {
         key = key.ToLowerInvariant();
         var result = await loreService.ChangeLoreContent(key, content, lorChatId, telegramId, date);
-        result.LogLore(telegramId, lorChatId, key, content);
+        loreService.LogLore((uint)result, telegramId, lorChatId, key, content);
         return result switch
         {
-            LoreResult.Success => await SendSuccessContent(key, content, telegramId),
-            LoreResult.NotFound => await loreMessageAssistant.SendNotFoundMessage(key, telegramId),
-            LoreResult.Limit => await loreMessageAssistant.SendHelpMessage(telegramId),
-            LoreResult.Failed => await loreMessageAssistant.SendFailedMessage(telegramId),
-            LoreResult.Expire => await loreMessageAssistant.SendExpiredMessage(key, telegramId),
+            ChangeLoreContentResult.Success => await SendSuccessContent(key, content, telegramId),
+            ChangeLoreContentResult.NotFound => await loreMessageAssistant.SendNotFoundMessage(key, telegramId),
+            ChangeLoreContentResult.Limit => await loreMessageAssistant.SendHelpMessage(telegramId),
+            ChangeLoreContentResult.Failed => await loreMessageAssistant.SendFailedMessage(telegramId),
+            ChangeLoreContentResult.Expire => await loreMessageAssistant.SendExpiredMessage(key, telegramId),
             _ => throw new ArgumentOutOfRangeException()
         };
     }

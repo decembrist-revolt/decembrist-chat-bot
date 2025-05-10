@@ -23,14 +23,14 @@ public class LoreHandler(
     public const string ContentSuffix = "Content";
     public const string DeleteSuffix = "Delete";
 
-    public async Task<TryAsync<Message>> Do(Message message)
+    public async Task<Message> Do(Message message)
     {
         var replyText = message.ReplyToMessage!.Text;
         var telegramId = message.From!.Id;
         var messageText = message.Text!;
         var dateReply = message.ReplyToMessage.Date;
 
-        return TryAsync(await ParseReplyText(replyText).MatchAsync(
+        return await ParseReplyText(replyText).MatchAsync(
             None: () => loreMessageAssistant.SendHelpMessage(telegramId),
             Some: async tuple =>
             {
@@ -46,7 +46,7 @@ public class LoreHandler(
                     ContentSuffix => loreContentHandler.Do(key, messageText, lorChatId, telegramId, dateReply),
                     _ => loreMessageAssistant.SendHelpMessage(telegramId)
                 };
-            }));
+            }).Flatten();
     }
 
     private static Option<(string suffix, string Key, long LorChatId)> ParseReplyText(string replyText) =>

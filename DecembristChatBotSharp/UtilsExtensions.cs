@@ -217,14 +217,14 @@ public static class UtilsExtensions
                 return MeLink;
             });
 
-    public static Task<bool> TryCommit(this IClientSessionHandle session, CancellationToken cancelToken) =>
+    public static Task<bool> TryCommit(this IMongoSession session, CancellationToken cancelToken) =>
         session.CommitTransactionAsync(cancelToken).ToTryAsync().Match(_ => true, ex =>
         {
             Log.Error(ex, "Failed to commit transaction");
             return false;
         });
 
-    public static Task<bool> TryAbort(this IClientSessionHandle session, CancellationToken cancelToken) =>
+    public static Task<bool> TryAbort(this IMongoSession session, CancellationToken cancelToken) =>
         session.AbortTransactionAsync(cancelToken).ToTryAsync().Match(_ => true, ex =>
         {
             Log.Error(ex, "Failed to abort transaction");

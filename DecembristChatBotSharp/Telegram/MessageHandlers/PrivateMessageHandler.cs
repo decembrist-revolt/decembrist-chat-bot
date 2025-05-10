@@ -48,7 +48,7 @@ public class PrivateMessageHandler(
             MessageType.Text when message.Text is { } text && text.StartsWith(FastReplyHandler.StickerPrefix) =>
                 SendSticker(chatId, text[FastReplyHandler.StickerPrefix.Length..]),
             MessageType.Text when message is { Text: not null, ReplyToMessage.Text: { } replyText }
-                                  && replyText.Contains(LoreHandler.Tag) => await loreHandler.Do(message),
+                                  && replyText.Contains(LoreHandler.Tag) => loreHandler.Do(message).ToTryAsync(),
             MessageType.ChatShared when message.ChatShared is { ChatId: var sharedChatId } =>
                 await SendProfile(sharedChatId, chatId),
             _ => TryAsync(botClient.SendMessage(chatId, "OK", cancellationToken: cancelToken.Token))
@@ -69,18 +69,12 @@ public class PrivateMessageHandler(
             cancellationToken: cancelToken.Token));
     }
 
-    private bool IsAllowedChat(long chatId)
-    {
-        chatId = chatId.ToString().StartsWith("-100")
-            ? long.Parse(chatId.ToString()[4..])
-            : chatId;
-        return appConfig.AllowedChatConfig.AllowedChatIds?.Contains(chatId) == true;
-    }
+    private bool IsAllowedChat(long chatId) => appConfig.AllowedChatConfig.AllowedChatIds?.Contains(chatId) == true;
 
     private TryAsync<Message> SendChatNotAllowed(long chatId)
     {
         var message = appConfig.MenuConfig.ChatNotAllowed;
-        return TryAsync(botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token));
+        return botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token).ToTryAsync();
     }
 
     private TryAsync<Message> SendMenuButton(long chatId)

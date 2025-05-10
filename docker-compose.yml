@@ -3,13 +3,17 @@
 services:
   mongodb:
     image: mongo
-    container_name: mongodb
-    entrypoint: ["/bin/bash", "-c", "/mongo/myscript.sh"]
+    command: [ "--replSet", "rs0", "--bind_ip_all", "--port", "27017" ]
+    ports:
+      - 27017:27017
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       MONGO_INITDB_DATABASE: decembristChat
-    ports:
-      - "27017:27017"
-    volumes:
-      - ./mongo/myscript.sh:/mongo/myscript.sh
-      - ./data:/data/db
-  
+    healthcheck:
+      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'host.docker.internal:27017'}]}) }" | mongosh --port 27017 --quiet
+      interval: 5s
+      timeout: 30s
+      start_period: 0s
+      start_interval: 1s
+      retries: 30

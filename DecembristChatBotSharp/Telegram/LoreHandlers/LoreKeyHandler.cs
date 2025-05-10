@@ -21,13 +21,13 @@ public class LoreKeyHandler(
     {
         key = key.ToLowerInvariant();
         var result = await loreService.AddLoreKey(key, lorChatId, telegramId);
-        result.LogLore(telegramId, lorChatId, key);
+        loreService.LogLore((uint) result, telegramId, lorChatId, key);
         return result switch
         {
-            LoreResult.Success => await SendRequestContent(key, lorChatId, telegramId),
-            LoreResult.Duplicate => await RetrieveAndSendLoreRecord((lorChatId, key), telegramId),
-            LoreResult.Limit => await loreMessageAssistant.SendHelpMessage(telegramId),
-            LoreResult.Failed => await loreMessageAssistant.SendFailedMessage(telegramId),
+            AddLoreKeyResult.Success => await SendRequestContent(key, lorChatId, telegramId),
+            AddLoreKeyResult.Duplicate => await RetrieveAndSendLoreRecord((lorChatId, key), telegramId),
+            AddLoreKeyResult.Limit => await loreMessageAssistant.SendHelpMessage(telegramId),
+            AddLoreKeyResult.Failed => await loreMessageAssistant.SendFailedMessage(telegramId),
             _ => throw new ArgumentOutOfRangeException()
         };
     }

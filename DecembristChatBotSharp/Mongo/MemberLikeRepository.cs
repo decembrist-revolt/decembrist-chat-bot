@@ -38,7 +38,7 @@ public class MemberLikeRepository(
     }
 
     public async Task<Arr<LikeTelegramToLikeCount>> GetTopLikeMembers(
-        long chatId, int limit, IClientSessionHandle? session = null)
+        long chatId, int limit, IMongoSession? session = null)
     {
         var collection = GetCollection();
 
@@ -81,22 +81,21 @@ public class MemberLikeRepository(
     public async Task<List<MemberLike>> FindMemberLikes(long telegramId, long chatId)
     {
         var memberLikes = GetCollection();
-        var findTask = await TryAsync(memberLikes.Find(member => member.Id.TelegramId == telegramId
-                                                                 && member.Id.ChatId == chatId)
-            .ToListAsync(cancelToken.Token));
-
-        return findTask.Match(identity, ex =>
-        {
-            Log.Error(ex, "Failed to find likes for {0} in chat {1}", telegramId, chatId);
-            return [];
-        });
+        return await memberLikes.Find(member => member.Id.TelegramId == telegramId
+                                                && member.Id.ChatId == chatId)
+            .ToListAsync(cancelToken.Token).ToTryAsync()
+            .Match(identity, ex =>
+            {
+                Log.Error(ex, "Failed to find likes for {0} in chat {1}", telegramId, chatId);
+                return [];
+            });
     }
 
     public async Task<bool> RemoveMemberLike(
         long telegramId,
         long chatId,
         long likeTelegramId,
-        IClientSessionHandle? session = null)
+        IMongoSession? session = null)
     {
         var memberLikes = GetCollection();
         Expression<Func<MemberLike, bool>> filter = member => member.Id.TelegramId == telegramId
@@ -116,10 +115,10 @@ public class MemberLikeRepository(
             });
     }
 
-    public async Task<long> RemoveAllInChat(long chatId, IClientSessionHandle? session = null)
+    public async Task<long> RemoveAllInChat(long chatId, IMongoSession? session = null)
     {
         var memberLikes = GetCollection();
-        Expression<Func<MemberLike,bool>> filter = member => member.Id.ChatId == chatId;
+        Expression<Func<MemberLike, bool>> filter = member => member.Id.ChatId == chatId;
         var deleteTask = session.IsNull()
             ? memberLikes.DeleteManyAsync(filter, cancellationToken: cancelToken.Token)
             : memberLikes.DeleteManyAsync(session, filter, cancellationToken: cancelToken.Token);

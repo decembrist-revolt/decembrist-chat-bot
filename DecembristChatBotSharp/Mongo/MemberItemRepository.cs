@@ -42,7 +42,7 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
         long chatId,
         Arr<long> telegramIds,
         MemberItemType type,
-        IClientSessionHandle? session = null)
+        IMongoSession? session = null)
     {
         if (telegramIds.IsEmpty) return 0;
 
@@ -73,7 +73,7 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
         long chatId,
         long telegramId,
         MemberItemType type,
-        IClientSessionHandle? session = null)
+        IMongoSession? session = null)
     {
         var collection = GetCollection();
 

@@ -21,7 +21,7 @@ public class LoreRecordRepository(
 
         var update = Builders<LoreRecord>.Update
             .Set(x => x.Content, content ?? appConfig.LoreConfig.ContentDefault)
-            .AddToSet(x => x.authorIds, telegramId);
+            .AddToSet(x => x.AuthorIds, telegramId);
 
         var options = new UpdateOptions { IsUpsert = true };
 
@@ -58,7 +58,7 @@ public class LoreRecordRepository(
         .Find(m => m.Id == id)
         .SingleOrDefaultAsync(cancelToken.Token)
         .ToTryAsync()
-        .Match(member => member.IsDefault() ? None : Some(member),
+        .Match(member => member.IsNull() ? None : Some(member),
             ex =>
             {
                 Log.Error(ex, "Failed to get lor record: {0} in lor records db", id);
