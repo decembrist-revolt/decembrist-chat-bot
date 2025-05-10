@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Service;
+using DecembristChatBotSharp.Telegram.CallbackHandlers;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
 using Serilog;
@@ -17,6 +18,7 @@ public class BotHandler(
     NewMemberHandler newMemberHandler,
     PrivateMessageHandler privateMessageHandler,
     ChatMessageHandler chatMessageHandler,
+    PrivateCallbackHandler privateCallbackHandler,
     ChatEditedHandler chatEditedHandler,
     TipsRegistrationService tipsRegistrationService,
     ChatBotAddHandler chatBotAddHandler,
@@ -31,7 +33,8 @@ public class BotHandler(
             [
                 UpdateType.Message,
                 UpdateType.EditedMessage,
-                UpdateType.ChatMember
+                UpdateType.ChatMember,
+                UpdateType.CallbackQuery,
             ],
             Offset = int.MaxValue
         };
@@ -65,9 +68,25 @@ public class BotHandler(
                 Type: UpdateType.EditedMessage,
                 EditedMessage: { } editedMessage,
             } => HandleChatEditedMessage(editedMessage),
+            {
+                Type: UpdateType.CallbackQuery,
+                CallbackQuery:
+                {
+                    Message.Chat.Type: ChatType.Private,
+                    Data: not null
+                } callbackQuery
+            } => HandlePrivateCallback(callbackQuery),
             _ => Task.CompletedTask
         };
     }
+
+    private Task HandlePrivateCallback(CallbackQuery query) => query switch
+    {
+        {
+            From.Id: { },
+        } => privateCallbackHandler.Do(query),
+        _ => Task.CompletedTask
+    };
 
     private Task HandleChatEditedMessage(Message message) => message switch
     {

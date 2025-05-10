@@ -115,7 +115,7 @@ public class DailyTopLikersGiftJob(
     }
 
     private async Task<Unit> LogEvents(
-        long chatId, Arr<long> telegramIds, Arr<TopLiker> topLikers, IClientSessionHandle session)
+        long chatId, Arr<long> telegramIds, Arr<TopLiker> topLikers, IMongoSession session)
     {
         await historyLogRepository.LogItems(
             chatId, telegramIds, MemberItemType.Box, 1, MemberItemSourceType.TopLiker, session);
@@ -123,7 +123,7 @@ public class DailyTopLikersGiftJob(
         return await historyLogRepository.LogTopLikers(chatId, topLikers, session);
     }
 
-    private async Task<Arr<TopLiker>> GetTopLikers(long chatId, IClientSessionHandle session)
+    private async Task<Arr<TopLiker>> GetTopLikers(long chatId, IMongoSession session)
     {
         var likersCount = appConfig.CommandConfig.LikeConfig.DailyTopLikersCount;
         var maybeTopLikers = (await memberLikeRepository.GetTopLikeMembers(chatId, likersCount, session))

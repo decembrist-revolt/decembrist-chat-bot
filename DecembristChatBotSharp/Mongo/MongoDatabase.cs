@@ -14,7 +14,7 @@ public class MongoDatabase(
 {
     public IMongoDatabase GetDatabase() => client.GetDatabase(mongoUrl.DatabaseName);
 
-    public Task<IClientSessionHandle> OpenSession() => client.StartSessionAsync();
+    public Task<IMongoSession> OpenSession() => client.StartSessionAsync();
 
     public IMongoCollection<T> GetCollection<T>(string collectionName) =>
         GetDatabase().GetCollection<T>(collectionName);

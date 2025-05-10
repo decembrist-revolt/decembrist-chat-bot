@@ -1,5 +1,6 @@
 ﻿using DecembristChatBotSharp.Mongo;
 using Lamar;
+using static DecembristChatBotSharp.Telegram.MessageHandlers.PrivateMessageHandler;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
@@ -21,7 +22,7 @@ public class InventoryCommandHandler(
 
         var lockSuccess = await lockRepository.TryAcquire(chatId, Command);
         if (!lockSuccess) return await messageAssistance.CommandNotReady(chatId, messageId, Command);
-        var url = await botClient.GetBotStartLink(PrivateMessageHandler.InventoryCommandSuffix + chatId);
+        var url = await botClient.GetBotStartLink(GetCommandForChat(InventoryCommandSuffix, chatId));
         return await Array(
             messageAssistance.SendInviteToDirect(chatId, url, appConfig.ItemConfig.InviteInventoryMessage),
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
