@@ -1,5 +1,4 @@
-﻿using DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
-using Lamar;
+﻿using Lamar;
 
 namespace DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
 
@@ -17,3 +16,12 @@ public class ChatCallbackHandler(Lazy<IList<IChatCallbackHandler>> callbackHandl
             () => unit);
     }
 }
+
+public record CallbackQueryParameters(
+    string Prefix,
+    string Suffix,
+    long ChatId,
+    long TelegramId,
+    int MessageId,
+    string queryId,
+    Option<Map<string, string>> Parameters);
