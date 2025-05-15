@@ -14,7 +14,7 @@ public partial class LoreCommandHandler(
     MessageAssistance messageAssistance) : ICommandHandler
 {
     public string Command => "/lore";
-    public string Description => "Show a lor page from the history chat";
+    public string Description => "Show a lore record from the lore chat";
     public CommandLevel CommandLevel => CommandLevel.User;
 
     [GeneratedRegex(@"\s+")]
@@ -50,9 +50,9 @@ public partial class LoreCommandHandler(
         return await messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
     }
 
-    private async Task<Unit> SendNotFound(long chatId)
+    private Task<Unit> SendNotFound(long chatId)
     {
         var message = string.Format(appConfig.LoreConfig.LoreNotFound, Command);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 }

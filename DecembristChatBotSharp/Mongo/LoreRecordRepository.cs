@@ -39,12 +39,16 @@ public class LoreRecordRepository(
             });
     }
 
-    public Task<bool> IsLoreRecordExist(LoreRecord.CompositeId id)
+    public Task<bool> IsLoreRecordExist(LoreRecord.CompositeId id, IMongoSession? session = null)
     {
         var collection = GetCollection();
+        var filter = Builders<LoreRecord>.Filter.Eq(record => record.Id, id);
 
-        return collection
-            .Find(record => record.Id == id)
+        var findTask = session.IsNull()
+            ? collection.Find(filter)
+            : collection.Find(session, filter);
+
+        return findTask
             .AnyAsync(cancelToken.Token)
             .ToTryAsync()
             .Match(identity, ex =>
@@ -61,9 +65,34 @@ public class LoreRecordRepository(
         .Match(member => member.IsNull() ? None : Some(member),
             ex =>
             {
-                Log.Error(ex, "Failed to get lor record: {0} in lor records db", id);
+                Log.Error(ex, "Failed to get lore record: {0} in lore records db", id);
                 return None;
             });
+
+    public async Task<Option<List<string>>> GetLoreKeys(long chatId, int skip = 0)
+    {
+        if (skip < 0) return None;
+        var items = await GetCollection()
+            .Find(m => m.Id.ChatId == chatId)
+            .SortBy(m => m.Id.Key)
+            .Skip(skip)
+            .Limit(appConfig.LoreListConfig.RowLimit)
+            .Project(record => record.Id.Key)
+            .ToListAsync();
+
+        return items.Count == 0 ? None : items;
+    }
+
+    public async Task<Option<int>> GetKeysCount(long chatId) =>
+        await GetCollection()
+            .CountDocumentsAsync(m => m.Id.ChatId == chatId)
+            .ToTryAsync()
+            .Match(x => x == 0 ? None : Some((int)x),
+                ex =>
+                {
+                    Log.Error(ex, "Failed getkeyscount");
+                    return None;
+                });
 
     public async Task<bool> DeleteLogRecord(LoreRecord.CompositeId id) =>
         await GetCollection().DeleteOneAsync(m => m.Id == id, cancelToken.Token)

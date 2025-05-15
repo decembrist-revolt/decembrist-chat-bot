@@ -1,5 +1,6 @@
 ﻿using DecembristChatBotSharp.Service;
-using DecembristChatBotSharp.Telegram.CallbackHandlers;
+using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
+using DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
 using Serilog;
@@ -19,6 +20,7 @@ public class BotHandler(
     PrivateMessageHandler privateMessageHandler,
     ChatMessageHandler chatMessageHandler,
     PrivateCallbackHandler privateCallbackHandler,
+    ChatCallbackHandler chatCallbackHandler,
     ChatEditedHandler chatEditedHandler,
     TipsRegistrationService tipsRegistrationService,
     ChatBotAddHandler chatBotAddHandler,
@@ -72,21 +74,13 @@ public class BotHandler(
                 Type: UpdateType.CallbackQuery,
                 CallbackQuery:
                 {
-                    Message.Chat.Type: ChatType.Private,
-                    Data: not null
+                    Data: not null,
+                    Message: not null
                 } callbackQuery
-            } => HandlePrivateCallback(callbackQuery),
+            } => HandleCallback(callbackQuery),
             _ => Task.CompletedTask
         };
     }
-
-    private Task HandlePrivateCallback(CallbackQuery query) => query switch
-    {
-        {
-            From.Id: { },
-        } => privateCallbackHandler.Do(query),
-        _ => Task.CompletedTask
-    };
 
     private Task HandleChatEditedMessage(Message message) => message switch
     {
@@ -142,6 +136,38 @@ public class BotHandler(
         var parameters = new ChatMessageHandlerParams(
             payload, messageId, telegramId, chatId, Optional(message.ReplyToMessage?.From?.Id));
         await chatMessageHandler.Do(parameters);
+    }
+
+    private Task HandleCallback(CallbackQuery query)
+    {
+        var maybeCallbackParameters = CallbackService.ParseChatCallback(query.Data!);
+        return maybeCallbackParameters.Match(
+            None: () => Task.CompletedTask,
+            Some: parameters =>
+            {
+                var callbackParameters = GetQueryParameters(query, parameters);
+                return query switch
+                {
+                    {
+                        Message.Chat.Type: ChatType.Private,
+                    } => privateCallbackHandler.Do(callbackParameters),
+                    not null => chatCallbackHandler.Do(callbackParameters),
+                    _ => Task.CompletedTask
+                };
+            }
+        );
+    }
+
+    private CallbackQueryParameters GetQueryParameters(CallbackQuery query, (string, string, string[]) parameters)
+    {
+        var (prefix, suffix, keysAndValue) = parameters;
+        var queryParameters = CallbackService.GetQueryParameters(keysAndValue);
+        var telegramId = query.From.Id;
+        var messageId = query.Message!.MessageId;
+        var chatId = query.Message.Chat.Id;
+        var queryId = query.Id;
+
+        return new CallbackQueryParameters(prefix, suffix, chatId, telegramId, messageId, queryId, queryParameters);
     }
 
     private bool CheckForLinkEntity(MessageEntity[]? entities) =>

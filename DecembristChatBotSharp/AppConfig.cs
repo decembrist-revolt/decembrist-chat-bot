@@ -31,6 +31,7 @@ public record AppConfig(
     CommandConfig CommandConfig,
     MenuConfig MenuConfig,
     LoreConfig LoreConfig,
+    LoreListConfig LoreListConfig,
     RedditConfig RedditConfig,
     RestrictConfig RestrictConfig,
     CurseConfig CurseConfig,
@@ -187,6 +188,17 @@ public record LoreConfig(
     [property: Range(1, int.MaxValue)] int ChatLoreExpiration,
     [property: Range(1, int.MaxValue)] int ContentLimit,
     [property: Range(1, int.MaxValue)] int KeyLimit
+);
+
+public record LoreListConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string NotFound,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessTemplate,
+    [property: Required(AllowEmptyStrings = false)]
+    string NotAccess,
+    [property: Range(1, int.MaxValue)] int RowLimit,
+    [property: Range(1, int.MaxValue)] int ExpirationMinutes
 );
 
 public record RedditConfig(
