@@ -64,17 +64,17 @@ public record AppConfig(
                 throw ex;
             });
     }
-    
+
     private static void ValidateRecursively(object obj)
     {
         ArgumentNullException.ThrowIfNull(obj);
 
         Validator.ValidateObject(
-            obj, 
-            new ValidationContext(obj), 
+            obj,
+            new ValidationContext(obj),
             validateAllProperties: true
         );
-        
+
         var props = obj.GetType()
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.CanRead && p.GetIndexParameters().Length == 0);
@@ -83,7 +83,7 @@ public record AppConfig(
         {
             var value = prop.GetValue(obj);
             if (value.IsNull()) continue;
-            
+
             if (value is IEnumerable col && !(value is string))
             {
                 foreach (var element in col)
@@ -91,7 +91,7 @@ public record AppConfig(
                     ValidateRecursively(element);
                 }
             }
-            
+
             else if (!prop.PropertyType.IsValueType && prop.PropertyType != typeof(string))
             {
                 ValidateRecursively(value);
@@ -159,6 +159,8 @@ public record LoreConfig(
     string ChatFailed,
     [property: Required(AllowEmptyStrings = false)]
     string LoreNotFound,
+    [property: Required(AllowEmptyStrings = false)]
+    string PrivateLoreNotFound,
     [property: Required(AllowEmptyStrings = false)]
     string KeyRequest,
     [property: Required(AllowEmptyStrings = false)]
@@ -370,7 +372,7 @@ public record PollPaymentConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ServiceUrl,
     [property: Required] int PollIntervalSeconds,
-    [property: Required] 
+    [property: Required]
     [property: MinLength(1)]
     System.Collections.Generic.HashSet<ProductListItem>? ProductList
 );

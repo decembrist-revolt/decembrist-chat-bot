@@ -84,7 +84,7 @@ public class LorePrivateCallbackHandler(
     private Task<Unit> EditNotFound(long targetChatId, long telegramId, int messageId)
     {
         var markup = loreButtons.GetLoreMarkup(targetChatId);
-        var message = appConfig.LoreConfig.LoreNotFound;
+        var message = appConfig.LoreConfig.PrivateLoreNotFound;
         return messageAssistance.EditProfileMessage(telegramId, targetChatId, messageId, markup, message, Prefix);
     }
 }
