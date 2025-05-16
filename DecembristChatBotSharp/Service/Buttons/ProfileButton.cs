@@ -26,15 +26,15 @@ public class ProfileButtons(
         return new InlineKeyboardMarkup(markup);
     }
 
-    public static InlineKeyboardButton GetProfileButton(string name, long chatId, ProfileSuffix action)
+    public static InlineKeyboardButton GetProfileButton(string name, long chatId, ProfileSuffix suffix)
     {
-        var callback = GetCallback(PrefixKey, action.ToString(), GetChatIdParameter(chatId));
+        var callback = GetCallback(PrefixKey, suffix, (ChatIdParameter, chatId));
         return InlineKeyboardButton.WithCallbackData(name, callback);
     }
 
     public static InlineKeyboardButton GetBackButton(long chatId)
     {
-        var callback = GetCallback(PrefixKey, ProfileSuffix.Back.ToString(), GetChatIdParameter(chatId));
+        var callback = GetCallback(PrefixKey, ProfileSuffix.Back, (ChatIdParameter, chatId));
         return InlineKeyboardButton.WithCallbackData("Back Profile", callback);
     }
 }

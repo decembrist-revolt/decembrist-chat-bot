@@ -67,22 +67,21 @@ public class LoreButtons(AppConfig appConfig)
 
     private static InlineKeyboardButton GetLoreButton(string name, long chatId, LoreSuffix suffix)
     {
-        var callback = GetCallback(LorePrivateCallbackHandler.PrefixKey, suffix.ToString(), GetChatIdParameter(chatId));
+        var callback = GetCallback(LorePrivateCallbackHandler.PrefixKey, suffix, (ChatIdParameter, chatId));
         return InlineKeyboardButton.WithCallbackData(name, callback);
     }
 
     private static InlineKeyboardButton GetLoreListButton(string name, long chatId, int startIndex)
     {
-        var loreListParameter = (IndexStartParameter, startIndex.ToString());
-        (string, string)[] parameters = [loreListParameter, GetChatIdParameter(chatId)];
-        var callback = GetCallback(LorePrivateCallbackHandler.PrefixKey, LoreSuffix.List.ToString(), parameters);
+        (string, object)[] parameters = [(IndexStartParameter, startIndex), (ChatIdParameter, chatId)];
+        var callback = GetCallback(LorePrivateCallbackHandler.PrefixKey, LoreSuffix.List, parameters);
         return InlineKeyboardButton.WithCallbackData(name, callback);
     }
 
     private static InlineKeyboardButton GetLoreListChatButton(string name, int startIndex)
     {
-        var loreListParameter = (IndexStartParameter, startIndex.ToString());
-        var callback = GetCallback(LoreCallbackHandler.PrefixKey, LoreChatSuffix.List.ToString(), loreListParameter);
+        var loreListParameter = (IndexStartParameter, startIndex);
+        var callback = GetCallback(LoreCallbackHandler.PrefixKey, LoreChatSuffix.List, loreListParameter);
         return InlineKeyboardButton.WithCallbackData(name, callback);
     }
 }

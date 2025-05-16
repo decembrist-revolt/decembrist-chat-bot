@@ -30,7 +30,7 @@ public class LorePrivateCallbackHandler(
             None: () => messageAssistance.SendCommandResponse(chatId, "OK", nameof(ProfilePrivateCallbackHandler)),
             Some: async parameters =>
             {
-                if (!callbackService.HasChatId(parameters, out var targetChatId)) return unit;
+                if (!callbackService.HasChatIdKey(parameters, out var targetChatId)) return unit;
 
                 return loreSuffix switch
                 {

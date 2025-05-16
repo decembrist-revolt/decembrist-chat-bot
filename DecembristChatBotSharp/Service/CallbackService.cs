@@ -15,7 +15,11 @@ public class CallbackService(MessageAssistance messageAssistance)
     private static readonly System.Collections.Generic.HashSet<string> ParameterWhiteList =
         [ChatIdParameter, IndexStartParameter];
 
-    public static string GetCallback(string prefix, string suffix, params ( string key, string value )[] parameters)
+    public static string GetCallback<TEnum>
+        (string prefix, TEnum suffix, params ( string key, object value )[] parameters) where TEnum : Enum =>
+        GetCallback(prefix, suffix.ToString(), parameters);
+
+    public static string GetCallback(string prefix, string suffix, params ( string key, object value )[] parameters)
     {
         var sb = new StringBuilder(prefix).Append(PathSeparator).Append(suffix);
 
@@ -29,8 +33,6 @@ public class CallbackService(MessageAssistance messageAssistance)
 
         return sb.ToString();
     }
-
-    public static (string, string) GetChatIdParameter(long chatId) => (ChatIdParameter, chatId.ToString());
 
     public static Option<(string prefix, string suffix, string[] parameters)> ParseChatCallback(string callback) =>
         callback.Split(PathSeparator) is [var prefix, var suffix, .. var parameters]
@@ -54,7 +56,7 @@ public class CallbackService(MessageAssistance messageAssistance)
         return dict.Count > 0 ? dict.ToMap() : Option<Map<string, string>>.None;
     }
 
-    public bool HasChatId(Map<string, string> parameters, out long chatId)
+    public bool HasChatIdKey(Map<string, string> parameters, out long chatId)
     {
         chatId = 0;
         return parameters.ContainsKey(ChatIdParameter) &&
