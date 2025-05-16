@@ -137,27 +137,51 @@ public class MessageAssistance(
         long chatId,
         int messageId,
         string message,
+        string commandName,
         InlineKeyboardMarkup? replyMarkup = null,
         ParseMode parseMode = ParseMode.None,
         [CallerMemberName] string callerName = "UnknownCaller") =>
         await botClient.EditMessageAndLog(chatId, messageId, message,
             _ =>
-                Log.Information("Edit message: from: {0}, message: {1}, chat:{2}", callerName, messageId, chatId),
+                Log.Information("Edit message to command {0}: from: {1}, message: {2}, chat:{3}",
+                    commandName, callerName, messageId, chatId),
             ex =>
-                Log.Error(ex, "Failed to edit message: from {0}, message:{1} to chat {2}", callerName, messageId,
-                    chatId),
+                Log.Error(ex, "Failed to edit message to command {0}: from {1}, message:{2} to chat {3}",
+                    commandName, callerName, messageId, chatId),
             cancelToken: cancelToken.Token,
             parseMode: parseMode,
             replyMarkup
         );
 
     public async Task<Unit> EditProfileMessage(
-        long telegramId, long chatId, int messageId, InlineKeyboardMarkup replyMarkup, string text)
+        long telegramId,
+        long chatId,
+        int messageId,
+        InlineKeyboardMarkup replyMarkup,
+        string text,
+        string commandName,
+        ParseMode parseMode = ParseMode.None,
+        [CallerMemberName] string callerName = "UnknownCaller")
     {
         var chatTitle = await botClient.GetChatTitleOrId(chatId, cancelToken.Token);
         var message = string.Format(appConfig.MenuConfig.ProfileTitle, chatTitle, text);
-        return await EditMessageAndLog(telegramId, messageId, message, replyMarkup: replyMarkup);
+        return await EditMessageAndLog(
+            telegramId, messageId, message, commandName, replyMarkup: replyMarkup, parseMode, callerName: callerName);
     }
+
+    public async Task<Unit> AnswerCallbackQuery(
+        string queryId,
+        long chatId,
+        string prefix,
+        string? message = null,
+        bool showAlert = false,
+        [CallerMemberName] string callerName = "UnknownCaller") =>
+        await botClient.AnswerCallbackAndLog(queryId, () =>
+                Log.Information("Answer callback to query {0}: from: {1}, queryId:{2}, chat:{3}",
+                    prefix, callerName, queryId, chatId),
+            ex => Log.Error(ex, "Failed to answer callback to query {0}: from {1}, queryId:{2} to chat {3}",
+                prefix, callerName, queryId, chatId),
+            cancelToken: cancelToken.Token, message: message, showAlert: showAlert);
 
     public async Task<Unit> SendAddPremiumMessage(long chatId, long telegramId, int days)
     {
@@ -180,4 +204,6 @@ public class MessageAssistance(
             ex => Log.Error(ex, "Failed to send add premium message to chat {0}", chatId),
             cancelToken.Token);
     }
+
+    public bool IsAllowedChat(long chatId) => appConfig.AllowedChatConfig.AllowedChatIds?.Contains(chatId) == true;
 }

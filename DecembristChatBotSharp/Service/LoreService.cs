@@ -1,5 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
+using System.Text;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Telegram;
 using DecembristChatBotSharp.Telegram.LoreHandlers;
 using Lamar;
 using Serilog;
@@ -10,41 +12,51 @@ namespace DecembristChatBotSharp.Service;
 [Singleton]
 public class LoreService(
     LoreRecordRepository loreRecordRepository,
+    MongoDatabase db,
+    CancellationTokenSource cancelToken,
     AppConfig appConfig)
 {
-    public async Task<ChangeLoreContentResult> ChangeLoreContent(
-        string key, string content, long loreChatId, long telegramId, DateTime date)
+    private async Task<TResult> RunTransaction<TResult>(Func<IMongoSession, Task<TResult>> operation)
+        where TResult : Enum
     {
-        if (content.Length > appConfig.LoreConfig.ContentLimit) return ChangeLoreContentResult.Limit;
-        if ((DateTime.UtcNow - date).TotalMinutes > appConfig.LoreConfig.ContentEditExpiration)
+        using var session = await db.OpenSession();
+        session.StartTransaction();
+
+        var result = await operation(session);
+
+        if (Convert.ToUInt32(result) != 0 || !await session.TryCommit(cancelToken.Token))
         {
-            return ChangeLoreContentResult.Expire;
+            await session.TryAbort(cancelToken.Token);
         }
-    
-        var isExist = await loreRecordRepository.IsLoreRecordExist((loreChatId, key.Trim()));
-        if (!isExist) return ChangeLoreContentResult.NotFound;
-    
-        var isChange = await loreRecordRepository.AddLoreRecord((loreChatId, key), telegramId, content);
-    
-        return isChange ? ChangeLoreContentResult.Success : ChangeLoreContentResult.Failed;
+
+        return result;
     }
-    
-    public async Task<AddLoreKeyResult> AddLoreKey(string key, long loreChatId, long telegramId)
-    {
-        if (key.Length > appConfig.LoreConfig.KeyLimit) return AddLoreKeyResult.Limit;
-    
-        var isExist = await loreRecordRepository.IsLoreRecordExist((loreChatId, key));
-        if (isExist) return AddLoreKeyResult.Duplicate;
-    
-        var isAdd = await loreRecordRepository.AddLoreRecord((loreChatId, key), telegramId);
-        return isAdd ? AddLoreKeyResult.Success : AddLoreKeyResult.Failed;
-    }
-    
+
+    public async Task<ChangeLoreContentResult> ChangeLoreContent(
+        string key, string content, long loreChatId, long telegramId, DateTime date) =>
+        await RunTransaction(async session =>
+        {
+            if (content.Length > appConfig.LoreConfig.ContentLimit) return ChangeLoreContentResult.Limit;
+            if (IsContentExpired(date)) return ChangeLoreContentResult.Expire;
+            if (!await IsExist(key, loreChatId, session)) return ChangeLoreContentResult.NotFound;
+
+            var isChange = await loreRecordRepository.AddLoreRecord((loreChatId, key), telegramId, content, session);
+            return isChange ? ChangeLoreContentResult.Success : ChangeLoreContentResult.Failed;
+        });
+
+    public async Task<AddLoreKeyResult> AddLoreKey(string key, long loreChatId, long telegramId) =>
+        await RunTransaction(async session =>
+        {
+            if (key.Length > appConfig.LoreConfig.KeyLimit) return AddLoreKeyResult.Limit;
+            if (await IsExist(key, loreChatId, session)) return AddLoreKeyResult.Duplicate;
+
+            var isAdd = await loreRecordRepository.AddLoreRecord((loreChatId, key), telegramId, session: session);
+            return isAdd ? AddLoreKeyResult.Success : AddLoreKeyResult.Failed;
+        });
+
     public async Task<DeleteLoreRecordResult> DeleteLoreRecord(string key, long loreChatId, DateTime date)
     {
-        if ((DateTime.UtcNow - date).TotalMinutes > appConfig.LoreConfig.DeleteExpiration)
-            return DeleteLoreRecordResult.Expire;
-    
+        if (IsDeletionExpired(date)) return DeleteLoreRecordResult.Expire;
         return await loreRecordRepository.DeleteLogRecord((loreChatId, key))
             ? DeleteLoreRecordResult.Success
             : DeleteLoreRecordResult.NotFound;
@@ -60,6 +72,40 @@ public class LoreService(
         );
     }
 
+    public async Task<Option<(string, int)>> GetLoreKeys(long chatId, int currentOffset = 0)
+    {
+        var maybeCount = await loreRecordRepository.GetKeysCount(chatId);
+        return await maybeCount.MatchAsync(
+            None: () => None,
+            Some: async keysCount =>
+            {
+                if (keysCount < currentOffset) return None;
+                var h = await FillLoreList(chatId, currentOffset);
+                return h.Match(
+                    x => Some((x, m: keysCount)),
+                    () => None);
+            });
+    }
+
+    private async Task<Option<string>> FillLoreList(long chatId, int currentOffset)
+    {
+        var maybeResult = await loreRecordRepository.GetLoreKeys(chatId, currentOffset);
+        return maybeResult.Match(
+            None: () => None,
+            Some: keys =>
+            {
+                var sb = new StringBuilder();
+                foreach (var key in keys)
+                {
+                    var escape = key.EscapeMarkdown();
+                    sb.Append("• `").Append(escape).AppendLine("`");
+                }
+
+                return Some(sb.ToString());
+            }
+        );
+    }
+
     public ForceReplyMarkup GetContentTip() => new()
     {
         InputFieldPlaceholder = string.Format(appConfig.LoreConfig.Tip, appConfig.LoreConfig.ContentLimit),
@@ -72,7 +118,23 @@ public class LoreService(
 
     public static string GetLoreTag(string suffix, long targetChatId, string key = "") =>
         $"\n{LoreHandler.Tag}{suffix}:{key}:{targetChatId}";
-    
+
+    private async Task<bool> IsExist(string key, long loreChatId, IMongoSession session) =>
+        await loreRecordRepository.IsLoreRecordExist((loreChatId, key.Trim()), session);
+
+    private bool IsContentExpired(DateTime date) =>
+        (DateTime.UtcNow - date).TotalMinutes > appConfig.LoreConfig.ContentEditExpiration;
+
+    private bool IsDeletionExpired(DateTime date) =>
+        (DateTime.UtcNow - date).TotalMinutes > appConfig.LoreConfig.DeleteExpiration;
+
+    public bool IsContainIndex(Map<string, string> parameters, out int currentOffset)
+    {
+        currentOffset = 0;
+        return parameters.ContainsKey(CallbackService.IndexStartParameter) &&
+               int.TryParse(parameters[CallbackService.IndexStartParameter], out currentOffset);
+    }
+
     public void LogLore(uint result,
         long telegramId,
         long chatId,

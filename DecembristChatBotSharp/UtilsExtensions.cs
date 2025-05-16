@@ -87,6 +87,19 @@ public static class UtilsExtensions
             .ToTryAsync()
             .Match(_ => onDeleted(), onError);
 
+    public static Task<Unit> AnswerCallbackAndLog(
+        this BotClient botClient,
+        string queryId,
+        Action onAnswer,
+        Action<Exception> onError,
+        CancellationToken cancelToken,
+        string? message = null,
+        bool showAlert = false) =>
+        botClient
+            .AnswerCallbackQuery(queryId, message, cancellationToken: cancelToken, showAlert: showAlert)
+            .ToTryAsync()
+            .Match(_ => onAnswer(), onError);
+
     public static Task<Unit> SetReactionAndLog(
         this BotClient botClient,
         long chatId,
@@ -115,15 +128,15 @@ public static class UtilsExtensions
         Func<T, bool> predicate,
         Func<T, string> exceptionMessageFactory) =>
         tryAsync.Ensure(predicate, value => new Exception(exceptionMessageFactory(value)));
-    
-    public static TryAsync<T> Ensure<T>(this TryAsync<T> tryAsync, Func<T, bool> predicate, Exception exception) => 
+
+    public static TryAsync<T> Ensure<T>(this TryAsync<T> tryAsync, Func<T, bool> predicate, Exception exception) =>
         tryAsync.Ensure(predicate, _ => exception);
-    
-    public static TryAsync<T> Ensure<T>(this TryAsync<T> tryAsync, Func<T, bool> predicate, string exceptionMessage) => 
+
+    public static TryAsync<T> Ensure<T>(this TryAsync<T> tryAsync, Func<T, bool> predicate, string exceptionMessage) =>
         tryAsync.Ensure(predicate, _ => new Exception(exceptionMessage));
 
     public static TryOptionAsync<T> ToTryOption<T>(this Task<T> task) => TryOptionAsync(task);
-    
+
     /// <summary>
     /// Throws an exception if the given Option is None; otherwise, returns the value.
     /// </summary>
@@ -131,7 +144,7 @@ public static class UtilsExtensions
     /// <param name="option">The Option to evaluate.</param>
     /// <returns>The value contained in the Option if it is Some.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the Option is None.</exception>
-    public static T IfNoneThrow<T>(this Option<T> option) => 
+    public static T IfNoneThrow<T>(this Option<T> option) =>
         option.IsSome ? option.ValueUnsafe() : throw new InvalidOperationException("Option is None");
 
     /// <summary>
@@ -144,7 +157,7 @@ public static class UtilsExtensions
     /// <exception cref="InvalidOperationException">Thrown if the Either is Left.</exception>
     public static TR IfLeftThrow<T, TR>(this Either<T, TR> either) =>
         either.IsRight ? either.ValueUnsafe() : throw new InvalidOperationException("Either is Left");
-    
+
     /// <summary>
     /// Throws an exception if the given Either is Right; otherwise, returns the Left value.
     /// /// </summary>
