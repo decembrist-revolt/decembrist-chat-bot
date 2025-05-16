@@ -90,7 +90,7 @@ public class LoreRecordRepository(
             .Match(x => x == 0 ? None : Some((int)x),
                 ex =>
                 {
-                    Log.Error(ex, "Failed getkeyscount");
+                    Log.Error(ex, "Failed get keys count in lore records db for chat {0}", chatId);
                     return None;
                 });
 
