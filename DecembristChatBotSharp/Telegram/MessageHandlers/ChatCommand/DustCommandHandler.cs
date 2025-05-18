@@ -1,12 +1,16 @@
 ﻿using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Service;
 using JasperFx.Core;
 using Lamar;
+using Serilog;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
-public partial class DustCommandHandler(MessageAssistance messageAssistance) : ICommandHandler
+public partial class DustCommandHandler(
+    MessageAssistance messageAssistance,
+    DustService dustService) : ICommandHandler
 {
     public string Command => "/dust";
     public string Description => "dust items";
@@ -33,9 +37,11 @@ public partial class DustCommandHandler(MessageAssistance messageAssistance) : I
         return messageAssistance.SendCommandResponse(chatId, "help", Command);
     }
 
-    private async Task<Unit> HandleDust(MemberItemType item, long chatId, long telegramId)
+    private Task<Unit> HandleDust(MemberItemType item, long chatId, long telegramId)
     {
-        return unit;
+        Log.Information("{0}", item);
+        var message = dustService.HandleDust(item, chatId, telegramId);
+        return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
     private Option<MemberItemType> ParseText(string text)

@@ -1,0 +1,108 @@
+﻿{
+  "DustConfig": {
+    "DustRecipes": {
+      "RedditMeme": {
+        "Reward": {
+          "Item": "GreenDust",
+          "Quantity": {
+            "Min": 3,
+            "Max": 7
+          },
+          "PremiumBonus": {
+            "Chance": 0.1,
+            "Item": "Box",
+            "Quantity": 1
+          }
+        }
+      },
+      "TelegramMeme": {
+        "Reward": {
+          "Item": "GreenDust",
+          "Quantity": {
+            "Min": 3,
+            "Max": 7
+          },
+          "PremiumBonus": {
+            "Chance": 0.1,
+            "Item": "Box",
+            "Quantity": 1
+          }
+        }
+      },
+      "FastReply": {
+        "Reward": {
+          "Item": "BlueDust",
+          "Quantity": {
+            "Min": 2,
+            "Max": 6
+          },
+          "PremiumBonus": {
+            "Chance": 0.15,
+            "Item": "Box",
+            "Quantity": 1
+          }
+        }
+      },
+      "Box": {
+        "Reward": {
+          "Item": "BlueDust",
+          "Quantity": {
+            "Min": 2,
+            "Max": 6
+          },
+          "PremiumBonus": {
+            "Chance": 0.15,
+            "Item": "Box",
+            "Quantity": 1
+          }
+        }
+      },
+      "Charm": {
+        "Reward": {
+          "Item": "RedDust",
+          "Quantity": {
+            "Min": 1,
+            "Max": 5
+          },
+          "PremiumBonus": {
+            "Chance": 0.20,
+            "Item": "Box",
+            "Quantity": 1
+          }
+        }
+      },
+      "Curse": {
+        "Reward": {
+          "Item": "RedDust",
+          "Quantity": {
+            "Min": 1,
+            "Max": 5
+          },
+          "PremiumBonus": {
+            "Chance": 0.20,
+            "Item": "Box",
+            "Quantity": 1
+          }
+        }
+      },
+      "RedDust": {
+        "Reward": {
+          "Item": "BlueDust",
+          "Quantity": {
+            "Min": 1,
+            "Max": 3
+          }
+        }
+      },
+      "BlueDust": {
+        "Reward": {
+          "Item": "GreenDust",
+          "Quantity": {
+            "Min": 1,
+            "Max": 3
+          }
+        }
+      }
+    }
+  }
+}

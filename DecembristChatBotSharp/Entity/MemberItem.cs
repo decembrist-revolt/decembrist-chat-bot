@@ -17,7 +17,12 @@ public enum MemberItemType
     // reaction spam
     Curse = 4,
     Charm = 5,
+
+    // passive
     Amulet = 6,
+    GreenDust = 7,
+    BlueDust = 8,
+    RedDust = 9
 }
 
 public record MemberItemHistoryLogData(
@@ -34,4 +39,6 @@ public enum MemberItemSourceType
     Use = 2,
     TopLiker = 3,
     PremiumDaily = 4,
+    Dust = 5,
+    Craft = 6
 }

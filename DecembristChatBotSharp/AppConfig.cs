@@ -38,6 +38,7 @@ public record AppConfig(
     CharmConfig CharmConfig,
     AmuletConfig amuletConfig,
     ItemConfig ItemConfig,
+    DustConfig DustConfig,
     PollPaymentConfig? PollPaymentConfig,
     KeycloakConfig? KeycloakConfig = null,
     DateTime? DeployTime = null,
@@ -48,6 +49,7 @@ public record AppConfig(
         var configBuilder = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .AddJsonFile("craftsettings.json", optional: false, reloadOnChange: true)
             .AddEnvironmentVariables()
             .AddInMemoryCollection(new Dictionary<string, string>
             {
