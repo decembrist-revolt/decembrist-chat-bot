@@ -1,10 +1,15 @@
 ﻿{
   "DustConfig": {
+    "SuccessMessage": "",
+    "PremiumSuccessMessage": "",
+    "HelpMessage": "",
+    "NoRecipeMessage": "{0}",
+    "FailedMessage": "",
     "DustRecipes": {
       "RedditMeme": {
         "Reward": {
           "Item": "GreenDust",
-          "Quantity": {
+          "Range": {
             "Min": 3,
             "Max": 7
           },
@@ -18,7 +23,7 @@
       "TelegramMeme": {
         "Reward": {
           "Item": "GreenDust",
-          "Quantity": {
+          "Range": {
             "Min": 3,
             "Max": 7
           },
@@ -32,7 +37,7 @@
       "FastReply": {
         "Reward": {
           "Item": "BlueDust",
-          "Quantity": {
+          "Range": {
             "Min": 2,
             "Max": 6
           },
@@ -46,7 +51,7 @@
       "Box": {
         "Reward": {
           "Item": "BlueDust",
-          "Quantity": {
+          "Range": {
             "Min": 2,
             "Max": 6
           },
@@ -60,7 +65,7 @@
       "Charm": {
         "Reward": {
           "Item": "RedDust",
-          "Quantity": {
+          "Range": {
             "Min": 1,
             "Max": 5
           },
@@ -74,7 +79,7 @@
       "Curse": {
         "Reward": {
           "Item": "RedDust",
-          "Quantity": {
+          "Range": {
             "Min": 1,
             "Max": 5
           },
@@ -88,7 +93,7 @@
       "RedDust": {
         "Reward": {
           "Item": "BlueDust",
-          "Quantity": {
+          "Range": {
             "Min": 1,
             "Max": 3
           }
@@ -97,7 +102,7 @@
       "BlueDust": {
         "Reward": {
           "Item": "GreenDust",
-          "Quantity": {
+          "Range": {
             "Min": 1,
             "Max": 3
           }

@@ -10,6 +10,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 [Singleton]
 public partial class DustCommandHandler(
     MessageAssistance messageAssistance,
+    AppConfig appConfig,
     DustService dustService) : ICommandHandler
 {
     public string Command => "/dust";
@@ -25,7 +26,7 @@ public partial class DustCommandHandler(
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
         var taskResult = ParseText(text.Trim()).Match(
-            async itemText => await HandleDust(itemText, chatId, telegramId),
+            async item => await HandleCommand(item, chatId, telegramId),
             async () => await SendHelp(chatId));
 
         return await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, Command),
@@ -34,14 +35,34 @@ public partial class DustCommandHandler(
 
     private Task<Unit> SendHelp(long chatId)
     {
-        return messageAssistance.SendCommandResponse(chatId, "help", Command);
+        var message = appConfig.DustConfig.HelpMessage;
+        return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private Task<Unit> HandleDust(MemberItemType item, long chatId, long telegramId)
+    private Task<Unit> SendNoRecipe(long chatId)
     {
-        Log.Information("{0}", item);
-        var message = dustService.HandleDust(item, chatId, telegramId);
+        var message = string.Format(appConfig.DustConfig.NoRecipeMessage, appConfig.DustConfig.HelpMessage);
         return messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private Task<Unit> SendFailed(long chatId)
+    {
+        var message = appConfig.DustConfig.FailedMessage;
+        return messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private async Task<Unit> HandleCommand(MemberItemType item, long chatId, long telegramId)
+    {
+        var result = await dustService.HandleDust(item, chatId, telegramId);
+        return result.Result switch
+        {
+            DustResult.Success => expr,
+            DustResult.PremiumSuccess => expr,
+            DustResult.NoRecipe => await SendNoRecipe(chatId),
+            DustResult.NoItems => await messageAssistance.SendNoItems(chatId),
+            DustResult.Failed => await SendFailed(chatId),
+            _ => throw new ArgumentOutOfRangeException(nameof(result.Result))
+        };
     }
 
     private Option<MemberItemType> ParseText(string text)

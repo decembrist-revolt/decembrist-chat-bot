@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Reflection;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand.Items;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 
@@ -65,17 +66,17 @@ public record AppConfig(
                 throw ex;
             });
     }
-    
+
     private static void ValidateRecursively(object obj)
     {
         ArgumentNullException.ThrowIfNull(obj);
 
         Validator.ValidateObject(
-            obj, 
-            new ValidationContext(obj), 
+            obj,
+            new ValidationContext(obj),
             validateAllProperties: true
         );
-        
+
         var props = obj.GetType()
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.CanRead && p.GetIndexParameters().Length == 0);
@@ -84,7 +85,7 @@ public record AppConfig(
         {
             var value = prop.GetValue(obj);
             if (value.IsNull()) continue;
-            
+
             if (value is IEnumerable col && !(value is string))
             {
                 foreach (var element in col)
@@ -92,7 +93,7 @@ public record AppConfig(
                     ValidateRecursively(element);
                 }
             }
-            
+
             else if (!prop.PropertyType.IsValueType && prop.PropertyType != typeof(string))
             {
                 ValidateRecursively(value);
@@ -360,7 +361,7 @@ public record PollPaymentConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ServiceUrl,
     [property: Required] int PollIntervalSeconds,
-    [property: Required] 
+    [property: Required]
     [property: MinLength(1)]
     System.Collections.Generic.HashSet<ProductListItem>? ProductList
 );
@@ -376,4 +377,18 @@ public record KeycloakConfig(
     string ClientId,
     [property: Required(AllowEmptyStrings = false)]
     string ClientSecret
+);
+
+public record DustConfig(
+    Dictionary<MemberItemType, DustRecipe> DustRecipes,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string PremiumSuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string HelpMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string NoRecipeMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FailedMessage
 );
