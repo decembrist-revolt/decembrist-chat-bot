@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Service;
+using DecembristChatBotSharp.Service.Buttons;
 using DecembristChatBotSharp.Telegram.LoreHandlers;
 using Lamar;
 using Serilog;
@@ -15,7 +16,7 @@ public class PrivateMessageHandler(
     BotClient botClient,
     MessageAssistance messageAssistance,
     InventoryService inventoryService,
-    ProfileService profileService,
+    ProfileButtons profileButtons,
     LoreHandler loreHandler,
     CancellationTokenSource cancelToken)
 {
@@ -61,15 +62,13 @@ public class PrivateMessageHandler(
 
     private async Task<TryAsync<Message>> SendProfile(long chatId, long privateChatId)
     {
-        if (!IsAllowedChat(chatId)) return SendChatNotAllowed(privateChatId);
+        if (!messageAssistance.IsAllowedChat(chatId)) return SendChatNotAllowed(privateChatId);
         var message = appConfig.MenuConfig.WelcomeMessage;
-        var markup = await profileService.GetProfileMarkup(privateChatId, chatId);
+        var markup = await profileButtons.GetProfileMarkup(privateChatId, chatId);
         return TryAsync(botClient.SendMessage(privateChatId, message,
             replyMarkup: markup,
             cancellationToken: cancelToken.Token));
     }
-
-    private bool IsAllowedChat(long chatId) => appConfig.AllowedChatConfig.AllowedChatIds?.Contains(chatId) == true;
 
     private TryAsync<Message> SendChatNotAllowed(long chatId)
     {
