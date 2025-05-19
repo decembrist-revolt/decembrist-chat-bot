@@ -1,12 +1,11 @@
 ﻿using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Scheduler;
+using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
+using DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
 using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Lamar;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
-using Serilog;
-using Telegram.Bot;
-using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.DI;
 
@@ -37,6 +36,8 @@ public class DiContainer
             s.TheCallingAssembly();
             s.WithDefaultConventions();
             s.AddAllTypesOf<ICommandHandler>();
+            s.AddAllTypesOf<IPrivateCallbackHandler>();
+            s.AddAllTypesOf<IChatCallbackHandler>();
             s.AddAllTypesOf<IRepository>();
             s.AddAllTypesOf<IRegisterJob>();
         });
