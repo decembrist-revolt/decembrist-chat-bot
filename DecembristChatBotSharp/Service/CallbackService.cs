@@ -7,8 +7,8 @@ namespace DecembristChatBotSharp.Service;
 [Singleton]
 public class CallbackService(MessageAssistance messageAssistance)
 {
-    private const string ParamSeparator = "=";
-    private const string PathSeparator = "/";
+    private const char ParamSeparator = '=';
+    private const char PathSeparator = '/';
     public const string ChatIdParameter = "chatId";
     public const string IndexStartParameter = "indexStart";
 

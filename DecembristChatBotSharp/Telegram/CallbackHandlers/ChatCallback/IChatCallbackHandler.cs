@@ -1,6 +1,4 @@
-﻿using DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
-
-namespace DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
+﻿namespace DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
 
 public interface IChatCallbackHandler
 {

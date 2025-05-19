@@ -2,7 +2,6 @@
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Service.Buttons;
-using DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
 using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Lamar;
 using LanguageExt.UnsafeValueAccess;

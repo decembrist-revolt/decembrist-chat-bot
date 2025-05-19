@@ -38,7 +38,6 @@ public class DiContainer
             s.AddAllTypesOf<ICommandHandler>();
             s.AddAllTypesOf<IPrivateCallbackHandler>();
             s.AddAllTypesOf<IChatCallbackHandler>();
-            ;
             s.AddAllTypesOf<IRepository>();
             s.AddAllTypesOf<IRegisterJob>();
         });
