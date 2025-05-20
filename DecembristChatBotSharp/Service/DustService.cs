@@ -1,7 +1,9 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using System.Runtime.CompilerServices;
+using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand.Items;
 using Lamar;
+using Serilog;
 
 namespace DecembristChatBotSharp.Service;
 
@@ -25,9 +27,7 @@ public class DustService(
         using var session = await db.OpenSession();
         session.StartTransaction();
 
-        var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
-        var hasItem = isAdmin || await memberItemRepository.RemoveMemberItem(chatId, telegramId, item, session);
-
+        var hasItem = await memberItemRepository.RemoveMemberItem(chatId, telegramId, item, session);
         return hasItem
             ? await ProcessDustOperation(item, chatId, telegramId, session, recipe)
             : await AbortWithResult(session, new DustOperationResult(DustResult.NoItems));
@@ -49,22 +49,22 @@ public class DustService(
     private async Task<DustOperationResult> ProcessRewards(
         long chatId, long telegramId, DustRecipe recipe, IMongoSession session)
     {
-        var mainReward = GetReward(recipe.Reward);
-        var success = await AddRewardItems(chatId, telegramId, mainReward, session);
+        var dustReward = GetReward(recipe.Reward);
+        var success = await AddRewardItems(chatId, telegramId, dustReward, session);
         var isPremium = await premiumMemberRepository.IsPremium((telegramId, chatId));
-        var maybeBonus = isPremium && recipe.PremiumBonus != null
-            ? TryGetBonus(recipe.PremiumBonus)
+        var maybeBonus = isPremium && recipe.PremiumReward != null
+            ? TryGetPremiumReward(recipe.PremiumReward)
             : None;
 
         if (!success) return new DustOperationResult(DustResult.Failed);
 
         return await maybeBonus.MatchAsync(
-            None: () => new DustOperationResult(DustResult.Success, mainReward),
+            None: () => new DustOperationResult(DustResult.Success, dustReward),
             Some: async premiumReward =>
             {
                 var premiumSuccess = await AddRewardItems(chatId, telegramId, premiumReward, session);
                 return premiumSuccess
-                    ? new DustOperationResult(DustResult.PremiumSuccess, mainReward, premiumReward)
+                    ? new DustOperationResult(DustResult.PremiumSuccess, dustReward, premiumReward)
                     : new DustOperationResult(DustResult.Failed);
             }
         );
@@ -89,12 +89,14 @@ public class DustService(
         return await memberItemRepository.AddMemberItem(chatId, telegramId, item, session, quantity);
     }
 
-    private Option<(MemberItemType, int)> TryGetBonus(PremiumBonus premiumBonus)
-        => random.NextDouble() < premiumBonus.Chance
-            ? Some((premiumBonus.Item, premiumBonus.Quantity))
+    private Option<(MemberItemType, int)> TryGetPremiumReward(PremiumReward premiumReward)
+    {
+        return random.NextDouble() < premiumReward.Chance
+            ? Some((premiumReward.Item, premiumReward.Quantity))
             : None;
+    }
 
-    private (MemberItemType, int) GetReward(ItemReward reward)
+    private (MemberItemType, int) GetReward(DustReward reward)
     {
         var re = random.Next(reward.Range.Min, reward.Range.Max);
         return (reward.Item, re);
@@ -103,8 +105,8 @@ public class DustService(
 
 public record DustOperationResult(
     DustResult Result,
-    Option<(MemberItemType, int)> RecipeOutput = default,
-    Option<(MemberItemType, int)> PremiumReward = default);
+    (MemberItemType, int) DustReward = default,
+    (MemberItemType, int) PremiumReward = default);
 
 public enum DustResult
 {

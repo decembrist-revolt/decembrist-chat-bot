@@ -4,15 +4,15 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand.Items;
 
 public record QuantityRange(int Min, int Max);
 
-public record ItemReward(
+public record DustReward(
     MemberItemType Item,
     QuantityRange Range);
 
-public record PremiumBonus(
+public record PremiumReward(
     MemberItemType Item,
     double Chance,
     int Quantity);
 
 public record DustRecipe(
-    ItemReward Reward,
-    PremiumBonus? PremiumBonus = null);
+    DustReward Reward,
+    PremiumReward? PremiumReward = null);

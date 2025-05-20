@@ -1,10 +1,10 @@
 ﻿{
   "DustConfig": {
-    "SuccessMessage": "",
-    "PremiumSuccessMessage": "",
-    "HelpMessage": "",
-    "NoRecipeMessage": "{0}",
-    "FailedMessage": "",
+    "SuccessMessage": "Распыление {0} дало вам {1} {2}",
+    "PremiumSuccessMessage": "{0},\n\nкак премиуму, вам повезло, и среди прочего вы обнаружили {1} {2}",
+    "HelpMessage": "Используйте {0} item, чтобы получить другие предметы",
+    "NoRecipeMessage": "Таких рецептов нет",
+    "FailedMessage": "Распыление не доступно\nПопробуйте позже",
     "DustRecipes": {
       "RedditMeme": {
         "Reward": {
@@ -12,12 +12,12 @@
           "Range": {
             "Min": 3,
             "Max": 7
-          },
-          "PremiumBonus": {
-            "Chance": 0.1,
-            "Item": "Box",
-            "Quantity": 1
           }
+        },
+        "PremiumReward": {
+          "Chance": 0.1,
+          "Item": "Box",
+          "Quantity": 1
         }
       },
       "TelegramMeme": {
@@ -26,12 +26,12 @@
           "Range": {
             "Min": 3,
             "Max": 7
-          },
-          "PremiumBonus": {
-            "Chance": 0.1,
-            "Item": "Box",
-            "Quantity": 1
           }
+        },
+        "PremiumReward": {
+          "Chance": 0.1,
+          "Item": "Box",
+          "Quantity": 1
         }
       },
       "FastReply": {
@@ -40,12 +40,12 @@
           "Range": {
             "Min": 2,
             "Max": 6
-          },
-          "PremiumBonus": {
-            "Chance": 0.15,
-            "Item": "Box",
-            "Quantity": 1
           }
+        },
+        "PremiumReward": {
+          "Chance": 0.15,
+          "Item": "Box",
+          "Quantity": 1
         }
       },
       "Box": {
@@ -54,12 +54,12 @@
           "Range": {
             "Min": 2,
             "Max": 6
-          },
-          "PremiumBonus": {
-            "Chance": 0.15,
-            "Item": "Box",
-            "Quantity": 1
           }
+        },
+        "PremiumReward": {
+          "Chance": 0.15,
+          "Item": "Box",
+          "Quantity": 1
         }
       },
       "Charm": {
@@ -68,12 +68,12 @@
           "Range": {
             "Min": 1,
             "Max": 5
-          },
-          "PremiumBonus": {
-            "Chance": 0.20,
-            "Item": "Box",
-            "Quantity": 1
           }
+        },
+        "PremiumReward": {
+          "Chance": 0.20,
+          "Item": "Box",
+          "Quantity": 1
         }
       },
       "Curse": {
@@ -82,12 +82,12 @@
           "Range": {
             "Min": 1,
             "Max": 5
-          },
-          "PremiumBonus": {
-            "Chance": 0.20,
-            "Item": "Box",
-            "Quantity": 1
           }
+        },
+        "PremiumReward": {
+          "Chance": 0.20,
+          "Item": "Box",
+          "Quantity": 1
         }
       },
       "RedDust": {

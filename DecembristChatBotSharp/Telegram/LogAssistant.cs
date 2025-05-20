@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
 
@@ -28,7 +29,31 @@ public static class LogAssistant
 
         return unit;
     }
-    
+
+    public static void LogDustResult(this DustOperationResult dustResult,
+        long telegramId,
+        long chatId,
+        [CallerMemberName] string callerName = "UnknownCaller")
+    {
+        var result = dustResult.Result;
+        switch (result)
+        {
+            case DustResult.Success or DustResult.PremiumSuccess:
+                Log.Information("Dust operation SUCCESS: {0} from: {1}, chat: {2}, by: {3}",
+                    callerName, result, chatId, telegramId);
+                break;
+            case DustResult.Failed:
+                Log.Error("Dust operation FAILED: reason: {0}, from: {1}, chat: {2}, by: {3}",
+                    result, callerName, chatId, telegramId);
+                break;
+            default:
+                Log.Information(
+                    "Dust operation FAILED: reason: {0}, from: {1}, chat: {2}, by: {3}",
+                    result, callerName, chatId, telegramId);
+                break;
+        }
+    }
+
     public static T LogSuccessUsingItem<T>(this T maybeResult,
         long chatId,
         long telegramId,
