@@ -41,6 +41,7 @@ public record AppConfig(
     AmuletConfig amuletConfig,
     ItemConfig ItemConfig,
     DustConfig DustConfig,
+    CraftConfig CraftConfig,
     PollPaymentConfig? PollPaymentConfig,
     KeycloakConfig? KeycloakConfig = null,
     DateTime? DeployTime = null,
@@ -391,6 +392,10 @@ public record KeycloakConfig(
     string ClientId,
     [property: Required(AllowEmptyStrings = false)]
     string ClientSecret
+);
+
+public record CraftConfig(
+    List<CraftRecipe> Recipes
 );
 
 public record DustConfig(

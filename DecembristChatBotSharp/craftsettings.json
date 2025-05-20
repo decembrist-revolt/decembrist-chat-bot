@@ -109,5 +109,72 @@
         }
       }
     }
+  },
+  "CraftConfig": {
+    "CraftRecipes": [
+      {
+        "Inputs": [
+          {
+            "Item": "GreenDust",
+            "Quantity": 10
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "TelegramMeme",
+            "Chance": 0.45
+          },
+          {
+            "Item": "RedditMeme",
+            "Chance": 0.45
+          },
+          {
+            "Item": "Box",
+            "Chance": 0.10
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "GreenDust",
+            "Quantity": 5
+          },
+          {
+            "Item": "BlueDust",
+            "Quantity": 3
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Box",
+            "Chance": 1.0
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "BlueDust",
+            "Quantity": 6
+          },
+          {
+            "Item": "TelegramMeme",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "FastReply",
+            "Chance": 0.85
+          },
+          {
+            "Item": "Box",
+            "Chance": 0.15
+          }
+        ]
+      }
+    ]
   }
 }
+      
