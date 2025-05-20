@@ -6,14 +6,20 @@ using Lamar;
 namespace DecembristChatBotSharp.Service;
 
 [Singleton]
-public class CraftService(AppConfig appConfig, MongoDatabase db)
+public class CraftService(
+    AppConfig appConfig,
+    MongoDatabase db,
+    HistoryLogRepository historyLogRepository,
+    MemberItemRepository memberItemRepository)
 {
-    private readonly List<CraftRecipe> _itemList = appConfig.CraftConfig.Recipes;
+    private readonly Dictionary<int, CraftRecipe> _recipeCache =
+        appConfig.CraftConfig.Recipes.ToDictionary(recipe => CraftRecipe.CalculateRecipeHash(recipe.Inputs),
+            recipe => recipe);
 
     public async Task<CraftOperationResult> HandleCraft(List<InputItem> input, long chatId, long telegramId)
     {
-        //todo optimize search
-        if (_itemList.Any(x => x.Inputs == input)) return new(CraftResult.NoRecipe);
+        var inputHash = CraftRecipe.CalculateRecipeHash(input);
+        if (!_recipeCache.TryGetValue(inputHash, out var recipe)) return new CraftOperationResult(CraftResult.NoRecipe);
 
         using var session = await db.OpenSession();
         session.StartTransaction();
@@ -27,8 +33,7 @@ public class CraftService(AppConfig appConfig, MongoDatabase db)
 
 public record CraftOperationResult(
     CraftResult CraftResult,
-    (MemberItemType, int) CraftItem = default
-);
+    (MemberItemType, int) CraftItem = default);
 
 public enum CraftResult
 {
