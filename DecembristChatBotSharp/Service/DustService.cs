@@ -15,7 +15,7 @@ public class DustService(
     MongoDatabase db,
     CancellationTokenSource cancelToken)
 {
-    private readonly Dictionary<MemberItemType, DustRecipe> _recipes = appConfig.DustConfig.DustRecipes;
+    private readonly IReadOnlyDictionary<MemberItemType, DustRecipe> _recipes = appConfig.DustConfig.DustRecipes;
 
     public async Task<DustOperationResult> HandleDust(MemberItemType item, long chatId, long telegramId)
     {

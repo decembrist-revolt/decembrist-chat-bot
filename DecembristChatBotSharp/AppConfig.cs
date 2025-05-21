@@ -395,7 +395,7 @@ public record KeycloakConfig(
 );
 
 public record CraftConfig(
-    List<CraftRecipe> Recipes,
+    IReadOnlyList<CraftRecipe> Recipes,
     [property: Required(AllowEmptyStrings = false)]
     string SuccessMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -412,7 +412,7 @@ public record CraftConfig(
 );
 
 public record DustConfig(
-    Dictionary<MemberItemType, DustRecipe> DustRecipes,
+    IReadOnlyDictionary<MemberItemType, DustRecipe> DustRecipes,
     [property: Required(AllowEmptyStrings = false)]
     string SuccessMessage,
     [property: Required(AllowEmptyStrings = false)]
