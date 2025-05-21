@@ -14,6 +14,7 @@ public enum MemberItemType
     FastReply = 1,
     Box = 2,
     TelegramMeme = 3,
+
     // reaction spam
     Curse = 4,
     Charm = 5,
@@ -33,7 +34,7 @@ public record MemberItemHistoryLogData(
 ) : IHistoryLogData;
 
 public record ManyItemsHistoryLogData(
-    Map<MemberItemType, int> items,
+    IEnumerable<(MemberItemType, int)> items,
     MemberItemSourceType SourceType) : IHistoryLogData;
 
 public enum MemberItemSourceType

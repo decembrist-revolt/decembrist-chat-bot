@@ -30,12 +30,12 @@ public class HistoryLogRepository(
             .IfFail(ex => Log.Error(ex, "Failed to log item {0} for {1}", type, telegramId));
     }
 
-    public async Task<Unit> LogManyItems(
+    public async Task<Unit> LogDifferentItems(
         long chatId,
         long telegramId,
-        Map<MemberItemType, int> items,
+        IEnumerable<( MemberItemType, int )> items,
         IMongoSession session,
-        MemberItemSourceType sourceType = MemberItemSourceType.Craft)
+        MemberItemSourceType sourceType)
     {
         var collection = GetCollection<ManyItemsHistoryLogData>();
         var id = CreateId<ManyItemsHistoryLogData>(chatId, telegramId);
@@ -88,7 +88,7 @@ public class HistoryLogRepository(
             .ToTryAsync()
             .IfFail(ex => Log.Error(ex, "Failed to log top likers"));
     }
-    
+
     public async Task<Unit> LogPremium(
         long chatId,
         long telegramId,
@@ -101,7 +101,8 @@ public class HistoryLogRepository(
     {
         var collection = GetCollection<PremiumMemberHistoryLogData>();
         var id = CreateId<PremiumMemberHistoryLogData>(chatId, telegramId);
-        var data = new PremiumMemberHistoryLogData(operationType, expirationDate, level, sourceTelegramId, userProductId);
+        var data = new PremiumMemberHistoryLogData(operationType, expirationDate, level, sourceTelegramId,
+            userProductId);
         var log = new HistoryLog<PremiumMemberHistoryLogData>(id, HistoryLogType.PremiumMember, data);
 
         return await collection.InsertOneAsync(session, log, cancellationToken: cancelToken.Token)

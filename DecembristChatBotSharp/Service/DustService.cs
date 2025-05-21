@@ -1,6 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
-using DecembristChatBotSharp.Recipes;
 using Lamar;
 
 namespace DecembristChatBotSharp.Service;
@@ -33,14 +32,30 @@ public class DustService(
     private async Task<DustOperationResult> ProcessDustOperation(
         MemberItemType item, long chatId, long telegramId, IMongoSession session, DustRecipe recipe)
     {
-        await historyLogRepository.LogItem(chatId, telegramId, item, -1, MemberItemSourceType.Dust, session);
-
         var result = await ProcessRewards(chatId, telegramId, recipe, session);
+
         return result.Result switch
         {
-            DustResult.Success or DustResult.PremiumSuccess => await CommitWithResult(session, result),
+            DustResult.PremiumSuccess or DustResult.Success =>
+                await LogInHistoryAndCommit(result, session, chatId, telegramId, item),
             _ => await AbortWithResult(session, result.Result)
         };
+    }
+
+    private async Task<DustOperationResult> LogInHistoryAndCommit(
+        DustOperationResult result, IMongoSession session, long chatId, long telegramId, MemberItemType removeItem)
+    {
+        var list = new List<(MemberItemType, int)>
+        {
+            result.DustReward,
+            (removeItem, -1)
+        };
+        if (result.Result == DustResult.PremiumSuccess) list.Add(result.PremiumReward);
+
+        await historyLogRepository.LogDifferentItems(chatId, telegramId, list, session, MemberItemSourceType.Dust);
+        return await session.TryCommit(cancelToken.Token)
+            ? result
+            : await AbortWithResult(session);
     }
 
     private async Task<DustOperationResult> ProcessRewards(
@@ -74,16 +89,10 @@ public class DustService(
         return new DustOperationResult(result);
     }
 
-    private async Task<DustOperationResult> CommitWithResult(IMongoSession session, DustOperationResult result) =>
-        await session.TryCommit(cancelToken.Token)
-            ? result
-            : await AbortWithResult(session);
-
     private async Task<bool> AddRewardItems(
         long chatId, long telegramId, (MemberItemType, int) items, IMongoSession session)
     {
         var (item, quantity) = items;
-        await historyLogRepository.LogItem(chatId, telegramId, item, quantity, MemberItemSourceType.Dust, session);
         return await memberItemRepository.AddMemberItem(chatId, telegramId, item, session, quantity);
     }
 
@@ -100,6 +109,21 @@ public class DustService(
         return (reward.Item, quantity);
     }
 }
+
+public record QuantityRange(int Min, int Max);
+
+public record DustReward(
+    MemberItemType Item,
+    QuantityRange Range);
+
+public record PremiumReward(
+    MemberItemType Item,
+    double Chance,
+    int Quantity);
+
+public record DustRecipe(
+    DustReward Reward,
+    PremiumReward? PremiumReward = null);
 
 public record DustOperationResult(
     DustResult Result,

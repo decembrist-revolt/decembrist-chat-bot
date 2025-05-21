@@ -3,6 +3,7 @@ using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Service;
 using JasperFx.Core;
 using Lamar;
+using Serilog;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
@@ -47,7 +48,9 @@ public partial class DustCommandHandler(
 
     private async Task<Unit> HandleDust(MemberItemType item, long chatId, long telegramId)
     {
-        var result = await dustService.HandleDust(item, chatId, telegramId);
+        var result = new DustOperationResult(DustResult.NoItems);
+        await dustService.HandleDust(item, chatId, telegramId).ToTryAsync()
+            .Match(x => result = x, exception => Log.Error(exception, "error dust"));
         result.LogDustResult(telegramId, chatId);
         return result.Result switch
         {

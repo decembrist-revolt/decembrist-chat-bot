@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Reflection;
 using DecembristChatBotSharp.Entity;
-using DecembristChatBotSharp.Recipes;
+using DecembristChatBotSharp.Service;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 

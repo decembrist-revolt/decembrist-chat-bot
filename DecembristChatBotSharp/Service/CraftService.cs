@@ -1,6 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
-using DecembristChatBotSharp.Recipes;
 using Lamar;
 
 namespace DecembristChatBotSharp.Service;
@@ -26,44 +25,44 @@ public class CraftService(
         using var session = await db.OpenSession();
         session.StartTransaction();
 
-        var hasItem = await RemoveInputItems(chatId, telegramId, recipe, session);
+        var items = recipe.Inputs.Select(x => (x.Item, x.Quantity)).ToMap();
+        var hasItem = await memberItemRepository.RemoveMemberItems(chatId, telegramId, items, session);
 
         return hasItem
-            ? await ProcessCraftOperation(recipe.Outputs, chatId, telegramId, session)
+            ? await ProcessCraftOperation(recipe, chatId, telegramId, session)
             : await AbortWithResult(session, CraftResult.NoItems);
     }
 
-    private async Task<bool> RemoveInputItems(long chatId, long telegramId, CraftRecipe recipe, IMongoSession session)
+    private async Task<CraftOperationResult> ProcessCraftOperation(
+        CraftRecipe recipe, long chatId, long telegramId, IMongoSession session)
     {
-        var items = recipe.Inputs.Select(x => (x.Item, x.Quantity)).ToMap();
-        var hasItem = await memberItemRepository.RemoveMemberItems(chatId, telegramId, items, session);
-        if (!hasItem) return false;
-        var itemsLog = items.Map(x => (x.Key, -x.Value)).ToMap();
-        await historyLogRepository.LogManyItems(chatId, telegramId, itemsLog, session);
-        return hasItem;
-    }
+        var craftItem = GetRandomOutputItem(recipe.Outputs);
 
-    private async Task<CraftOperationResult> ProcessCraftOperation(List<OutputItem> recipeOutputs, long chatId,
-        long telegramId, IMongoSession session)
-    {
-        var craftItem = GetRandomOutputItem(recipeOutputs);
-
-        var isGetPremiumBonus = await premiumMemberRepository.IsPremium((telegramId, chatId)) && IsGetBonus();
+        var isGetPremiumBonus = await premiumMemberRepository.IsPremium((telegramId, chatId)) && IsGetPremiumBonus();
         if (isGetPremiumBonus) craftItem.Item2++;
         var result = isGetPremiumBonus ? CraftResult.PremiumSuccess : CraftResult.Success;
 
         var isAdd = await AddCraftItems(chatId, telegramId, craftItem, session);
+
+        await LogInHistory(recipe.Inputs, chatId, telegramId, session, craftItem);
 
         return isAdd
             ? await CommitWithResult(session, new CraftOperationResult(result, craftItem))
             : await AbortWithResult(session);
     }
 
-    private async Task<bool> AddCraftItems(
-        long chatId, long telegramId, (MemberItemType, int) items, IMongoSession session)
+    private async Task LogInHistory(
+        List<InputItem> removeItems, long chatId, long telegramId, IMongoSession session, (MemberItemType, int) item)
     {
-        var (item, quantity) = items;
-        await historyLogRepository.LogItem(chatId, telegramId, item, quantity, MemberItemSourceType.Craft, session);
+        var itemsLog = removeItems.Select(x => (x.Item, -x.Quantity)).ToList();
+        itemsLog.Add(item);
+        await historyLogRepository.LogDifferentItems(chatId, telegramId, itemsLog, session, MemberItemSourceType.Craft);
+    }
+
+    private async Task<bool> AddCraftItems(
+        long chatId, long telegramId, (MemberItemType, int) craftItem, IMongoSession session)
+    {
+        var (item, quantity) = craftItem;
         return await memberItemRepository.AddMemberItem(chatId, telegramId, item, session, quantity);
     }
 
@@ -91,12 +90,14 @@ public class CraftService(
         return (last.Item, last.Quantity);
     }
 
-    private bool IsGetBonus() => random.NextDouble() < appConfig.CraftConfig.PremiumChance;
+    private bool IsGetPremiumBonus() => random.NextDouble() < appConfig.CraftConfig.PremiumChance;
 
-    private async Task<CraftOperationResult> CommitWithResult(IMongoSession session, CraftOperationResult result) =>
-        await session.TryCommit(cancelToken.Token)
+    private async Task<CraftOperationResult> CommitWithResult(IMongoSession session, CraftOperationResult result)
+    {
+        return await session.TryCommit(cancelToken.Token)
             ? result
             : await AbortWithResult(session);
+    }
 
     private async Task<CraftOperationResult> AbortWithResult(
         IMongoSession session, CraftResult result = CraftResult.Failed)
@@ -122,6 +123,17 @@ public class CraftService(
         return hash.ToHashCode();
     }
 }
+
+public record CraftRecipe(List<InputItem> Inputs, List<OutputItem> Outputs);
+
+public record OutputItem(
+    MemberItemType Item,
+    double Chance,
+    int Quantity = 1);
+
+public record InputItem(
+    MemberItemType Item,
+    int Quantity = 1);
 
 public record CraftOperationResult(
     CraftResult CraftResult,
