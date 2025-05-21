@@ -1,13 +1,11 @@
-﻿using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand.Items;
-using Lamar;
+﻿using Lamar;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
-public class AmuletCommandHandler : ICommandHandler, IItem
+public class AmuletCommandHandler : ICommandHandler
 {
     public const string CommandKey = "/amulet";
-    public string Name => "Amulet";
     public string Command => CommandKey;
 
     public string Description =>

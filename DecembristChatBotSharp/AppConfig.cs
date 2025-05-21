@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Reflection;
 using DecembristChatBotSharp.Entity;
-using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand.Items;
+using DecembristChatBotSharp.Recipes;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 
@@ -395,7 +395,20 @@ public record KeycloakConfig(
 );
 
 public record CraftConfig(
-    List<CraftRecipe> Recipes
+    List<CraftRecipe> Recipes,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string PremiumSuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string HelpMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string NoRecipeMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FailedMessage,
+    [property: Range(1, int.MaxValue)] int PremiumBonus,
+    [property: Range(1, int.MaxValue)] int SuccessExpiration,
+    [property: Range(0, 1)] double PremiumChance
 );
 
 public record DustConfig(
@@ -409,5 +422,6 @@ public record DustConfig(
     [property: Required(AllowEmptyStrings = false)]
     string NoRecipeMessage,
     [property: Required(AllowEmptyStrings = false)]
-    string FailedMessage
+    string FailedMessage,
+    [property: Range(1, int.MaxValue)] int SuccessExpiration
 );

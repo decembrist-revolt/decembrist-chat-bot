@@ -30,6 +30,23 @@ public class HistoryLogRepository(
             .IfFail(ex => Log.Error(ex, "Failed to log item {0} for {1}", type, telegramId));
     }
 
+    public async Task<Unit> LogManyItems(
+        long chatId,
+        long telegramId,
+        Map<MemberItemType, int> items,
+        IMongoSession session,
+        MemberItemSourceType sourceType = MemberItemSourceType.Craft)
+    {
+        var collection = GetCollection<ManyItemsHistoryLogData>();
+        var id = CreateId<ManyItemsHistoryLogData>(chatId, telegramId);
+        var data = new ManyItemsHistoryLogData(items, sourceType);
+        var log = new HistoryLog<ManyItemsHistoryLogData>(id, HistoryLogType.MemberItem, data);
+
+        return await collection.InsertOneAsync(session, log, cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .IfFail(ex => Log.Error(ex, "Failed to log many items for {0}", telegramId));
+    }
+
     public async Task<Unit> LogItems(
         long chatId,
         Arr<long> telegramIds,

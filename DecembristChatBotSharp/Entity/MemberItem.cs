@@ -32,6 +32,10 @@ public record MemberItemHistoryLogData(
     long? SourceTelegramId
 ) : IHistoryLogData;
 
+public record ManyItemsHistoryLogData(
+    Map<MemberItemType, int> items,
+    MemberItemSourceType SourceType) : IHistoryLogData;
+
 public enum MemberItemSourceType
 {
     Admin = 0,

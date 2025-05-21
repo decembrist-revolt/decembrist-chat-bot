@@ -13,7 +13,7 @@ public partial class DustCommandHandler(
     DustService dustService) : ICommandHandler
 {
     public string Command => "/dust";
-    public string Description => "dust items";
+    public string Description => "Dust items";
     public CommandLevel CommandLevel => CommandLevel.User;
 
     [GeneratedRegex(@"\s+")]
@@ -86,7 +86,7 @@ public partial class DustCommandHandler(
 
     private Task<Unit> SendNoRecipe(long chatId)
     {
-        var message = string.Format(appConfig.DustConfig.NoRecipeMessage, appConfig.DustConfig.HelpMessage);
+        var message = appConfig.DustConfig.NoRecipeMessage;
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 

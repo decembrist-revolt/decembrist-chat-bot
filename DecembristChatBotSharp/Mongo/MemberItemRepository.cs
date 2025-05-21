@@ -94,6 +94,46 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
             });
     }
 
+    public async Task<bool> RemoveMemberItems(
+        long chatId,
+        long telegramId,
+        Map<MemberItemType, int> itemsToRemove,
+        IMongoSession? session = null)
+    {
+        if (itemsToRemove.Count <= 0 || itemsToRemove.Any(x => x.Value <= 0))
+        {
+            Log.Information("Failed to remove items from {0} in chat {1}, map is empty", telegramId, chatId);
+            return false;
+        }
+
+        var collection = GetCollection();
+        var updates = new List<UpdateOneModel<MemberItem>>();
+
+        foreach (var (type, count) in itemsToRemove)
+        {
+            var id = new MemberItem.CompositeId(telegramId, chatId, type);
+            var filter = Builders<MemberItem>.Filter.And(
+                Builders<MemberItem>.Filter.Eq(item => item.Id, id),
+                Builders<MemberItem>.Filter.Gte(item => item.Count, count)
+            );
+
+            var update = Builders<MemberItem>.Update.Inc(item => item.Count, -count);
+            updates.Add(new UpdateOneModel<MemberItem>(filter, update));
+        }
+
+        var bulkTask = session != null
+            ? collection.BulkWriteAsync(session, updates, cancellationToken: cancelToken.Token)
+            : collection.BulkWriteAsync(updates, cancellationToken: cancelToken.Token);
+
+        return await bulkTask.ToTryAsync().Match(
+            result => result.IsAcknowledged && result.ModifiedCount == itemsToRemove.Count,
+            ex =>
+            {
+                Log.Error(ex, "Failed to remove items from {0} in chat {1}", telegramId, chatId);
+                return false;
+            });
+    }
+
     public async Task<Map<MemberItemType, int>> GetItems(long chatId, long telegramId)
     {
         var collection = GetCollection();

@@ -1,6 +1,6 @@
 ﻿using DecembristChatBotSharp.Entity;
 
-namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand.Items;
+namespace DecembristChatBotSharp.Recipes;
 
 public record QuantityRange(int Min, int Max);
 

@@ -1,16 +1,20 @@
 ﻿using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Entity;
-using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand.Items;
+using DecembristChatBotSharp.Recipes;
+using DecembristChatBotSharp.Service;
 using JasperFx.Core;
 using Lamar;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
-public partial class CraftCommandHandler(MessageAssistance messageAssistance) : ICommandHandler
+public partial class CraftCommandHandler(
+    MessageAssistance messageAssistance,
+    AppConfig appConfig,
+    CraftService craftService) : ICommandHandler
 {
     public string Command => "/craft";
-    public string Description => "craft items";
+    public string Description => "Craft items";
     public CommandLevel CommandLevel => CommandLevel.User;
 
     [GeneratedRegex(@"\s+")]
@@ -21,6 +25,8 @@ public partial class CraftCommandHandler(MessageAssistance messageAssistance) : 
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
+        Console.WriteLine(string.Join(" ",
+            appConfig.CraftConfig.Recipes.Select(x => x.Inputs.Select(t => t.Item.ToString()))));
         var taskResult = ParseText(text.Trim()).Match(
             inputItems => HandleCraft(inputItems, chatId, telegramId),
             () => SendHelp(chatId));
@@ -29,14 +35,53 @@ public partial class CraftCommandHandler(MessageAssistance messageAssistance) : 
             taskResult).WhenAll();
     }
 
-    private Task<Unit> SendHelp(long chatId)
+    private async Task<Unit> HandleCraft(List<InputItem> inputItems, long chatId, long telegramId)
     {
-        throw new NotImplementedException();
+        var result = await craftService.HandleCraft(inputItems, chatId, telegramId);
+
+        return result.CraftResult switch
+        {
+            CraftResult.Failed => await SendFailed(chatId),
+            CraftResult.Success => await SendSuccess(chatId, result.CraftReward),
+            CraftResult.PremiumSuccess => await SendPremiumSuccess(chatId, result.CraftReward),
+            CraftResult.NoRecipe => await SendNoRecipe(chatId),
+            CraftResult.NoItems => await messageAssistance.SendNoItems(chatId),
+            _ => throw new ArgumentOutOfRangeException()
+        };
     }
 
-    private Task<Unit> HandleCraft(List<InputItem> inputItems, long chatId, long telegramId)
+    private Task<Unit> SendSuccess(long chatId, (MemberItemType item, int quantity) craftReward)
     {
-        throw new NotImplementedException();
+        var message = string.Format(appConfig.CraftConfig.SuccessMessage, craftReward.quantity, craftReward.item);
+        var expirationDate = DateTime.UtcNow.AddMinutes(appConfig.CraftConfig.SuccessExpiration);
+        return messageAssistance.SendCommandResponse(chatId, message, Command, expirationDate);
+    }
+
+    private Task<Unit> SendPremiumSuccess(long chatId, (MemberItemType item, int quantity) craftReward)
+    {
+        var craftConfig = appConfig.CraftConfig;
+        var successMessage = string.Format(craftConfig.SuccessMessage, craftReward.quantity, craftReward.item);
+        var message = string.Format(craftConfig.PremiumSuccessMessage, successMessage, craftConfig.PremiumBonus);
+        var expirationDate = DateTime.UtcNow.AddMinutes(craftConfig.SuccessExpiration);
+        return messageAssistance.SendCommandResponse(chatId, message, Command, expirationDate);
+    }
+
+    private Task<Unit> SendNoRecipe(long chatId)
+    {
+        var message = appConfig.CraftConfig.NoRecipeMessage;
+        return messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private Task<Unit> SendHelp(long chatId)
+    {
+        var message = string.Format(appConfig.CraftConfig.HelpMessage, Command);
+        return messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private Task<Unit> SendFailed(long chatId)
+    {
+        var message = appConfig.CraftConfig.FailedMessage;
+        return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
     private Option<List<InputItem>> ParseText(string text)
@@ -56,13 +101,16 @@ public partial class CraftCommandHandler(MessageAssistance messageAssistance) : 
         if (input.Contains('@'))
         {
             if (input.Split('@') is [var itemString, var quantityString] &&
-                Enum.TryParse(itemString, out MemberItemType item) &&
+                Enum.TryParse(itemString, true, out MemberItemType item) &&
                 int.TryParse(quantityString, out var quantity))
             {
                 return new InputItem(item, quantity);
             }
         }
-        else if (Enum.TryParse(input, out MemberItemType item)) return new InputItem(item);
+        else if (Enum.TryParse(input, true, out MemberItemType item))
+        {
+            return new InputItem(item);
+        }
 
         return None;
     }
