@@ -24,8 +24,6 @@ public partial class CraftCommandHandler(
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
-        Console.WriteLine(string.Join(" ",
-            appConfig.CraftConfig.Recipes.Select(x => x.Inputs.Select(t => t.Item.ToString()))));
         var taskResult = ParseText(text.Trim()).Match(
             inputItems => HandleCraft(inputItems, chatId, telegramId),
             () => SendHelp(chatId));
@@ -37,6 +35,7 @@ public partial class CraftCommandHandler(
     private async Task<Unit> HandleCraft(List<InputItem> inputItems, long chatId, long telegramId)
     {
         var result = await craftService.HandleCraft(inputItems, chatId, telegramId);
+        result.LogCraftResult(telegramId, chatId);
 
         return result.CraftResult switch
         {

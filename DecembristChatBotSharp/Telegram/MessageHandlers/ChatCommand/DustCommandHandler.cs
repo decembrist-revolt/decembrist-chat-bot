@@ -14,7 +14,7 @@ public partial class DustCommandHandler(
     DustService dustService) : ICommandHandler
 {
     public string Command => "/dust";
-    public string Description => "Dust items";
+    public string Description => "Dust item, return other items";
     public CommandLevel CommandLevel => CommandLevel.User;
 
     [GeneratedRegex(@"\s+")]
@@ -49,9 +49,8 @@ public partial class DustCommandHandler(
     private async Task<Unit> HandleDust(MemberItemType item, long chatId, long telegramId)
     {
         var result = new DustOperationResult(DustResult.NoItems);
-        await dustService.HandleDust(item, chatId, telegramId).ToTryAsync()
-            .Match(x => result = x, exception => Log.Error(exception, "error dust"));
         result.LogDustResult(telegramId, chatId);
+
         return result.Result switch
         {
             DustResult.Success => await SendSuccess(chatId, result.DustReward, item),

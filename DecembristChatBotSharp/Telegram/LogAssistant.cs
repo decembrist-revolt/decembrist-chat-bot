@@ -54,6 +54,30 @@ public static class LogAssistant
         }
     }
 
+    public static void LogCraftResult(this CraftOperationResult operationResult,
+        long telegramId,
+        long chatId,
+        [CallerMemberName] string callerName = "UnknownCaller")
+    {
+        var result = operationResult.CraftResult;
+        switch (result)
+        {
+            case CraftResult.Success or CraftResult.PremiumSuccess:
+                Log.Information("Craft operation SUCCESS: {0} from: {1}, chat: {2}, by: {3}",
+                    callerName, result, chatId, telegramId);
+                break;
+            case CraftResult.Failed:
+                Log.Error("Craft operation FAILED: reason: {0}, from: {1}, chat: {2}, by: {3}",
+                    result, callerName, chatId, telegramId);
+                break;
+            default:
+                Log.Information(
+                    "Craft operation FAILED: reason: {0}, from: {1}, chat: {2}, by: {3}",
+                    result, callerName, chatId, telegramId);
+                break;
+        }
+    }
+
     public static T LogSuccessUsingItem<T>(this T maybeResult,
         long chatId,
         long telegramId,
