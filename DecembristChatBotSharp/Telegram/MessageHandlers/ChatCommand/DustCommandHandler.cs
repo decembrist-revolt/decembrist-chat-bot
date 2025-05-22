@@ -13,8 +13,12 @@ public partial class DustCommandHandler(
     AppConfig appConfig,
     DustService dustService) : ICommandHandler
 {
-    public string Command => "/dust";
-    public string Description => "Dust item, return other items";
+    public const string CommandKey = "/dust";
+    public string Command => CommandKey;
+
+    public string Description =>
+        "Dust an item, Dust and its varieties appear from other items, Used as crafting ingredients";
+
     public CommandLevel CommandLevel => CommandLevel.User;
 
     [GeneratedRegex(@"\s+")]
@@ -69,7 +73,8 @@ public partial class DustCommandHandler(
         var successMessage = string.Format(appConfig.DustConfig.SuccessMessage, recipeItem, dustQuantity, dustItem);
         var message = string.Format(appConfig.DustConfig.PremiumSuccessMessage,
             successMessage, premiumQuantity, premiumItem);
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        var expireAt = DateTime.UtcNow.AddMinutes(appConfig.DustConfig.SuccessExpiration);
+        return messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
     }
 
     private Task<Unit> SendSuccess(
@@ -77,7 +82,8 @@ public partial class DustCommandHandler(
     {
         var message = string.Format(
             appConfig.DustConfig.SuccessMessage, recipeItem, dustReward.quantity, dustReward.item);
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        var expireAt = DateTime.UtcNow.AddMinutes(appConfig.DustConfig.SuccessExpiration);
+        return messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
     }
 
     private Task<Unit> SendHelp(long chatId)
