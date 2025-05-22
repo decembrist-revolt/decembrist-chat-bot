@@ -377,7 +377,7 @@ public class MemberItemService(
         {
             if (text.Split('@') is [var itemString, var quantityString] &&
                 Enum.TryParse(itemString, true, out MemberItemType item) &&
-                int.TryParse(quantityString, out var quantity))
+                int.TryParse(quantityString, out var quantity) && quantity >= 1)
             {
                 return (item, quantity);
             }

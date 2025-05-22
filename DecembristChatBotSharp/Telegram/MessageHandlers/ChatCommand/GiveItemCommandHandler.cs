@@ -1,7 +1,7 @@
 ﻿using DecembristChatBotSharp.Entity;
-using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
+using LanguageExt.UnsafeValueAccess;
 using Serilog;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
@@ -33,21 +33,24 @@ public class GiveItemCommandHandler(
             return unit;
         }
 
-        if (text.Trim().Split(' ') is not [_, var item])
+        if (text.Trim().Split(' ') is not [_, var itemAndCount])
         {
             Log.Warning("Admin {0} in chat {1} try to give item without item", telegramId, chatId);
             return unit;
         }
 
-        if (!(Enum.TryParse(typeof(MemberItemType), item, true, out var type) && type is MemberItemType itemType))
+        var maybeItem = memberItemService.ParseItem(itemAndCount);
+        if (maybeItem.IsNone)
         {
-            Log.Warning("Admin {0} in chat {1} try to give invalid item {2}", telegramId, chatId, item);
+            Log.Warning("Admin {0} in chat {1} try to give invalid item {2}", telegramId, chatId, itemAndCount);
             return unit;
         }
 
+        var (item, quantity) = maybeItem.ValueUnsafe();
+
         var maybeUsername = maybeReplyTelegramId.Map(async replyTelegramId =>
         {
-            if (await memberItemService.GiveItem(chatId, replyTelegramId, telegramId, itemType))
+            if (await memberItemService.GiveItem(chatId, replyTelegramId, telegramId, item, quantity))
             {
                 return await botClient.GetUsername(chatId, replyTelegramId, cancelToken.Token);
             }
@@ -56,7 +59,7 @@ public class GiveItemCommandHandler(
         }).MapAsync(TaskOptionAsyncExtensions.ToAsync).Flatten();
 
         var sendGetItemMessageTask = maybeUsername
-            .IfSome(username => messageAssistance.SendGetItemMessage(chatId, username, itemType));
+            .IfSome(username => messageAssistance.SendGetItemMessage(chatId, username, item, quantity));
 
         return await Array(
             sendGetItemMessageTask,
