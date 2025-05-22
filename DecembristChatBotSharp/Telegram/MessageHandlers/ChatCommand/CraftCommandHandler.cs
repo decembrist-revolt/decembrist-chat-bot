@@ -8,6 +8,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public partial class CraftCommandHandler(
+    MemberItemService memberItemService,
     MessageAssistance messageAssistance,
     AppConfig appConfig,
     CraftService craftService) : ICommandHandler
@@ -90,26 +91,8 @@ public partial class CraftCommandHandler(
             .Map(arg => ArgsRegex().Replace(arg, " ").Trim())
             .Filter(arg => arg.Length > 0)
             .Map(x => x.Split(' '))
-            .Map(x => x.Map(ParseCraftInput).Somes().ToList())
+            .Map(x => x.Map(memberItemService.ParseItem).Somes()
+                .Map(itemAndQuantity => new InputItem(itemAndQuantity.Item1, itemAndQuantity.Item2)).ToList())
             .Filter(result => result.Count > 0);
-    }
-
-    private Option<InputItem> ParseCraftInput(string input)
-    {
-        if (input.Contains('@'))
-        {
-            if (input.Split('@') is [var itemString, var quantityString] &&
-                Enum.TryParse(itemString, true, out MemberItemType item) &&
-                int.TryParse(quantityString, out var quantity))
-            {
-                return new InputItem(item, quantity);
-            }
-        }
-        else if (Enum.TryParse(input, true, out MemberItemType item))
-        {
-            return new InputItem(item);
-        }
-
-        return None;
     }
 }

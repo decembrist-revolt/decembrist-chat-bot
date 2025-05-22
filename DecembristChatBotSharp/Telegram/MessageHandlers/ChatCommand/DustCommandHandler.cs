@@ -48,7 +48,7 @@ public partial class DustCommandHandler(
 
     private async Task<Unit> HandleDust(MemberItemType item, long chatId, long telegramId)
     {
-        var result = new DustOperationResult(DustResult.NoItems);
+        var result = await dustService.HandleDust(item, chatId, telegramId);
         result.LogDustResult(telegramId, chatId);
 
         return result.Result switch
