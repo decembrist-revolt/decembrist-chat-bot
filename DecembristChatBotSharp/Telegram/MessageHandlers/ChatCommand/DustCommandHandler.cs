@@ -3,7 +3,6 @@ using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Service;
 using JasperFx.Core;
 using Lamar;
-using Serilog;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
@@ -44,10 +43,7 @@ public partial class DustCommandHandler(
             .Filter(arg => arg.IsNotEmpty())
             .Map(arg => ArgsRegex().Replace(arg, " ").Trim())
             .Filter(arg => arg.Length > 0)
-            .Map(x => Enum.TryParse(x, true, out MemberItemType item)
-                ? Some(item)
-                : None)
-            .IfNone(None);
+            .Bind(x => Enum.TryParse(x, true, out MemberItemType item) ? Some(item) : None);
     }
 
     private async Task<Unit> HandleDust(MemberItemType item, long chatId, long telegramId)
@@ -57,7 +53,7 @@ public partial class DustCommandHandler(
 
         return result.Result switch
         {
-            DustResult.Success => await SendSuccess(chatId, result.DustReward, item),
+            DustResult.Success => await SendSuccess(chatId, result.DustReward!, item),
             DustResult.PremiumSuccess => await SendPremiumSuccess(chatId, result, item),
             DustResult.NoRecipe => await SendNoRecipe(chatId),
             DustResult.NoItems => await messageAssistance.SendNoItems(chatId),
@@ -68,8 +64,8 @@ public partial class DustCommandHandler(
 
     private Task<Unit> SendPremiumSuccess(long chatId, DustOperationResult result, MemberItemType recipeItem)
     {
-        var (dustItem, dustQuantity) = result.DustReward;
-        var (premiumItem, premiumQuantity) = result.PremiumReward;
+        var (dustItem, dustQuantity) = result.DustReward!;
+        var (premiumItem, premiumQuantity) = result.PremiumReward!;
         var successMessage = string.Format(appConfig.DustConfig.SuccessMessage, recipeItem, dustQuantity, dustItem);
         var message = string.Format(appConfig.DustConfig.PremiumSuccessMessage,
             successMessage, premiumQuantity, premiumItem);
@@ -78,10 +74,10 @@ public partial class DustCommandHandler(
     }
 
     private Task<Unit> SendSuccess(
-        long chatId, (MemberItemType item, int quantity) dustReward, MemberItemType recipeItem)
+        long chatId, ItemQuantity dustReward, MemberItemType recipeItem)
     {
         var message = string.Format(
-            appConfig.DustConfig.SuccessMessage, recipeItem, dustReward.quantity, dustReward.item);
+            appConfig.DustConfig.SuccessMessage, recipeItem, dustReward.Quantity, dustReward.Item);
         var expireAt = DateTime.UtcNow.AddMinutes(appConfig.DustConfig.SuccessExpiration);
         return messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
     }

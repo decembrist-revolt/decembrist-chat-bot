@@ -33,7 +33,7 @@ public class HistoryLogRepository(
     public async Task<Unit> LogDifferentItems(
         long chatId,
         long telegramId,
-        IEnumerable<( MemberItemType, int )> items,
+        IEnumerable<ItemQuantity> items,
         IMongoSession session,
         MemberItemSourceType sourceType)
     {

@@ -34,7 +34,7 @@ public record MemberItemHistoryLogData(
 ) : IHistoryLogData;
 
 public record ManyItemsHistoryLogData(
-    IEnumerable<(MemberItemType, int)> items,
+    IEnumerable<ItemQuantity> Items,
     MemberItemSourceType SourceType) : IHistoryLogData;
 
 public enum MemberItemSourceType

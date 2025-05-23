@@ -371,7 +371,7 @@ public class MemberItemService(
         return itemChances.Keys.First();
     }
 
-    public Option<(MemberItemType, int)> ParseItem(string text)
+    public Option<ItemQuantity> ParseItem(string text)
     {
         if (text.Contains('@'))
         {
@@ -379,12 +379,12 @@ public class MemberItemService(
                 Enum.TryParse(itemString, true, out MemberItemType item) &&
                 int.TryParse(quantityString, out var quantity) && quantity >= 1)
             {
-                return (item, quantity);
+                return new ItemQuantity(item, quantity);
             }
         }
         else if (Enum.TryParse(text, true, out MemberItemType item))
         {
-            return (item, 1);
+            return new ItemQuantity(item, 1);
         }
 
         return None;

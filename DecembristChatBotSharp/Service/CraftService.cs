@@ -1,6 +1,7 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
+using Serilog;
 
 namespace DecembristChatBotSharp.Service;
 
@@ -15,9 +16,9 @@ public class CraftService(
     PremiumMemberRepository premiumMemberRepository)
 {
     private readonly Dictionary<int, CraftRecipe> _recipeCache =
-        appConfig.CraftConfig.Recipes.ToDictionary(recipe => CalculateRecipeHash(recipe.Inputs), recipe => recipe);
+        appConfig.CraftConfig.Recipes.ToDictionary(recipe => CalculateRecipeHash(recipe.Inputs));
 
-    public async Task<CraftOperationResult> HandleCraft(List<InputItem> input, long chatId, long telegramId)
+    public async Task<CraftOperationResult> HandleCraft(List<ItemQuantity> input, long chatId, long telegramId)
     {
         var inputHash = CalculateRecipeHash(input);
         if (!_recipeCache.TryGetValue(inputHash, out var recipe)) return new CraftOperationResult(CraftResult.NoRecipe);
@@ -25,8 +26,7 @@ public class CraftService(
         using var session = await db.OpenSession();
         session.StartTransaction();
 
-        var items = recipe.Inputs.Select(x => (x.Item, x.Quantity)).ToMap();
-        var hasItem = await memberItemRepository.RemoveMemberItems(chatId, telegramId, items, session);
+        var hasItem = await memberItemRepository.RemoveMemberItems(chatId, telegramId, recipe.Inputs, session);
 
         return hasItem
             ? await ProcessCraftOperation(recipe, chatId, telegramId, session)
@@ -39,12 +39,16 @@ public class CraftService(
         var craftItem = GetRandomOutputItem(recipe.Outputs);
 
         var isGetPremiumBonus = await premiumMemberRepository.IsPremium((telegramId, chatId)) && IsGetPremiumBonus();
-        if (isGetPremiumBonus) craftItem.Item2++;
+        if (isGetPremiumBonus)
+        {
+            craftItem = craftItem with { Quantity = craftItem.Quantity + 1 };
+        }
+
         var result = isGetPremiumBonus ? CraftResult.PremiumSuccess : CraftResult.Success;
 
         var isAdd = await AddCraftItems(chatId, telegramId, craftItem, session);
 
-        await LogInHistory(recipe.Inputs, chatId, telegramId, session, craftItem);
+        await LogInHistory(recipe.Inputs, chatId, telegramId, craftItem, session);
 
         return isAdd
             ? await CommitWithResult(session, new CraftOperationResult(result, craftItem))
@@ -52,26 +56,25 @@ public class CraftService(
     }
 
     private async Task LogInHistory(
-        List<InputItem> removeItems, long chatId, long telegramId, IMongoSession session, (MemberItemType, int) item)
+        List<ItemQuantity> removeItems, long chatId, long telegramId, ItemQuantity itemQuantity, IMongoSession session)
     {
-        var itemsLog = removeItems.Select(x => (x.Item, -x.Quantity)).ToList();
-        itemsLog.Add(item);
+        var itemsLog = removeItems
+            .Select(x => x with { Quantity = -x.Quantity })
+            .Append(new ItemQuantity(itemQuantity.Item, itemQuantity.Quantity))
+            .ToList();
         await historyLogRepository.LogDifferentItems(chatId, telegramId, itemsLog, session, MemberItemSourceType.Craft);
     }
 
     private async Task<bool> AddCraftItems(
-        long chatId, long telegramId, (MemberItemType, int) craftItem, IMongoSession session)
-    {
-        var (item, quantity) = craftItem;
-        return await memberItemRepository.AddMemberItem(chatId, telegramId, item, session, quantity);
-    }
+        long chatId, long telegramId, ItemQuantity itemQuantity, IMongoSession session) =>
+        await memberItemRepository.AddMemberItem(chatId, telegramId, itemQuantity.Item, session, itemQuantity.Quantity);
 
-    private (MemberItemType, int) GetRandomOutputItem(List<OutputItem> outputs)
+    private ItemQuantity GetRandomOutputItem(List<OutputItem> outputs)
     {
         if (outputs.Count == 1)
         {
             var first = outputs.First();
-            return (first.Item, first.Quantity);
+            return new ItemQuantity(first.Item, first.Quantity);
         }
 
         var total = outputs.Sum(x => x.Chance);
@@ -82,12 +85,12 @@ public class CraftService(
         foreach (var output in outputs)
         {
             cumulative += output.Chance;
-            if (roll <= cumulative) return (output.Item, output.Quantity);
+            if (roll <= cumulative) return new ItemQuantity(output.Item, output.Quantity);
         }
 
         var last = outputs.Last();
 
-        return (last.Item, last.Quantity);
+        return new ItemQuantity(last.Item, last.Quantity);
     }
 
     private bool IsGetPremiumBonus() => random.NextDouble() < appConfig.CraftConfig.PremiumChance;
@@ -106,12 +109,12 @@ public class CraftService(
         return new CraftOperationResult(result);
     }
 
-    private static int CalculateRecipeHash(List<InputItem> inputs)
+    private static int CalculateRecipeHash(List<ItemQuantity> inputs)
     {
         var hash = new HashCode();
         var orderByInputs = inputs
             .GroupBy(x => x.Item)
-            .Select(g => (Item: g.Key, Quantity: g.Sum(x => x.Quantity)))
+            .Select(g => new ItemQuantity(g.Key, g.Sum(x => x.Quantity)))
             .OrderBy(x => x.Item);
 
         foreach (var (item, quantity) in orderByInputs)
@@ -124,20 +127,10 @@ public class CraftService(
     }
 }
 
-public record CraftRecipe(List<InputItem> Inputs, List<OutputItem> Outputs);
-
-public record OutputItem(
-    MemberItemType Item,
-    double Chance,
-    int Quantity = 1);
-
-public record InputItem(
-    MemberItemType Item,
-    int Quantity = 1);
-
 public record CraftOperationResult(
     CraftResult CraftResult,
-    (MemberItemType, int) CraftReward = default);
+    ItemQuantity? CraftReward = null
+);
 
 public enum CraftResult
 {

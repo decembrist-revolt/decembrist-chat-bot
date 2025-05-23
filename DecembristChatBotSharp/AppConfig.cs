@@ -425,3 +425,35 @@ public record DustConfig(
     string FailedMessage,
     [property: Range(1, int.MaxValue)] int SuccessExpiration
 );
+
+public record CraftRecipe(
+    List<ItemQuantity> Inputs,
+    List<OutputItem> Outputs
+);
+
+public record OutputItem(
+    MemberItemType Item,
+    double Chance,
+    int Quantity = 1
+);
+
+public record ItemQuantity(
+    MemberItemType Item,
+    int Quantity = 1
+);
+
+public record DustRecipe(
+    DustReward Reward,
+    PremiumReward? PremiumReward = null
+);
+
+public record QuantityRange(int Min, int Max);
+
+public record DustReward(
+    MemberItemType Item,
+    QuantityRange Range);
+
+public record PremiumReward(
+    MemberItemType Item,
+    double Chance,
+    int Quantity);

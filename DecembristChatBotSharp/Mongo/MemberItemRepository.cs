@@ -97,10 +97,10 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
     public async Task<bool> RemoveMemberItems(
         long chatId,
         long telegramId,
-        Map<MemberItemType, int> itemsToRemove,
+        List<ItemQuantity> itemsToRemove,
         IMongoSession? session = null)
     {
-        if (itemsToRemove.Count <= 0 || itemsToRemove.Any(x => x.Value <= 0))
+        if (itemsToRemove.Count <= 0 || itemsToRemove.Any(x => x.Quantity <= 0))
         {
             Log.Information("Failed to remove items from {0} in chat {1}, map is empty", telegramId, chatId);
             return false;
