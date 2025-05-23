@@ -14,10 +14,16 @@ public enum MemberItemType
     FastReply = 1,
     Box = 2,
     TelegramMeme = 3,
+
     // reaction spam
     Curse = 4,
     Charm = 5,
+
+    // passive
     Amulet = 6,
+    GreenDust = 7,
+    BlueDust = 8,
+    RedDust = 9
 }
 
 public record MemberItemHistoryLogData(
@@ -27,6 +33,10 @@ public record MemberItemHistoryLogData(
     long? SourceTelegramId
 ) : IHistoryLogData;
 
+public record ManyItemsHistoryLogData(
+    IEnumerable<ItemQuantity> Items,
+    MemberItemSourceType SourceType) : IHistoryLogData;
+
 public enum MemberItemSourceType
 {
     Admin = 0,
@@ -34,4 +44,6 @@ public enum MemberItemSourceType
     Use = 2,
     TopLiker = 3,
     PremiumDaily = 4,
+    Dust = 5,
+    Craft = 6
 }

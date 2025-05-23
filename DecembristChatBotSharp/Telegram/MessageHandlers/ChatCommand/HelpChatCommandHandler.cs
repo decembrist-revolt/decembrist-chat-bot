@@ -96,6 +96,8 @@ public class HelpChatCommandHandler(
             MemberItemType.Curse => CurseCommandHandler.CommandKey,
             MemberItemType.Charm => CharmCommandHandler.CommandKey,
             MemberItemType.Amulet => AmuletCommandHandler.CommandKey,
+            MemberItemType.BlueDust or MemberItemType.GreenDust or MemberItemType.RedDust =>
+                DustCommandHandler.CommandKey,
             _ => None
         };
 

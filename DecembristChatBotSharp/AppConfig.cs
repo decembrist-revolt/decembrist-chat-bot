@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Reflection;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Service;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 
@@ -39,6 +40,8 @@ public record AppConfig(
     CharmConfig CharmConfig,
     AmuletConfig amuletConfig,
     ItemConfig ItemConfig,
+    DustConfig DustConfig,
+    CraftConfig CraftConfig,
     PollPaymentConfig? PollPaymentConfig,
     KeycloakConfig? KeycloakConfig = null,
     DateTime? DeployTime = null,
@@ -49,6 +52,7 @@ public record AppConfig(
         var configBuilder = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .AddJsonFile("craftsettings.json", optional: false, reloadOnChange: true)
             .AddEnvironmentVariables()
             .AddInMemoryCollection(new Dictionary<string, string>
             {
@@ -389,3 +393,67 @@ public record KeycloakConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ClientSecret
 );
+
+public record CraftConfig(
+    IReadOnlyList<CraftRecipe> Recipes,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string PremiumSuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string HelpMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string NoRecipeMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FailedMessage,
+    [property: Range(1, int.MaxValue)] int PremiumBonus,
+    [property: Range(1, int.MaxValue)] int SuccessExpiration,
+    [property: Range(0, 1)] double PremiumChance
+);
+
+public record DustConfig(
+    IReadOnlyDictionary<MemberItemType, DustRecipe> DustRecipes,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string PremiumSuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string HelpMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string NoRecipeMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FailedMessage,
+    [property: Range(1, int.MaxValue)] int SuccessExpiration
+);
+
+public record CraftRecipe(
+    List<ItemQuantity> Inputs,
+    List<OutputItem> Outputs
+);
+
+public record OutputItem(
+    MemberItemType Item,
+    double Chance,
+    int Quantity = 1
+);
+
+public record ItemQuantity(
+    MemberItemType Item,
+    int Quantity = 1
+);
+
+public record DustRecipe(
+    DustReward Reward,
+    PremiumReward? PremiumReward = null
+);
+
+public record QuantityRange(int Min, int Max);
+
+public record DustReward(
+    MemberItemType Item,
+    QuantityRange Range);
+
+public record PremiumReward(
+    MemberItemType Item,
+    double Chance,
+    int Quantity);
