@@ -1,0 +1,503 @@
+﻿{
+  "DustConfig": {
+    "SuccessMessage": "Распыление {0} дало вам {1} {2},\nИнструкция: /help@{2}",
+    "PremiumSuccessMessage": "{0},\n\nсреди прочего вы обнаружили {1} {2}, благодаря везению и премиуму",
+    "HelpMessage": "Используйте {0} item, чтобы получить другие предметы",
+    "NoRecipeMessage": "Это нельзя распылить",
+    "FailedMessage": "Распыление не доступно\nПопробуйте позже",
+    "SuccessExpiration": 5,
+    "DustRecipes": {
+      "RedditMeme": {
+        "Reward": {
+          "Item": "GreenDust",
+          "Range": {
+            "Min": 3,
+            "Max": 7
+          }
+        },
+        "PremiumReward": {
+          "Chance": 0.1,
+          "Item": "Box",
+          "Quantity": 1
+        }
+      },
+      "TelegramMeme": {
+        "Reward": {
+          "Item": "GreenDust",
+          "Range": {
+            "Min": 3,
+            "Max": 7
+          }
+        },
+        "PremiumReward": {
+          "Chance": 0.1,
+          "Item": "Box",
+          "Quantity": 1
+        }
+      },
+      "FastReply": {
+        "Reward": {
+          "Item": "BlueDust",
+          "Range": {
+            "Min": 2,
+            "Max": 6
+          }
+        },
+        "PremiumReward": {
+          "Chance": 0.15,
+          "Item": "Box",
+          "Quantity": 1
+        }
+      },
+      "Box": {
+        "Reward": {
+          "Item": "BlueDust",
+          "Range": {
+            "Min": 2,
+            "Max": 6
+          }
+        },
+        "PremiumReward": {
+          "Chance": 0.15,
+          "Item": "Box",
+          "Quantity": 1
+        }
+      },
+      "Charm": {
+        "Reward": {
+          "Item": "RedDust",
+          "Range": {
+            "Min": 1,
+            "Max": 5
+          }
+        },
+        "PremiumReward": {
+          "Chance": 0.20,
+          "Item": "Box",
+          "Quantity": 1
+        }
+      },
+      "Curse": {
+        "Reward": {
+          "Item": "RedDust",
+          "Range": {
+            "Min": 1,
+            "Max": 5
+          }
+        },
+        "PremiumReward": {
+          "Chance": 0.20,
+          "Item": "Box",
+          "Quantity": 1
+        }
+      },
+      "RedDust": {
+        "Reward": {
+          "Item": "BlueDust",
+          "Range": {
+            "Min": 1,
+            "Max": 3
+          }
+        }
+      },
+      "BlueDust": {
+        "Reward": {
+          "Item": "GreenDust",
+          "Range": {
+            "Min": 1,
+            "Max": 3
+          }
+        }
+      }
+    }
+  },
+  "CraftConfig": {
+    "SuccessMessage": "Вы смогли создать {0} {1},\nИнструкция: /help@{1}",
+    "PremiumSuccessMessage": "{0},\n\nэто на {1} больше, чем обычно, благодаря везению и премиуму",
+    "HelpMessage": "Используйте {0} item или item@число, чтобы создавать другие предметы, комбинируйте",
+    "NoRecipeMessage": "Таких рецептов нет",
+    "FailedMessage": "Крафт не доступн\nПопробуйте позже",
+    "PremiumChance": 0.10,
+    "PremiumBonus": 1,
+    "SuccessExpiration": 5,
+    "Recipes": [
+      {
+        "Inputs": [
+          {
+            "Item": "GreenDust",
+            "Quantity": 10
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "TelegramMeme",
+            "Chance": 0.45
+          },
+          {
+            "Item": "RedditMeme",
+            "Chance": 0.45
+          },
+          {
+            "Item": "Box",
+            "Chance": 0.10
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "GreenDust",
+            "Quantity": 12
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Box",
+            "Chance": 0.80
+          },
+          {
+            "Item": "TelegramMeme",
+            "Chance": 0.10
+          },
+          {
+            "Item": "RedditMeme",
+            "Chance": 0.10
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "GreenDust",
+            "Quantity": 5
+          },
+          {
+            "Item": "BlueDust",
+            "Quantity": 3
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Box",
+            "Chance": 1.0
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "BlueDust",
+            "Quantity": 5
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "TelegramMeme",
+            "Chance": 0.35
+          },
+          {
+            "Item": "RedditMeme",
+            "Chance": 0.40
+          },
+          {
+            "Item": "Box",
+            "Chance": 0.15
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "BlueDust",
+            "Quantity": 8
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "FastReply",
+            "Chance": 0.90
+          },
+          {
+            "Item": "Curse",
+            "Chance": 0.05
+          },
+          {
+            "Item": "Charm",
+            "Chance": 0.05
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "BlueDust",
+            "Quantity": 6
+          },
+          {
+            "Item": "TelegramMeme",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "FastReply",
+            "Chance": 0.85
+          },
+          {
+            "Item": "Box",
+            "Chance": 0.15
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "BlueDust",
+            "Quantity": 6
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Box",
+            "Chance": 0.80
+          },
+          {
+            "Item": "TelegramMeme",
+            "Chance": 0.08
+          },
+          {
+            "Item": "RedditMeme",
+            "Chance": 0.08
+          },
+          {
+            "Item": "FastReply",
+            "Chance": 0.04
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "BlueDust",
+            "Quantity": 6
+          },
+          {
+            "Item": "RedditMeme",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Box",
+            "Chance": 0.90
+          },
+          {
+            "Item": "Curse",
+            "Chance": 0.05
+          },
+          {
+            "Item": "Charm",
+            "Chance": 0.05
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "RedDust",
+            "Quantity": 6
+          },
+          {
+            "Item": "RedditMeme",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Charm",
+            "Chance": 0.45
+          },
+          {
+            "Item": "Curse",
+            "Chance": 0.45
+          },
+          {
+            "Item": "Box",
+            "Chance": 0.10
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "RedDust",
+            "Quantity": 7
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Curse",
+            "Chance": 0.50
+          },
+          {
+            "Item": "Charm",
+            "Chance": 0.50
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "RedDust",
+            "Quantity": 7
+          },
+          {
+            "Item": "TelegramMeme",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Curse",
+            "Chance": 1.0
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "RedDust",
+            "Quantity": 7
+          },
+          {
+            "Item": "RedditMeme",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Charm",
+            "Chance": 1.0
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "GreenDust",
+            "Quantity": 5
+          },
+          {
+            "Item": "BlueDust",
+            "Quantity": 5
+          },
+          {
+            "Item": "RedDust",
+            "Quantity": 5
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Amulet",
+            "Chance": 1.0
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "RedDust",
+            "Quantity": 3
+          },
+          {
+            "Item": "TelegramMeme",
+            "Quantity": 1
+          },
+          {
+            "Item": "RedditMeme",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "FastReply",
+            "Chance": 1.0
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "GreenDust",
+            "Quantity": 5
+          },
+          {
+            "Item": "Curse",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Amulet",
+            "Chance": 1.0
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "GreenDust",
+            "Quantity": 5
+          },
+          {
+            "Item": "Charm",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Amulet",
+            "Chance": 1.0
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "BlueDust",
+            "Quantity": 3
+          },
+          {
+            "Item": "Curse",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Amulet",
+            "Chance": 1.0
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "BlueDust",
+            "Quantity": 3
+          },
+          {
+            "Item": "Charm",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Amulet",
+            "Chance": 1.0
+          }
+        ]
+      }
+    ]
+  }
+}
+      

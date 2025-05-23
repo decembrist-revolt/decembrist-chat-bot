@@ -370,6 +370,25 @@ public class MemberItemService(
 
         return itemChances.Keys.First();
     }
+
+    public Option<ItemQuantity> ParseItem(string text)
+    {
+        if (text.Contains('@'))
+        {
+            if (text.Split('@') is [var itemString, var quantityString] &&
+                Enum.TryParse(itemString, true, out MemberItemType item) &&
+                int.TryParse(quantityString, out var quantity) && quantity >= 1)
+            {
+                return new ItemQuantity(item, quantity);
+            }
+        }
+        else if (Enum.TryParse(text, true, out MemberItemType item))
+        {
+            return new ItemQuantity(item, 1);
+        }
+
+        return None;
+    }
 }
 
 public enum OpenBoxResult
