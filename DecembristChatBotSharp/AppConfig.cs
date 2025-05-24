@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Reflection;
 using DecembristChatBotSharp.Entity;
-using DecembristChatBotSharp.Service;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 
@@ -38,8 +37,9 @@ public record AppConfig(
     CurseConfig CurseConfig,
     DislikeConfig DislikeConfig,
     CharmConfig CharmConfig,
-    AmuletConfig amuletConfig,
+    AmuletConfig AmuletConfig,
     ItemConfig ItemConfig,
+    HelpConfig HelpConfig,
     DustConfig DustConfig,
     CraftConfig CraftConfig,
     PollPaymentConfig? PollPaymentConfig,
@@ -300,6 +300,8 @@ public record AmuletConfig(
     [property: Required(AllowEmptyStrings = false)]
     string AmuletBreaksMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string AmuletDescription,
+    [property: Required(AllowEmptyStrings = false)]
     int MessageExpirationMinutes);
 
 public record ItemConfig(
@@ -319,7 +321,17 @@ public record ItemConfig(
     [property: Required(AllowEmptyStrings = false)]
     string SuccessInventoryMessage,
     [property: Required(AllowEmptyStrings = false)]
-    string FailedToOpenBoxMessage
+    string FailedToOpenBoxMessage,
+    [property: Range(1, int.MaxValue)] int BoxMessageExpiration
+);
+
+public record HelpConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string ItemHelpTemplate,
+    [property: Required(AllowEmptyStrings = false)]
+    string HelpTitle,
+    [property: Required(AllowEmptyStrings = false)]
+    string FailedMessage
 );
 
 public record LikeConfig(
@@ -423,6 +435,10 @@ public record DustConfig(
     string NoRecipeMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FailedMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string GreenDustDescription,
+    [property: Required(AllowEmptyStrings = false)]
+    string DustDescription,
     [property: Range(1, int.MaxValue)] int SuccessExpiration
 );
 

@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.Items;
+using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Scheduler;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
@@ -37,6 +38,7 @@ public class DiContainer
             s.WithDefaultConventions();
             s.AddAllTypesOf<ICommandHandler>();
             s.AddAllTypesOf<IPrivateCallbackHandler>();
+            s.AddAllTypesOf<IPassiveItem>();
             s.AddAllTypesOf<IChatCallbackHandler>();
             s.AddAllTypesOf<IRepository>();
             s.AddAllTypesOf<IRegisterJob>();
