@@ -81,7 +81,6 @@ public static class LogAssistant
     {
         switch (result)
         {
-            //todo quantity
             case GiveResult.Success:
                 Log.Information("Give operation SUCCESS: from: {0}, chat: {1}, sender: {2}, receiver: {3}, item: {4}",
                     callerName, chatId, senderId, receiverId, itemQuantity);
