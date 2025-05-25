@@ -55,16 +55,14 @@ public static class LogAssistant
     }
 
     public static void LogCraftResult(this CraftOperationResult operationResult,
-        long telegramId,
-        long chatId,
-        [CallerMemberName] string callerName = "UnknownCaller")
+        long telegramId, long chatId, [CallerMemberName] string callerName = "UnknownCaller")
     {
         var result = operationResult.CraftResult;
         switch (result)
         {
             case CraftResult.Success or CraftResult.PremiumSuccess:
                 Log.Information("Craft operation SUCCESS: {0} from: {1}, chat: {2}, by: {3}",
-                    callerName, result, chatId, telegramId);
+                    result, callerName, chatId, telegramId);
                 break;
             case CraftResult.Failed:
                 Log.Error("Craft operation FAILED: reason: {0}, from: {1}, chat: {2}, by: {3}",
@@ -74,6 +72,29 @@ public static class LogAssistant
                 Log.Information(
                     "Craft operation FAILED: reason: {0}, from: {1}, chat: {2}, by: {3}",
                     result, callerName, chatId, telegramId);
+                break;
+        }
+    }
+
+    public static void LogGiveResult(this GiveResult result, ItemQuantity itemQuantity,
+        long senderId, long receiverId, long chatId, [CallerMemberName] string callerName = "UnknownCaller")
+    {
+        switch (result)
+        {
+            //todo quantity
+            case GiveResult.Success:
+                Log.Information("Give operation SUCCESS: from: {0}, chat: {1}, sender: {2}, receiver: {3}, item: {4}",
+                    callerName, chatId, senderId, receiverId, itemQuantity);
+                break;
+            case GiveResult.Failed:
+                Log.Error(
+                    "Give operation FAILED: reason: {0}, from: {1}, chat: {2}, sender: {3}, receiverId: {4}, item: {5}",
+                    result, callerName, chatId, senderId, receiverId, itemQuantity);
+                break;
+            default:
+                Log.Information(
+                    "Give operation FAILED: reason: {0}, from: {1}, chat: {2}, sender: {3}, receiverId: {4}, item: {5}",
+                    result, callerName, chatId, senderId, receiverId, itemQuantity);
                 break;
         }
     }

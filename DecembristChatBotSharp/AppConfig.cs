@@ -40,6 +40,7 @@ public record AppConfig(
     AmuletConfig AmuletConfig,
     ItemConfig ItemConfig,
     HelpConfig HelpConfig,
+    GiveConfig GiveConfig,
     DustConfig DustConfig,
     CraftConfig CraftConfig,
     PollPaymentConfig? PollPaymentConfig,
@@ -324,6 +325,17 @@ public record ItemConfig(
     string FailedToOpenBoxMessage,
     [property: Range(1, int.MaxValue)] int BoxMessageExpiration
 );
+
+public record GiveConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string HelpMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FailedMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ReceiverNotSet,
+    [property: Range(1, int.MaxValue)] int ExpirationMinutes);
 
 public record HelpConfig(
     [property: Required(AllowEmptyStrings = false)]
