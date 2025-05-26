@@ -38,7 +38,7 @@ public class GiveService(
         var result =
             await IsGiveSuccess(session, chatId, senderId, receiverId, itemQuantity, MemberItemSourceType.Admin);
         return result.GiveResult != GiveResult.Failed
-            ? await CommitWithResult(session, result)
+            ? await CommitWithResult(session, result with { GiveResult = GiveResult.AdminSuccess })
             : await AbortWithResult(session);
     }
 

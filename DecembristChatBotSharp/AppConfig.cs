@@ -330,6 +330,8 @@ public record GiveConfig(
     [property: Required(AllowEmptyStrings = false)]
     string SuccessMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string AdminSuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string HelpMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FailedMessage,

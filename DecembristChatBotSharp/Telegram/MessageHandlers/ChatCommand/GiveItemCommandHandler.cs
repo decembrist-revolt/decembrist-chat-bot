@@ -3,6 +3,7 @@ using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Service;
 using JasperFx.Core;
 using Lamar;
+using Serilog;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
@@ -58,10 +59,11 @@ public partial class GiveItemCommandHandler(
         return giveResult switch
         {
             GiveResult.NoItems => await messageAssistance.SendNoItems(chatId),
-            GiveResult.Success or GiveResult.AdminSuccess =>
-                await SendSuccess(telegramId, receiverId, chatId, itemQuantity, isAmuletBroken),
+            GiveResult.Success => await SendSuccess(telegramId, receiverId, chatId, itemQuantity, isAmuletBroken),
+            GiveResult.AdminSuccess =>
+                await SendAdminSuccess(telegramId, receiverId, chatId, itemQuantity, isAmuletBroken),
             GiveResult.Failed => await SendFailed(chatId),
-            _ => throw new ArgumentOutOfRangeException()
+            _ => throw new ArgumentOutOfRangeException(nameof(giveResult), giveResult, null)
         };
     }
 
@@ -74,6 +76,18 @@ public partial class GiveItemCommandHandler(
             appConfig.GiveConfig.SuccessMessage, senderName, receiverName, itemQuantity.Item, itemQuantity.Quantity);
         if (isAmuletBroken) message += "\n\n" + appConfig.ItemConfig.AmuletBrokenMessage;
         var expireAt = DateTime.UtcNow.AddMinutes(appConfig.GiveConfig.ExpirationMinutes);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
+    }
+
+    private async Task<Unit> SendAdminSuccess(
+        long telegramId, long receiverId, long chatId, ItemQuantity itemQuantity, bool isAmuletBroken)
+    {
+        Log.Information("Admin: {0} give item: {1} for: {2}", telegramId, itemQuantity, receiverId);
+        var receiverName = await botClient.GetUsernameOrId(receiverId, chatId, cancelToken.Token);
+        var message = string.Format(
+            appConfig.GiveConfig.AdminSuccessMessage, receiverName, itemQuantity.Item, itemQuantity.Quantity, Command);
+        if (isAmuletBroken) message += "\n\n" + appConfig.ItemConfig.AmuletBrokenMessage;
+        var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ItemConfig.BoxMessageExpiration);
         return await messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
     }
 
