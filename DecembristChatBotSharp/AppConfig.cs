@@ -336,6 +336,8 @@ public record GiveConfig(
     [property: Required(AllowEmptyStrings = false)]
     string FailedMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string SelfMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string ReceiverNotSet,
     [property: Range(1, int.MaxValue)] int ExpirationMinutes);
 

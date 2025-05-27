@@ -13,13 +13,14 @@ public class GiveService(
     MemberItemService memberItemService,
     CancellationTokenSource cancelToken)
 {
-    public async Task<GiveOperationResult> GiveItem(long chatId, long senderId, long receiverId,
-        ItemQuantity itemQuantity)
+    public async Task<GiveOperationResult> GiveItem(
+        long chatId, long senderId, long receiverId, ItemQuantity itemQuantity)
     {
+        var isAdmin = await adminUserRepository.IsAdmin((senderId, chatId));
+        if (!isAdmin && senderId == receiverId) return new GiveOperationResult(GiveResult.Self);
         using var session = await db.OpenSession();
         session.StartTransaction();
 
-        var isAdmin = await adminUserRepository.IsAdmin((senderId, chatId));
         if (isAdmin) return await GiveItemAdmin(chatId, senderId, receiverId, itemQuantity, session);
 
         var hasItem = await IsUserHasItem(chatId, senderId, itemQuantity, session);
@@ -96,5 +97,6 @@ public enum GiveResult
     NoItems,
     Success,
     AdminSuccess,
-    Failed
+    Failed,
+    Self
 }
