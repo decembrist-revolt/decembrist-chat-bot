@@ -32,9 +32,9 @@ public class HelpChatCommandHandler(
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
         Task<Unit> helpTask;
-        if (text.Split("@") is [_, var subject] && Enum.TryParse<MemberItemType>(subject, true, out var itemType))
+        if (text.Split("@") is [.. _, var subject] && !subject.EndsWith("bot", StringComparison.OrdinalIgnoreCase))
         {
-            helpTask = GetItemHelp(chatId, messageId, subject, itemType);
+            helpTask = GetSpecificHelp(chatId, messageId, subject.ToLower());
         }
         else
         {
@@ -62,13 +62,16 @@ public class HelpChatCommandHandler(
         return await messageAssistance.SendCommandResponse(chatId, builder.ToString(), Command);
     }
 
-    private async Task<Unit> GetItemHelp(long chatId, int messageId, string subject, MemberItemType itemType)
+    private async Task<Unit> GetSpecificHelp(long chatId, int messageId, string subject)
     {
-        var command = $"{Command}={itemType}";
+        var command = $"{Command}={subject}";
         if (!await lockRepository.TryAcquire(chatId, Command, command))
         {
             return await messageAssistance.CommandNotReady(chatId, messageId, command);
         }
+
+        if (!Enum.TryParse(subject, true, out MemberItemType itemType))
+            return await GetCommandHelp(chatId, AddCommandPrefix(subject));
 
         var maybePassiveItem = passiveItems.Value.Find(x => x.ItemType == itemType);
         return await maybePassiveItem.MatchAsync(
@@ -83,9 +86,20 @@ public class HelpChatCommandHandler(
             MemberItemType.Box => OpenBoxCommandHandler.CommandKey,
             _ => command
         };
-        return CommandDescriptions.Find(command.ToLower()).Match(
+        return CommandDescriptions.Find(command).Match(
             Some: description => SendItemHelp(chatId, itemType, MakeCommandHelpString(command, description)),
-            None: () => SendHelpNoItem(chatId, command));
+            None: () => SendHelpNotFound(chatId, command));
+    }
+
+    private Task<Unit> GetCommandHelp(long chatId, string command) =>
+        CommandDescriptions.Find(command).Match(
+            Some: description => SendCommandHelp(chatId, command, MakeCommandHelpString(command, description)),
+            None: () => SendHelpNotFound(chatId, command));
+
+    private Task<Unit> SendCommandHelp(long chatId, string command, string description)
+    {
+        var message = string.Format(appConfig.HelpConfig.CommandHelpTemplate, command, description);
+        return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
     private Task<Unit> SendItemHelp(long chatId, MemberItemType item, string description)
@@ -94,7 +108,7 @@ public class HelpChatCommandHandler(
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private Task<Unit> SendHelpNoItem(long chatId, string subject)
+    private Task<Unit> SendHelpNotFound(long chatId, string subject)
     {
         Log.Information("Help not found for: {0}", subject);
         return messageAssistance.SendCommandResponse(chatId, appConfig.HelpConfig.FailedMessage, Command);

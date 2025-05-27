@@ -345,6 +345,8 @@ public record HelpConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ItemHelpTemplate,
     [property: Required(AllowEmptyStrings = false)]
+    string CommandHelpTemplate,
+    [property: Required(AllowEmptyStrings = false)]
     string HelpTitle,
     [property: Required(AllowEmptyStrings = false)]
     string FailedMessage
