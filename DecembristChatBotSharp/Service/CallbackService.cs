@@ -15,11 +15,11 @@ public class CallbackService(MessageAssistance messageAssistance)
     private static readonly System.Collections.Generic.HashSet<string> ParameterWhiteList =
         [ChatIdParameter, IndexStartParameter];
 
-    public static string GetCallback<TEnum>
-        (string prefix, TEnum suffix, params ( string key, object value )[] parameters) where TEnum : Enum =>
+    public static string GetCallback<TEnum, T>
+        (string prefix, TEnum suffix, params ( string key, T value )[] parameters) where TEnum : Enum =>
         GetCallback(prefix, suffix.ToString(), parameters);
 
-    public static string GetCallback(string prefix, string suffix, params ( string key, object value )[] parameters)
+    public static string GetCallback<T>(string prefix, string suffix, params ( string key, T value )[] parameters)
     {
         var sb = new StringBuilder(prefix).Append(PathSeparator).Append(suffix);
 
