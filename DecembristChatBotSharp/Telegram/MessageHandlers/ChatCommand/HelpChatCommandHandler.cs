@@ -32,7 +32,8 @@ public class HelpChatCommandHandler(
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
         Task<Unit> helpTask;
-        if (text.Split("@") is [.. _, var subject] && !subject.EndsWith("bot", StringComparison.OrdinalIgnoreCase))
+        if (text.Contains('@') && text.Split('@') is [.._, var subject] &&
+            !subject.EndsWith("bot", StringComparison.OrdinalIgnoreCase))
         {
             helpTask = GetSpecificHelp(chatId, messageId, subject.ToLower());
         }
