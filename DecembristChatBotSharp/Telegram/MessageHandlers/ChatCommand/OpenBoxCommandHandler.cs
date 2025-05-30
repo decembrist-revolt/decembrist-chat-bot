@@ -25,9 +25,7 @@ public class OpenBoxCommandHandler(
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
-        var chatId = parameters.ChatId;
-        var telegramId = parameters.TelegramId;
-        var messageId = parameters.MessageId;
+        var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload) return unit;
 
         if (await adminUserRepository.IsAdmin(new(telegramId, chatId)))
@@ -42,15 +40,17 @@ public class OpenBoxCommandHandler(
 
         var (itemType, result) = await memberItemService.OpenBox(chatId, telegramId);
 
-        return result switch
+        var resultTask = result switch
         {
-            OpenBoxResult.NoItems => await messageAssistance.SendNoItems(chatId),
-            OpenBoxResult.Failed => await SendFailedToOpenBox(chatId, telegramId),
-            OpenBoxResult.Success => await SendBoxResult(itemType, chatId, telegramId),
-            OpenBoxResult.SuccessX2 => await SendBoxResult(itemType, chatId, telegramId, 2),
-            OpenBoxResult.AmuletActivated => await SendBoxResult(itemType, chatId, telegramId, 0),
+            OpenBoxResult.NoItems => messageAssistance.SendNoItems(chatId),
+            OpenBoxResult.Failed => SendFailedToOpenBox(chatId, telegramId),
+            OpenBoxResult.Success => SendBoxResult(itemType, chatId, telegramId),
+            OpenBoxResult.SuccessX2 => SendBoxResult(itemType, chatId, telegramId, 2),
+            OpenBoxResult.AmuletActivated => SendBoxResult(itemType, chatId, telegramId, 0),
             _ => throw new ArgumentOutOfRangeException()
         };
+        return await Array(resultTask,
+            messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
     }
 
     private Task<Unit> SendBoxResult(Option<MemberItemType> itemType, long chatId, long telegramId, int count = 1)

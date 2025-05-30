@@ -5,6 +5,8 @@
     "HelpMessage": "Используйте {0} item, чтобы получить другие предметы",
     "NoRecipeMessage": "Это нельзя распылить",
     "FailedMessage": "Распыление не доступно\nПопробуйте позже",
+    "GreenDustDescription": "Зелёная пыль, ингридиент, нельзя распылить, Пассивный предмет",
+    "DustDescription": "Ингридиент, Пассивный предмет",
     "SuccessExpiration": 5,
     "DustRecipes": {
       "RedditMeme": {

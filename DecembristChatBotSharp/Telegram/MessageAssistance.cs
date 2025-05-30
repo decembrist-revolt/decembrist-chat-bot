@@ -85,7 +85,12 @@ public class MessageAssistance(
         if (count == 0 && item == MemberItemType.Amulet)
             message += "\n\n" + string.Format(appConfig.ItemConfig.AmuletBrokenMessage);
         return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent get item message to chat {0}", chatId),
+            message =>
+            {
+                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ItemConfig.BoxMessageExpiration);
+                Log.Information("Sent get item message to chat {0}", chatId);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId, expireAt);
+            },
             ex => Log.Error(ex, "Failed to send get item message to chat {0}", chatId),
             cancelToken.Token);
     }
@@ -110,9 +115,9 @@ public class MessageAssistance(
         var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
             .ToAsync()
             .IfNone(receiverId.ToString);
-        var message = string.Format(appConfig.amuletConfig.AmuletBreaksMessage, username, commandName);
+        var message = string.Format(appConfig.AmuletConfig.AmuletBreaksMessage, username, commandName);
         return await SendCommandResponse(chatId, message, commandName,
-            DateTime.UtcNow.AddMinutes(appConfig.amuletConfig.MessageExpirationMinutes));
+            DateTime.UtcNow.AddMinutes(appConfig.AmuletConfig.MessageExpirationMinutes));
     }
 
     public async Task<Unit> SendCommandResponse(
@@ -193,7 +198,7 @@ public class MessageAssistance(
             ex => Log.Error(ex, "Failed to send add premium message to chat {0}", chatId),
             cancelToken.Token);
     }
-    
+
     public async Task<Unit> SendUpdatePremiumMessage(long chatId, long telegramId, int days)
     {
         var maybeUsername = await botClient.GetUsername(chatId, telegramId, cancelToken.Token);

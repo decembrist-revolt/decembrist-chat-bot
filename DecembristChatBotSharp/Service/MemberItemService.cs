@@ -170,37 +170,6 @@ public class MemberItemService(
         });
     }
 
-    public async Task<bool> GiveItem(
-        long chatId, long telegramId, long adminTelegramId, MemberItemType type, int countItems = 1)
-    {
-        using var session = await db.OpenSession();
-        session.StartTransaction();
-
-        var isAmuletActivated = type == MemberItemType.Amulet && await HandleAmuletItem((telegramId, chatId), session);
-        countItems = isAmuletActivated ? countItems - 1 : countItems;
-        var success = (isAmuletActivated && countItems <= 0) ||
-                      await memberItemRepository.AddMemberItem(chatId, telegramId, type, session, countItems);
-
-        if (!success)
-        {
-            await session.TryAbort(cancelToken.Token);
-            Log.Error("{0} failed to give {1} to {2} in chat {3}", adminTelegramId, type, telegramId, chatId);
-            return false;
-        }
-
-        await historyLogRepository.LogItem(
-            chatId, telegramId, type, countItems, MemberItemSourceType.Admin, session, adminTelegramId);
-
-        if (await session.TryCommit(cancelToken.Token))
-        {
-            Log.Information("{0} gave {1} to {2} in chat {3}", adminTelegramId, type, telegramId, chatId);
-            return true;
-        }
-
-        await session.TryAbort(cancelToken.Token);
-        Log.Error("{0} failed to commit give {1} to {2} in chat {3}", adminTelegramId, type, telegramId, chatId);
-        return false;
-    }
 
     public async Task<CurseResult> UseCurse(
         long chatId, long telegramId, ReactionSpamMember member, bool isAdmin)
@@ -287,7 +256,7 @@ public class MemberItemService(
         return (None, OpenBoxResult.Failed);
     }
 
-    private async Task<bool> HandleAmuletItem(CompositeId id, IMongoSession session)
+    public async Task<bool> HandleAmuletItem(CompositeId id, IMongoSession session)
     {
         var isCursedResult = await curseRepository.IsUserCursed(id, session);
         var hasCurse = !isCursedResult.IsLeft && isCursedResult.IfLeftThrow();
@@ -295,7 +264,7 @@ public class MemberItemService(
         var hasCharm = !isCharmedResult.IsLeft && isCharmedResult.IfLeftThrow();
 
         if (!hasCurse && !hasCharm) return false;
-        
+
         if (hasCurse)
         {
             await curseRepository.DeleteCurseMember(id, session);
@@ -307,7 +276,7 @@ public class MemberItemService(
             await charmRepository.DeleteCharmMember(id, session);
             await messageAssistance.SendAmuletMessage(id.ChatId, id.TelegramId, CharmCommandHandler.CommandKey);
         }
-        
+
         Log.Information("Amulet was activated from the box for user: {0}", id);
         return true;
     }
