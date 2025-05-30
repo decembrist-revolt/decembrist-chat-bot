@@ -73,13 +73,15 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
         long chatId,
         long telegramId,
         MemberItemType type,
-        IMongoSession? session = null)
+        IMongoSession? session = null,
+        int countItems = -1)
     {
+        if (countItems > -1) return false;
+
         var collection = GetCollection();
 
         var id = new MemberItem.CompositeId(telegramId, chatId, type);
-
-        var update = Builders<MemberItem>.Update.Inc(item => item.Count, -1);
+        var update = Builders<MemberItem>.Update.Inc(item => item.Count, countItems);
 
         Expression<Func<MemberItem, bool>> findExpr = item => item.Id == id && item.Count > 0;
         var updateTask = not(session.IsNull())
@@ -153,13 +155,19 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
             });
     }
 
-    public Task<bool> IsUserHasItem(long chatId, long telegramId, MemberItemType itemType)
+    public async Task<bool> IsUserHasItem(long chatId, long telegramId, MemberItemType itemType,
+        IMongoSession? session = null, int countItem = 1)
     {
+        if (countItem <= 0) return false;
         var collection = GetCollection();
 
         var id = new MemberItem.CompositeId(telegramId, chatId, itemType);
-        return collection
-            .Find(reply => reply.Id == id && reply.Count > 0)
+        var filter = Builders<MemberItem>.Filter.And(
+            Builders<MemberItem>.Filter.Eq(reply => reply.Id, id),
+            Builders<MemberItem>.Filter.Gte(reply => reply.Count, countItem));
+
+        var query = session.IsNull() ? collection.Find(filter) : collection.Find(session, filter);
+        return await query
             .AnyAsync(cancelToken.Token)
             .ToTryAsync()
             .Match(identity, ex =>

@@ -1,9 +1,9 @@
 ﻿using System.Text;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Items;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
 using Serilog;
-using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
@@ -11,9 +11,9 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 public class HelpChatCommandHandler(
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
-    BotClient botClient,
-    ExpiredMessageRepository expiredMessageRepository,
-    Lazy<IList<ICommandHandler>> commandHandlers) : ICommandHandler
+    AppConfig appConfig,
+    Lazy<IList<ICommandHandler>> commandHandlers,
+    Lazy<IList<IPassiveItem>> passiveItems) : ICommandHandler
 {
     public string Command => "/help";
     public string Description => "Help";
@@ -22,87 +22,98 @@ public class HelpChatCommandHandler(
     private Map<string, string>? _commandDescriptions;
 
     private Map<string, string> CommandDescriptions => _commandDescriptions ??= commandHandlers.Value
+        .Filter(handler => handler.CommandLevel != CommandLevel.Admin)
         .Map(handler => (handler.Command, handler.Description))
         .ToMap();
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
-        var chatId = parameters.ChatId;
-
+        var (messageId, _, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
-        Option<string> maybeMessage;
-        if (text.Split("@") is not [_, var subject])
+        Task<Unit> helpTask;
+        if (text.Split("@") is [.. _, var subject] && !subject.EndsWith("bot", StringComparison.OrdinalIgnoreCase))
         {
-            maybeMessage = await GetCommandsHelp(chatId, parameters.MessageId);
-        }
-        else if (Enum.TryParse<MemberItemType>(subject, out var itemType))
-        {
-            maybeMessage = await GetItemHelp(chatId, parameters.MessageId, itemType);
+            helpTask = GetSpecificHelp(chatId, messageId, subject.ToLower());
         }
         else
         {
-            maybeMessage = await GetCommandsHelp(chatId, parameters.MessageId);
+            helpTask = GetCommandsHelp(chatId, messageId);
         }
 
-        var task = maybeMessage.ToTryOption()
-            .MapAsync(message => botClient.SendMessage(chatId, message))
-            .Map(sentMessage =>
-            {
-                Log.Information("Sent help message for {0} to chat {1}", text, chatId);
-                expiredMessageRepository.QueueMessage(chatId, sentMessage.MessageId);
-                return unit;
-            }).IfFail(ex => Log.Error(ex, "Failed to send help message for {0} to chat {1}", text, chatId));
-
-        return await Array(task,
+        return await Array(helpTask,
             messageAssistance.DeleteCommandMessage(chatId, parameters.MessageId, Command)).WhenAll();
     }
 
-    private async Task<Option<string>> GetCommandsHelp(long chatId, int messageId)
+    private async Task<Unit> GetCommandsHelp(long chatId, int messageId)
     {
         if (!await lockRepository.TryAcquire(chatId, Command))
         {
-            await messageAssistance.CommandNotReady(chatId, messageId, Command);
-            return None;
+            return await messageAssistance.CommandNotReady(chatId, messageId, Command);
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine("Available commands:");
+        builder.AppendLine(appConfig.HelpConfig.HelpTitle);
         foreach (var (command, description) in CommandDescriptions)
         {
             builder.AppendLine(MakeCommandHelpString(command, description));
         }
 
-        return builder.ToString();
+        return await messageAssistance.SendCommandResponse(chatId, builder.ToString(), Command);
+    }
+
+    private async Task<Unit> GetSpecificHelp(long chatId, int messageId, string subject)
+    {
+        var command = $"{Command}={subject}";
+        if (!await lockRepository.TryAcquire(chatId, Command, command))
+        {
+            return await messageAssistance.CommandNotReady(chatId, messageId, command);
+        }
+
+        if (!Enum.TryParse(subject, true, out MemberItemType itemType))
+            return await GetCommandHelp(chatId, AddCommandPrefix(subject));
+
+        var maybePassiveItem = passiveItems.Value.Find(x => x.ItemType == itemType);
+        return await maybePassiveItem.MatchAsync(
+            Some: passiveItem => SendItemHelp(chatId, passiveItem.ItemType, passiveItem.Description),
+            None: () => GetActiveItemHelp(chatId, AddCommandPrefix(subject), itemType));
+    }
+
+    private Task<Unit> GetActiveItemHelp(long chatId, string command, MemberItemType itemType)
+    {
+        command = itemType switch
+        {
+            MemberItemType.Box => OpenBoxCommandHandler.CommandKey,
+            _ => command
+        };
+        return CommandDescriptions.Find(command).Match(
+            Some: description => SendItemHelp(chatId, itemType, MakeCommandHelpString(command, description)),
+            None: () => SendHelpNotFound(chatId, command));
+    }
+
+    private Task<Unit> GetCommandHelp(long chatId, string command) =>
+        CommandDescriptions.Find(command).Match(
+            Some: description => SendCommandHelp(chatId, command, MakeCommandHelpString(command, description)),
+            None: () => SendHelpNotFound(chatId, command));
+
+    private Task<Unit> SendCommandHelp(long chatId, string command, string description)
+    {
+        var message = string.Format(appConfig.HelpConfig.CommandHelpTemplate, command, description);
+        return messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private Task<Unit> SendItemHelp(long chatId, MemberItemType item, string description)
+    {
+        var message = string.Format(appConfig.HelpConfig.ItemHelpTemplate, item, description);
+        return messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private Task<Unit> SendHelpNotFound(long chatId, string subject)
+    {
+        Log.Information("Help not found for: {0}", subject);
+        return messageAssistance.SendCommandResponse(chatId, appConfig.HelpConfig.FailedMessage, Command);
     }
 
     private string MakeCommandHelpString(string command, string description) => $"{command} - {description}";
-
-    private async Task<Option<string>> GetItemHelp(long chatId, int messageId, MemberItemType itemType)
-    {
-        var command = $"{Command}={itemType}";
-        if (!await lockRepository.TryAcquire(chatId, Command, command))
-        {
-            await messageAssistance.CommandNotReady(chatId, messageId, command);
-            return None;
-        }
-
-        Option<string> maybeCommand = itemType switch
-        {
-            MemberItemType.RedditMeme => RedditMemeCommandHandler.CommandKey,
-            MemberItemType.Box => OpenBoxCommandHandler.CommandKey,
-            MemberItemType.FastReply => FastReplyCommandHandler.CommandKey,
-            MemberItemType.TelegramMeme => TelegramMemeCommandHandler.CommandKey,
-            MemberItemType.Curse => CurseCommandHandler.CommandKey,
-            MemberItemType.Charm => CharmCommandHandler.CommandKey,
-            MemberItemType.Amulet => AmuletCommandHandler.CommandKey,
-            MemberItemType.BlueDust or MemberItemType.GreenDust or MemberItemType.RedDust =>
-                DustCommandHandler.CommandKey,
-            _ => None
-        };
-
-        return maybeCommand.Map(commandKey => (Command: commandKey, Description: CommandDescriptions[commandKey]))
-            .Map(pair => MakeCommandHelpString(pair.Command, pair.Description))
-            .Map(help => $"Item {itemType} help:\n\n{help}");
-    }
+    private string AddCommandPrefix(string subject) => "/" + subject;
 }

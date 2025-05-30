@@ -45,5 +45,6 @@ public enum MemberItemSourceType
     TopLiker = 3,
     PremiumDaily = 4,
     Dust = 5,
-    Craft = 6
+    Craft = 6,
+    Give = 7,
 }
