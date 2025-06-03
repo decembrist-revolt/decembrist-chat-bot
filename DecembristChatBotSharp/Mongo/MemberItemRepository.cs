@@ -2,6 +2,7 @@
 using DecembristChatBotSharp.Entity;
 using Lamar;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 using Serilog;
 
 namespace DecembristChatBotSharp.Mongo;
@@ -34,6 +35,37 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
             ex =>
             {
                 Log.Error(ex, "Failed to add item {0} to {1} in chat {2}", type, telegramId, chatId);
+                return false;
+            });
+    }
+
+    public async Task<bool> ChangeOwnerUniqueItem(
+        long chatId,
+        long telegramId,
+        MemberItemType type,
+        IMongoSession? session = null)
+    {
+        var collection = GetCollection();
+
+        var id = new MemberItem.CompositeId(telegramId, chatId, type);
+        var update = Builders<MemberItem>.Update
+            .Set(item => item.Id, id)
+            .Set(item => item.Count, 1);
+
+        var filter = Builders<MemberItem>.Filter.And(
+            Builders<MemberItem>.Filter.Eq(item => item.Id.Type, type),
+            Builders<MemberItem>.Filter.Gte(item => item.Count, 1));
+        var options = new UpdateOptions { IsUpsert = true };
+
+        var updateTask = not(session.IsNull())
+            ? collection.UpdateOneAsync(session, filter, update, options, cancellationToken: cancelToken.Token)
+            : collection.UpdateOneAsync(filter, update, options, cancellationToken: cancelToken.Token);
+
+        return await updateTask.ToTryAsync().Match(
+            result => result.IsAcknowledged && result.ModifiedCount == 1,
+            ex =>
+            {
+                Log.Error(ex, "Failed to add unique item {0} from {1} in chat {2}", type, telegramId, chatId);
                 return false;
             });
     }
@@ -83,7 +115,9 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
         var id = new MemberItem.CompositeId(telegramId, chatId, type);
         var update = Builders<MemberItem>.Update.Inc(item => item.Count, countItems);
 
-        Expression<Func<MemberItem, bool>> findExpr = item => item.Id == id && item.Count > 0;
+        Expression<Func<MemberItem, bool>> findExpr = item =>
+            item.Id == id && item.Count > 0 && item.Count <= -countItems;
+
         var updateTask = not(session.IsNull())
             ? collection.UpdateOneAsync(session, findExpr, update, cancellationToken: cancelToken.Token)
             : collection.UpdateOneAsync(findExpr, update, cancellationToken: cancelToken.Token);
@@ -155,6 +189,16 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
             });
     }
 
+    public async Task<bool> IsChatHasItem(long chatId, MemberItemType itemType, IMongoSession? session = null) =>
+        await GetCollection().AsQueryable(session)
+            .AnyAsync(x => x.Id.ChatId == chatId && x.Id.Type == itemType, cancelToken.Token)
+            .ToTryAsync()
+            .Match(identity, ex =>
+            {
+                Log.Error(ex, "Failed to find uniqe item: {0} in chat: {1}", itemType, chatId);
+                return false;
+            });
+
     public async Task<bool> IsUserHasItem(long chatId, long telegramId, MemberItemType itemType,
         IMongoSession? session = null, int countItem = 1)
     {
@@ -166,7 +210,7 @@ public class MemberItemRepository(MongoDatabase db, CancellationTokenSource canc
             Builders<MemberItem>.Filter.Eq(reply => reply.Id, id),
             Builders<MemberItem>.Filter.Gte(reply => reply.Count, countItem));
 
-        var query = session.IsNull() ? collection.Find(filter) : collection.Find(session, filter);
+        var query = session == null ? collection.Find(filter) : collection.Find(session, filter);
         return await query
             .AnyAsync(cancelToken.Token)
             .ToTryAsync()

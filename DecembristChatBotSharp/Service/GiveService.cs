@@ -47,6 +47,7 @@ public class GiveService(
         long chatId, long senderId, long receiverId, ItemQuantity itemQuantity, MemberItemSourceType sourceType)
     {
         var (item, quantity) = itemQuantity;
+        if (item == MemberItemType.Stone) return await GiveUniqueItem(chatId, receiverId, sourceType);
         var isAmuletActivated = item == MemberItemType.Amulet &&
                                 await memberItemService.HandleAmuletItem((receiverId, chatId), session);
         quantity = isAmuletActivated ? quantity - 1 : quantity;
@@ -63,11 +64,19 @@ public class GiveService(
             : new GiveOperationResult(GiveResult.Failed);
     }
 
+    private async Task<GiveOperationResult> GiveUniqueItem(long chatId, long receiverId,
+        MemberItemSourceType sourceType)
+    {
+        var isChangeOwner = await memberItemRepository.ChangeOwnerUniqueItem(chatId, telegramId, itemType, session);
+    }
+
     private async Task<bool> IsUserHasItem(long chatId, long senderId, ItemQuantity itemQuantity, IMongoSession session)
     {
         var (item, quantity) = itemQuantity;
-        var isHas = await memberItemRepository.IsUserHasItem(chatId, senderId, item, session, quantity) &&
-                    await memberItemRepository.RemoveMemberItem(chatId, senderId, item, session, -quantity);
+        var isUnique = item == MemberItemType.Stone &&;
+
+        var isHas = await memberItemRepository.RemoveMemberItem(chatId, senderId, item, session, -quantity);
+
         if (isHas)
         {
             await historyLogRepository.LogItem(

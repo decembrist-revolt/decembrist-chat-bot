@@ -10,7 +10,6 @@ namespace DecembristChatBotSharp.Service;
 
 [Singleton]
 public class MemberItemService(
-    AppConfig appConfig,
     MongoDatabase db,
     AmuletService amuletService,
     MemberItemRepository memberItemRepository,
@@ -20,33 +19,9 @@ public class MemberItemService(
     CharmRepository charmRepository,
     RedditService redditService,
     MessageAssistance messageAssistance,
-    Random random,
     TelegramPostService telegramPostService,
     CancellationTokenSource cancelToken)
 {
-    public async Task<(Option<MemberItemType>, OpenBoxResult)> OpenBox(long chatId, long telegramId)
-    {
-        using var session = await db.OpenSession();
-        session.StartTransaction();
-
-        var hasBox = await memberItemRepository.RemoveMemberItem(chatId, telegramId, MemberItemType.Box, session);
-
-        if (!hasBox) return (None, await AbortSessionAndLog(OpenBoxResult.NoItems, chatId, telegramId, session));
-
-        await historyLogRepository.LogItem(
-            chatId, telegramId, MemberItemType.Box, -1, MemberItemSourceType.Use, session);
-
-        var itemType = GetRandomItem();
-        return itemType switch
-        {
-            MemberItemType.Box => await HandleItemType(
-                chatId, telegramId, itemType, 2, OpenBoxResult.SuccessX2, session),
-            MemberItemType.Amulet when await HandleAmuletItem((telegramId, chatId), session) =>
-                await HandleItemType(chatId, telegramId, itemType, 0, OpenBoxResult.AmuletActivated, session),
-            _ => await HandleItemType(chatId, telegramId, itemType, 1, OpenBoxResult.Success, session)
-        };
-    }
-
     public async Task<UseFastReplyResult> UseFastReply(long chatId, long telegramId, FastReply fastReply, bool isAdmin)
     {
         using var session = await db.OpenSession();
@@ -236,26 +211,6 @@ public class MemberItemService(
         }
     }
 
-    private async Task<(Option<MemberItemType>, OpenBoxResult)> HandleItemType(
-        long chatId, long telegramId, MemberItemType itemType, int numberItems, OpenBoxResult result,
-        IMongoSession session)
-    {
-        var success =
-            numberItems == 0 ||
-            await memberItemRepository.AddMemberItem(chatId, telegramId, itemType, session, numberItems);
-
-        if (success && await session.TryCommit(cancelToken.Token))
-        {
-            await historyLogRepository.LogItem(
-                chatId, telegramId, itemType, numberItems, MemberItemSourceType.Box, session);
-            return (Some(itemType.LogSuccessUsingItem(chatId, telegramId)), result);
-        }
-
-        await session.TryAbort(cancelToken.Token);
-        Log.Error("Failed to open box for {0} in chat {1}", telegramId, chatId);
-        return (None, OpenBoxResult.Failed);
-    }
-
     public async Task<bool> HandleAmuletItem(CompositeId id, IMongoSession session)
     {
         var isCursedResult = await curseRepository.IsUserCursed(id, session);
@@ -318,26 +273,6 @@ public class MemberItemService(
         Log.Information("Item usage FAILED from: {0}, Reason: {1}, User: {2}, Chat: {3}",
             callerName, maybeResult, telegramId, chatId);
         return maybeResult;
-    }
-
-    private MemberItemType GetRandomItem()
-    {
-        var itemChances = appConfig.ItemConfig.ItemChance;
-        var total = itemChances.Values.Sum();
-        var roll = random.NextDouble() * total;
-
-        var cumulative = 0.0;
-
-        foreach (var pair in itemChances)
-        {
-            cumulative += pair.Value;
-            if (roll <= cumulative)
-            {
-                return pair.Key;
-            }
-        }
-
-        return itemChances.Keys.First();
     }
 
     public Option<ItemQuantity> ParseItem(string text)
