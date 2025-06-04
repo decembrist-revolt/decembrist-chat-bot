@@ -131,6 +131,10 @@ public class BotHandler(
                 From.Id: { }
             } => new TextPayload(text, CheckForLinkEntity(message.Entities)),
             {
+                Caption: { } caption,
+                From.Id: { }
+            } => new TextPayload(caption, CheckForLinkEntity(message.Entities)),
+            {
                 Sticker.FileId: { } fileId,
                 Type: MessageType.Sticker,
             } => new StickerPayload(fileId),
