@@ -86,7 +86,7 @@ public class BotHandler(
     {
         {
             From.Id: { },
-        } => chatEditedHandler.Do(message),
+        } => chatEditedHandler.Do(GetChatMessageHandlerParams(message)),
         _ => Task.CompletedTask
     };
 
@@ -117,6 +117,12 @@ public class BotHandler(
 
     private async Task HandleChatMessage(Message message)
     {
+        var parameters = GetChatMessageHandlerParams(message);
+        await chatMessageHandler.Do(parameters);
+    }
+
+    private ChatMessageHandlerParams GetChatMessageHandlerParams(Message message)
+    {
         IMessagePayload payload = message switch
         {
             {
@@ -135,7 +141,7 @@ public class BotHandler(
         var chatId = message.Chat.Id;
         var parameters = new ChatMessageHandlerParams(
             payload, messageId, telegramId, chatId, Optional(message.ReplyToMessage?.From?.Id));
-        await chatMessageHandler.Do(parameters);
+        return parameters;
     }
 
     private Task HandleCallback(CallbackQuery query)
