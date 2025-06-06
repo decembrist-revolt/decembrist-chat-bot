@@ -8,18 +8,19 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 [Singleton]
 public class ChatEditedHandler(
     CharmRepository charmRepository,
+    RestrictHandler restrictHandler,
     BotClient botClient,
     CancellationTokenSource cancelToken)
 {
-    public async Task<Unit> Do(Message message)
+    public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
-        var chatId = message.Chat.Id;
-        var telegramId = message.From!.Id;
-        var messageText = message.Text ?? message.Caption;
-        if (!string.IsNullOrEmpty(messageText))
-        {
-            await HandleCharm(message.MessageId, chatId, telegramId, messageText);
-        }
+        if (parameters.Payload is not TextPayload { Text: var text }) return unit;
+        if (string.IsNullOrEmpty(text)) return unit;
+
+        var (messageId, telegramId, chatId) = parameters;
+
+        if (await restrictHandler.Do(parameters)) return unit;
+        await HandleCharm(messageId, chatId, telegramId, text);
 
         return unit;
     }
