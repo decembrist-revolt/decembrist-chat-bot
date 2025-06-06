@@ -55,8 +55,8 @@
         "Reward": {
           "Item": "BlueDust",
           "Range": {
-            "Min": 2,
-            "Max": 6
+            "Min": 1,
+            "Max": 3
           }
         },
         "PremiumReward": {
