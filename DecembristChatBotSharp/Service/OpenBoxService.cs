@@ -25,11 +25,13 @@ public class OpenBoxService(
         var itemType = GetRandomItem();
         return itemType switch
         {
-            MemberItemType.Box => await HandleItemType(
-                chatId, telegramId, itemType, 2, OpenBoxResult.SuccessX2, session),
+            MemberItemType.Box =>
+                await HandleItemType(chatId, telegramId, itemType, 2, OpenBoxResult.SuccessX2, session),
             MemberItemType.Amulet when await memberItemService.HandleAmuletItem((telegramId, chatId), session) =>
                 await HandleItemType(chatId, telegramId, itemType, 0, OpenBoxResult.AmuletActivated, session),
-            MemberItemType.Stone => await HandleStoneItem(chatId, telegramId, itemType, session),
+            MemberItemType.Stone when await memberItemRepository.RemoveAllItemsForChat(chatId, itemType, session) =>
+                await HandleItemType(chatId, telegramId, itemType, 1, OpenBoxResult.Success, session),
+            MemberItemType.Stone => await AbortWithResult(session),
             _ => await HandleItemType(chatId, telegramId, itemType, 1, OpenBoxResult.Success, session)
         };
     }
@@ -42,15 +44,6 @@ public class OpenBoxService(
                       await memberItemRepository.AddMemberItem(chatId, telegramId, itemType, session, numberItems);
         return success
             ? await LogInHistoryAndCommit(chatId, telegramId, result, itemType, session, numberItems)
-            : await AbortWithResult(session);
-    }
-
-    private async Task<(Option<MemberItemType>, OpenBoxResult)> HandleStoneItem(
-        long chatId, long telegramId, MemberItemType itemType, IMongoSession session)
-    {
-        var isChangeOwner = await memberItemRepository.ChangeOwnerUniqueItem(chatId, telegramId, itemType, session);
-        return isChangeOwner
-            ? await LogInHistoryAndCommit(chatId, telegramId, OpenBoxResult.Success, itemType, session, 1)
             : await AbortWithResult(session);
     }
 
