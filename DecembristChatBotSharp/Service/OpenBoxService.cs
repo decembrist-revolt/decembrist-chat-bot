@@ -12,7 +12,8 @@ public class OpenBoxService(
     MongoDatabase db,
     HistoryLogRepository historyLogRepository,
     Random random,
-    CancellationTokenSource cancelToken)
+    CancellationTokenSource cancelToken,
+    UniqueItemService uniqueItemService)
 {
     public async Task<(Option<MemberItemType>, OpenBoxResult)> OpenBox(long chatId, long telegramId)
     {
@@ -25,15 +26,23 @@ public class OpenBoxService(
         var itemType = GetRandomItem();
         return itemType switch
         {
+            MemberItemType.Stone => await HandleUniqueItem(chatId, telegramId, itemType, session),
             MemberItemType.Box =>
                 await HandleItemType(chatId, telegramId, itemType, 2, OpenBoxResult.SuccessX2, session),
             MemberItemType.Amulet when await memberItemService.HandleAmuletItem((telegramId, chatId), session) =>
                 await HandleItemType(chatId, telegramId, itemType, 0, OpenBoxResult.AmuletActivated, session),
-            MemberItemType.Stone when await memberItemRepository.RemoveAllItemsForChat(chatId, itemType, session) =>
-                await HandleItemType(chatId, telegramId, itemType, 1, OpenBoxResult.Success, session),
-            MemberItemType.Stone => await AbortWithResult(session),
             _ => await HandleItemType(chatId, telegramId, itemType, 1, OpenBoxResult.Success, session)
         };
+    }
+
+    private async Task<(Option<MemberItemType>, OpenBoxResult)> HandleUniqueItem(
+        long chatId, long telegramId, MemberItemType itemType, IMongoSession session)
+    {
+        var isChangeOwner = await memberItemRepository.RemoveAllItemsForChat(chatId, itemType, session)
+                            && await uniqueItemService.ChangeOwnerUniqueItem(chatId, telegramId, itemType, session);
+        return isChangeOwner
+            ? await HandleItemType(chatId, telegramId, itemType, 1, OpenBoxResult.SuccessUnique, session)
+            : await AbortWithResult(session);
     }
 
     private async Task<(Option<MemberItemType>, OpenBoxResult)> HandleItemType(

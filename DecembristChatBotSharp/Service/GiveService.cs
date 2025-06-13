@@ -12,6 +12,7 @@ public class GiveService(
     MemberItemRepository memberItemRepository,
     HistoryLogRepository historyLogRepository,
     MemberItemService memberItemService,
+    UniqueItemService uniqueItemService,
     CancellationTokenSource cancelToken)
 {
     public async Task<GiveOperationResult> GiveItem(
@@ -28,18 +29,18 @@ public class GiveService(
         if (!hasItem) return await AbortWithResult(session, GiveResult.NoItems);
 
         var result = await IsGiveSuccess(session, chatId, senderId, receiverId, itemQuantity);
-        return result.GiveResult != GiveResult.Failed
+        return result.GiveResult == GiveResult.Success
             ? await CommitWithResult(session, result)
-            : await AbortWithResult(session);
+            : await AbortWithResult(session, result.GiveResult);
     }
 
     private async Task<GiveOperationResult> GiveItemAdmin(
         long chatId, long senderId, long receiverId, ItemQuantity itemQuantity, IMongoSession session, bool isAdmin)
     {
         var result = await IsGiveSuccess(session, chatId, senderId, receiverId, itemQuantity, isAdmin);
-        return result.GiveResult != GiveResult.Failed
+        return result.GiveResult == GiveResult.Success
             ? await CommitWithResult(session, result with { GiveResult = GiveResult.AdminSuccess })
-            : await AbortWithResult(session);
+            : await AbortWithResult(session, result.GiveResult);
     }
 
     private async Task<GiveOperationResult> IsGiveSuccess(IMongoSession session, long chatId, long senderId,
@@ -79,11 +80,16 @@ public class GiveService(
     private async Task<GiveOperationResult> GiveUnique(
         long chatId, long receiverId, MemberItemType item, int quantity, IMongoSession session, bool isAdmin)
     {
-        if (isAdmin) await memberItemRepository.RemoveAllItemsForChat(chatId, item, session);
-        var isChangeOwner = await uniqueItemRepository.IsGiveExpired((chatId, item), session);
-        if (!isChangeOwner) return new GiveOperationResult(GiveResult.NotExpired);
+        if (isAdmin)
+        {
+            await memberItemRepository.RemoveAllItemsForChat(chatId, item, session);
+        }
+        else if (!await uniqueItemRepository.IsGiveExpired((chatId, item), session))
+        {
+            return new GiveOperationResult(GiveResult.NotExpired);
+        }
 
-        var isChange = await uniqueItemRepository.ChangeOwnerUniqueItem((chatId, item), receiverId, session);
+        var isChange = await uniqueItemService.ChangeOwnerUniqueItem(chatId, receiverId, item, session);
         return isChange
             ? await GiveDefault(chatId, receiverId, item, quantity, session)
             : new GiveOperationResult(GiveResult.Failed);
@@ -93,7 +99,7 @@ public class GiveService(
         long chatId, long receiverId, MemberItemType item, int quantity, IMongoSession session)
     {
         var success = await memberItemRepository.AddMemberItem(chatId, receiverId, item, session, quantity);
-        return new GiveOperationResult(success ? GiveResult.Success : GiveResult.Failed);
+        return success ? new GiveOperationResult(GiveResult.Success) : new GiveOperationResult(GiveResult.Failed);
     }
 
     private async Task<bool> IsUserHasItem(long chatId, long senderId, ItemQuantity itemQuantity, IMongoSession session)

@@ -299,6 +299,7 @@ public enum OpenBoxResult
 {
     SuccessX2,
     Success,
+    SuccessUnique,
     AmuletActivated,
     NoItems,
     Failed
