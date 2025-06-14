@@ -19,10 +19,13 @@ jobs:
           registry: ${{ secrets.REGISTRY_HOST }}
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
-          
-      - name: Set date and time (YYYYMMDD-HHMMSS)
+
+      - name: Set datetime and image
         id: set-datetime
-        run: echo "DATETIME=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
+        run: |
+          echo "DATETIME=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
+          echo "IMAGE_TAG=chat-bot:${{ env.DATETIME }}-${{ github.sha }}" >> $GITHUB_ENV
+
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
@@ -31,4 +34,45 @@ jobs:
           push: true
           tags: |
             ${{ secrets.REGISTRY_HOST }}/chat-bot:latest
-            ${{ secrets.REGISTRY_HOST }}/chat-bot:${{ env.DATETIME }}-${{ github.sha }}
+            ${{ secrets.REGISTRY_HOST }}/${{ env.IMAGE_TAG }}
+  
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure Kubernetes access
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CA }}" | base64 --decode > ca.crt
+          
+          kubectl config set-cluster bot-cluster --server=${{ secrets.KUBE_SERVER }} --certificate-authority=ca.crt --embed-certs=true  
+          kubectl config set-credentials chat-bot-auto-deployer --token=${{ secrets.KUBE_TOKEN }} 
+          kubectl config set-context bot-context --cluster=bot-cluster --user=chat-bot-auto-deployer
+          kubectl config use-context bot-context
+          rm ca.crt
+
+      - name: Get current deployment revision
+        id: get-old-rev
+        run: |
+          rev=$(kubectl get deployment chat-bot -n chat-bot -o jsonpath='{.metadata.annotations.deployment\.kubernetes\.io/revision}')
+          echo "old_rev=$rev" >> $GITHUB_OUTPUT
+
+      - name: Deploy new image
+        run: |
+          kubectl set image deployment/chat-bot chat-bot=${{ secrets.REGISTRY_HOST }}/${{ env.IMAGE_TAG }} -n chat-bot
+          kubectl rollout status deployment/chat-bot -n chat-bot --timeout=60s
+
+      - name: Rollback if failed
+        if: failure()
+        run: |
+          if [ -z "${{ steps.get-old-rev.outputs.old_rev }}" ]; then
+            echo "ERROR: Cannot rollback - no previous revision"
+            exit 1
+          fi
+          kubectl rollout undo deployment/chat-bot -n chat-bot --to-revision=${{ steps.get-old-rev.outputs.old_rev }}
+          kubectl rollout status deployment/chat-bot -n chat-bot --timeout=60s
+          echo "ERROR: Deployment failed, rolled back to revision ${{ steps.get-old-rev.outputs.old_rev }}"
+          exit 1
