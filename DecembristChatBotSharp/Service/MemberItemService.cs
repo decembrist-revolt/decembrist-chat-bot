@@ -27,6 +27,9 @@ public class MemberItemService(
         using var session = await db.OpenSession();
         session.StartTransaction();
 
+        if (!isAdmin && await memberItemRepository.IsUserHasItem(chatId, telegramId, MemberItemType.Stone, session))
+            return await AbortSessionAndLog(UseFastReplyResult.Blocked, chatId, telegramId, session);
+
         var hasItem = isAdmin || await memberItemRepository
             .RemoveMemberItem(chatId, telegramId, MemberItemType.FastReply, session);
 
@@ -310,7 +313,8 @@ public enum UseFastReplyResult
     Success,
     NoItems,
     Duplicate,
-    Failed
+    Failed,
+    Blocked
 }
 
 public enum CurseResult

@@ -10,6 +10,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 [Singleton]
 public class FastReplyHandler(
     FastReplyRepository db,
+    MemberItemRepository memberItemRepository,
     BotClient botClient,
     CancellationTokenSource cancelToken)
 {
@@ -19,6 +20,7 @@ public class FastReplyHandler(
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
+        if (await memberItemRepository.IsUserHasItem(chatId, telegramId, MemberItemType.Stone)) return unit;
 
         var maybeReply = parameters.Payload switch
         {

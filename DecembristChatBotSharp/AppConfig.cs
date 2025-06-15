@@ -140,6 +140,8 @@ public record CommandConfig(
     [property: Required(AllowEmptyStrings = false)]
     string FastReplyDuplicateMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string FastReplyBlockedMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string WrongCommandMessage,
     [property: Range(1, int.MaxValue)] int FastReplyDaysDuration
 );
@@ -323,7 +325,7 @@ public record ItemConfig(
     string SuccessInventoryMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FailedToOpenBoxMessage,
-    [property: Range(1, int.MaxValue)] int UniqueItemExpirationMinutes,
+    [property: Range(1, int.MaxValue)] int UniqueItemGiveExpirationMinutes,
     [property: Range(1, int.MaxValue)] int BoxMessageExpiration
 );
 

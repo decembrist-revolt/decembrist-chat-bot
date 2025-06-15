@@ -27,7 +27,7 @@ public class UniqueItemService(
     {
         var expiredAt = itemType switch
         {
-            MemberItemType.Stone => DateTime.UtcNow.AddMinutes(appConfig.ItemConfig.UniqueItemExpirationMinutes),
+            MemberItemType.Stone => DateTime.UtcNow.AddMinutes(appConfig.ItemConfig.UniqueItemGiveExpirationMinutes),
             _ => throw new ArgumentOutOfRangeException(nameof(itemType), itemType, null)
         };
 
