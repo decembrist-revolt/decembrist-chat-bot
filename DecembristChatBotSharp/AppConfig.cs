@@ -325,6 +325,8 @@ public record ItemConfig(
     string SuccessInventoryMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FailedToOpenBoxMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string StoneDescription,
     [property: Range(1, int.MaxValue)] int UniqueItemGiveExpirationMinutes,
     [property: Range(1, int.MaxValue)] int BoxMessageExpiration
 );

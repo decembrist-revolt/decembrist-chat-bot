@@ -35,5 +35,5 @@ public class RedDust(AppConfig appConfig) : IPassiveItem
 public class Stone(AppConfig appConfig) : IPassiveItem
 {
     public MemberItemType ItemType => MemberItemType.Stone;
-    public string Description => appConfig.DustConfig.DustDescription;
+    public string Description => appConfig.ItemConfig.StoneDescription;
 }
