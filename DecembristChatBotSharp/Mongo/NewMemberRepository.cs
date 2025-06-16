@@ -1,7 +1,9 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using System.Linq.Expressions;
+using DecembristChatBotSharp.Entity;
 using Lamar;
 using LanguageExt.Common;
 using MongoDB.Driver;
+using Serilog;
 
 namespace DecembristChatBotSharp.Mongo;
 
@@ -52,6 +54,39 @@ public class NewMemberRepository(MongoDatabase db, CancellationTokenSource cance
             Builders<NewMember>.Update.Set(member => member.CaptchaRetryCount, retryCount),
             cancellationToken: cancelToken.Token));
     }
-    
+
+    public TryAsync<UpdateResult> UpdateNewMember(NewMember.CompositeId id, int retryCount, int welcomeMessageId)
+    {
+        var newMembers = GetCollection();
+        return TryAsync(newMembers.UpdateOneAsync(
+            member => member.Id == id,
+            Builders<NewMember>.Update.Set(member => member.CaptchaRetryCount, retryCount)
+                .Set(member => member.WelcomeMessageId, welcomeMessageId),
+            cancellationToken: cancelToken.Token));
+    }
+
+    public async Task<bool> AddMemberItem(NewMember newMember, IMongoSession? session = null)
+    {
+        var collection = GetCollection();
+
+        var update = Builders<NewMember>.Update
+            .Set(member => member.WelcomeMessageId, newMember.WelcomeMessageId)
+            .Set(member => member.CaptchaRetryCount, newMember.CaptchaRetryCount);
+        var options = new UpdateOptions { IsUpsert = true };
+
+        Expression<Func<NewMember, bool>> findExpr = member => member.Id == newMember.Id;
+        var updateTask = not(session.IsNull())
+            ? collection.UpdateOneAsync(session, findExpr, update, options, cancelToken.Token)
+            : collection.UpdateOneAsync(findExpr, update, options, cancelToken.Token);
+
+        return await updateTask.ToTryAsync().Match(
+            result => result.IsAcknowledged && (result.UpsertedId != null || result.ModifiedCount == 1),
+            ex =>
+            {
+                Log.Error(ex, "Failed to add new member {0}", newMember);
+                return false;
+            });
+    }
+
     private IMongoCollection<NewMember> GetCollection() => db.GetCollection<NewMember>(nameof(NewMember));
 }
