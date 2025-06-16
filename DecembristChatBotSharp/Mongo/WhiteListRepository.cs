@@ -1,6 +1,8 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 using Serilog;
 
 namespace DecembristChatBotSharp.Mongo;
@@ -11,19 +13,29 @@ public class WhiteListRepository(
     CancellationTokenSource cancelToken) : IRepository
 
 {
-    public async Task<bool> IsWhiteListMember(CompositeId id)
-    {
-        var collection = GetCollection();
-
-        return await collection
-            .Find(member => member.Id == id)
-            .AnyAsync(cancelToken.Token)
+    public async Task<bool> IsWhiteListMember(CompositeId id) =>
+        await GetCollection().AsQueryable()
+            .AnyAsync(member => member.Id == id, cancelToken.Token)
             .ToTryAsync()
             .Match(identity, ex =>
             {
-                Log.Error(ex, "Failed to find user with telegramId {0}", id);
+                Log.Error(ex, "Failed to find user with telegramId {0} in white list", id);
                 return false;
             });
+
+    public async Task<bool> AddWhiteListMember(WhiteListMember member, IMongoSession? session = null)
+    {
+        var collection = GetCollection();
+        var query = session != null
+            ? collection.InsertOneAsync(session, member, cancellationToken: cancelToken.Token)
+            : collection.InsertOneAsync(member, cancellationToken: cancelToken.Token);
+        return await query.ToTryAsync()
+            .Match(_ => true,
+                ex =>
+                {
+                    Log.Error(ex, "Failed to add white list member {0}", member.Id);
+                    return false;
+                });
     }
 
     private IMongoCollection<WhiteListMember> GetCollection() =>

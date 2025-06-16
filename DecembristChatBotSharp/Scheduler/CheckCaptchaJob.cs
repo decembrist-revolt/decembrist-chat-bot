@@ -24,7 +24,7 @@ public class CheckCaptchaJob(
             .WithIdentity(nameof(CheckCaptchaJob))
             .StartNow()
             .WithSimpleSchedule(x => x
-                .WithIntervalInSeconds(appConfig.CheckCaptchaIntervalSeconds)
+                .WithIntervalInSeconds(appConfig.CaptchaConfig.CheckCaptchaIntervalSeconds)
                 .RepeatForever())
             .Build();
 
@@ -33,13 +33,13 @@ public class CheckCaptchaJob(
 
     public async Task Execute(IJobExecutionContext context)
     {
-        var olderThanUtc = DateTime.UtcNow.AddSeconds(-appConfig.CaptchaTimeSeconds);
+        var olderThanUtc = DateTime.UtcNow.AddSeconds(-appConfig.CaptchaConfig.CaptchaTimeSeconds);
         var members = await db.GetNewMembers(olderThanUtc)
             .Match(identity, OnGetMembersFailed);
-        
+
         await members.Select(HandleExpiredMember).WhenAll();
     }
-    
+
     private List<NewMember> OnGetMembersFailed(Exception ex)
     {
         Log.Error(ex, "Failed to get new members");

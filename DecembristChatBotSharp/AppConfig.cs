@@ -13,19 +13,9 @@ public record AppConfig(
     [property: Required(AllowEmptyStrings = false)]
     string TelegramBotToken,
     [property: Required(AllowEmptyStrings = false)]
-    string WelcomeMessage,
-    [property: Required(AllowEmptyStrings = false)]
     string DatabaseFile,
-    int CheckCaptchaIntervalSeconds,
-    long CaptchaTimeSeconds,
-    [property: Required(AllowEmptyStrings = false)]
-    string CaptchaAnswer,
-    [property: Required(AllowEmptyStrings = false)]
-    string JoinText,
-    [property: Required(AllowEmptyStrings = false)]
-    string CaptchaFailedText,
-    int CaptchaRetryCount,
     int UpdateExpirationSeconds,
+    CaptchaConfig CaptchaConfig,
     AllowedChatConfig AllowedChatConfig,
     MongoConfig MongoConfig,
     CommandConfig CommandConfig,
@@ -104,6 +94,22 @@ public record AppConfig(
         }
     }
 }
+
+public record CaptchaConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string WelcomeMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string CaptchaAnswer,
+    [property: Required(AllowEmptyStrings = false)]
+    string JoinText,
+    [property: Required(AllowEmptyStrings = false)]
+    string CaptchaRequestAgainText,
+    [property: Required(AllowEmptyStrings = false)]
+    string CaptchaFailedText,
+    [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalSeconds,
+    [property: Range(1, long.MaxValue)] long CaptchaTimeSeconds,
+    [property: Range(1, int.MaxValue)] int CaptchaRequestAgainCountMessage,
+    [property: Range(1, int.MaxValue)] int CaptchaRetryCount);
 
 public record AllowedChatConfig(
     System.Collections.Generic.HashSet<long>? AllowedChatIds,
