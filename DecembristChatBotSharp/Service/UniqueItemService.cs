@@ -1,26 +1,13 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
-using MongoDB.Driver.Linq;
 
 namespace DecembristChatBotSharp.Service;
-
-public record UniqueItem(
-    UniqueItem.CompositeId Id,
-    long OwnerId,
-    DateTime GiveExpiration)
-{
-    public record CompositeId(long ChatId, MemberItemType type)
-    {
-        public static implicit operator CompositeId((long, MemberItemType) tuple) => new(tuple.Item1, tuple.Item2);
-    }
-}
 
 [Singleton]
 public class UniqueItemService(
     UniqueItemRepository uniqueItemRepository,
-    AppConfig appConfig,
-    CancellationTokenSource cancelToken)
+    AppConfig appConfig)
 {
     public async Task<bool> ChangeOwnerUniqueItem(
         long chatId, long telegramId, MemberItemType itemType, IMongoSession session)
@@ -38,6 +25,6 @@ public class UniqueItemService(
     public async Task<Option<int>> GetRemainingTime(UniqueItem.CompositeId id)
     {
         var expireAt = await uniqueItemRepository.GetExpirationTime(id);
-        return expireAt.Bind(date => Some((int)(DateTime.UtcNow - date).TotalMinutes));
+        return expireAt.Bind(date => Some((int)(date - DateTime.UtcNow).TotalMinutes));
     }
 }
