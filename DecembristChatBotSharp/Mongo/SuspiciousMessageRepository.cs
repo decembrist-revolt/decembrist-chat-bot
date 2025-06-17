@@ -9,21 +9,9 @@ namespace DecembristChatBotSharp.Mongo;
 [Singleton]
 public class SuspiciousMessageRepository(
     MongoDatabase db,
-    AppConfig appConfig,
     CancellationTokenSource cancelToken)
     : IRepository
 {
-    public async Task<bool> IsOwnerSuspiciousMessage(long chatId, long telegramId) =>
-        await GetCollection().AsQueryable()
-            .AnyAsync(member => member.Id.ChatId == chatId && member.OwnerId == telegramId, cancelToken.Token)
-            .ToTryAsync()
-            .Match(identity, ex =>
-            {
-                Log.Error(ex, "Failed to find owner suspicious message: ownerId: {0}, chatId:{1} in repository",
-                    telegramId, chatId);
-                return false;
-            });
-
     public async Task<bool> AddSuspiciousMessage(SuspiciousMessage message, IMongoSession? session = null)
     {
         var collection = GetCollection();
@@ -65,6 +53,15 @@ public class SuspiciousMessageRepository(
                     return false;
                 });
     }
+
+    public Task<List<SuspiciousMessage>> GetExpiredMessages(DateTime olderThan) =>
+        GetCollection().Find(member => member.CreatedAt < olderThan)
+            .ToListAsync(cancelToken.Token).ToTryAsync()
+            .Match(identity, ex =>
+            {
+                Log.Error(ex, "Failed to get chat ids from dislikes repository");
+                return [];
+            });
 
     private IMongoCollection<SuspiciousMessage> GetCollection() =>
         db.GetCollection<SuspiciousMessage>(nameof(SuspiciousMessage));

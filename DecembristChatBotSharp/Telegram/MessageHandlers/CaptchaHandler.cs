@@ -82,7 +82,7 @@ public class CaptchaHandler(
         var captchaTask = retryCount switch
         {
             _ when retryCount >= _captchaConfig.CaptchaRetryCount => KickCaptchaFailedUser(chatId, newMember),
-            _ when retryCount % _captchaConfig.CaptchaRequestAgainCount == 0.0 => SendCaptchaMessage(chatId, newMember),
+            _ when retryCount % _captchaConfig.CaptchaRequestAgainCount == 0 => SendCaptchaMessage(chatId, newMember),
             _ => newMemberRepository.AddMemberItem(newMember with { CaptchaRetryCount = retryCount + 1 }).ToUnit()
         };
         return await Array(captchaTask,

@@ -224,7 +224,7 @@ public record BlackListConfig(
     string FailedMessage,
     [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalSeconds,
     [property: Range(1, int.MaxValue)] int CaptchaTimeSeconds,
-    System.Collections.Generic.HashSet<string>? Words
+    System.Collections.Generic.HashSet<string>? SuspiciousWords
 );
 
 public record RedditConfig(
