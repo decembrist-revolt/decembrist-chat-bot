@@ -22,6 +22,7 @@ public record AppConfig(
     MenuConfig MenuConfig,
     LoreConfig LoreConfig,
     LoreListConfig LoreListConfig,
+    BlackListConfig BlackListConfig,
     RedditConfig RedditConfig,
     RestrictConfig RestrictConfig,
     CurseConfig CurseConfig,
@@ -210,6 +211,20 @@ public record LoreListConfig(
     string NotAccess,
     [property: Range(1, int.MaxValue)] int RowLimit,
     [property: Range(1, int.MaxValue)] int ExpirationMinutes
+);
+
+public record BlackListConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string CaptchaMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string CaptchaAnswer,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FailedMessage,
+    [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalSeconds,
+    [property: Range(1, int.MaxValue)] int CaptchaTimeSeconds,
+    System.Collections.Generic.HashSet<string>? Words
 );
 
 public record RedditConfig(
