@@ -104,11 +104,9 @@ public record CaptchaConfig(
     string JoinText,
     [property: Required(AllowEmptyStrings = false)]
     string CaptchaRequestAgainText,
-    [property: Required(AllowEmptyStrings = false)]
-    string CaptchaFailedText,
-    [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalSeconds,
-    [property: Range(1, long.MaxValue)] long CaptchaTimeSeconds,
-    [property: Range(1, int.MaxValue)] int CaptchaRequestAgainCountMessage,
+    [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalHours,
+    [property: Range(1, long.MaxValue)] long CaptchaTimeHours,
+    [property: Range(1, int.MaxValue)] int CaptchaRequestAgainCount,
     [property: Range(1, int.MaxValue)] int CaptchaRetryCount);
 
 public record AllowedChatConfig(

@@ -111,6 +111,27 @@ public static class UtilsExtensions
         botClient.SetMessageReaction(chatId, messageId, emojis, cancellationToken: cancelToken).ToTryAsync()
             .Match(onSent, onError);
 
+    public static Task<Unit> BanChatMemberAndLog(this BotClient botClient,
+        long chatId,
+        long telegramId,
+        Action<Unit> onSent,
+        Action<Exception> onError,
+        CancellationToken cancelToken,
+        bool isRevokeMessages = false) =>
+        botClient.BanChatMember(chatId, telegramId, DateTime.UtcNow, isRevokeMessages, cancelToken)
+            .ToTryAsync()
+            .Match(onSent, onError);
+
+    public static Task<Unit> UnbanChatMemberAndLog(this BotClient botClient,
+        long chatId,
+        long telegramId,
+        Action<Unit> onSent,
+        Action<Exception> onError,
+        CancellationToken cancelToken) =>
+        botClient.UnbanChatMember(chatId, telegramId, false, cancelToken)
+            .ToTryAsync()
+            .Match(onSent, onError);
+
     public static TryAsync<T> ToTryAsync<T>(this Task<T> task) => TryAsync(task);
 
     public static TryAsync<Unit> ToTryAsync(this Task task) => TryAsync(async () =>

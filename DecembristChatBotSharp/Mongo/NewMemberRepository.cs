@@ -39,12 +39,26 @@ public class NewMemberRepository(MongoDatabase db, CancellationTokenSource cance
             .ToEither();
     }
 
-    public TryAsync<bool> RemoveNewMember(NewMember.CompositeId id)
+    public TryAsync<bool> TryRemoveNewMember(NewMember.CompositeId id)
     {
         var newMembers = GetCollection();
         var tryResult = TryAsync(newMembers.DeleteOneAsync(member => member.Id == id, cancelToken.Token));
         return tryResult.Map(result => result.DeletedCount > 0);
     }
+
+    public Task<bool> RemoveNewMember(NewMember.CompositeId id) =>
+        GetCollection().DeleteOneAsync(member => member.Id == id, cancelToken.Token)
+            .ToTryAsync()
+            .Match(result =>
+                {
+                    Log.Information("Successfully to delete new member {0}", id);
+                    return result.DeletedCount > 0;
+                },
+                ex =>
+                {
+                    Log.Error(ex, "Failed to delete new member {0}", id);
+                    return false;
+                });
 
     public TryAsync<UpdateResult> UpdateNewMemberRetries(NewMember.CompositeId id, int retryCount)
     {
@@ -52,16 +66,6 @@ public class NewMemberRepository(MongoDatabase db, CancellationTokenSource cance
         return TryAsync(newMembers.UpdateOneAsync(
             member => member.Id == id,
             Builders<NewMember>.Update.Set(member => member.CaptchaRetryCount, retryCount),
-            cancellationToken: cancelToken.Token));
-    }
-
-    public TryAsync<UpdateResult> UpdateNewMember(NewMember.CompositeId id, int retryCount, int welcomeMessageId)
-    {
-        var newMembers = GetCollection();
-        return TryAsync(newMembers.UpdateOneAsync(
-            member => member.Id == id,
-            Builders<NewMember>.Update.Set(member => member.CaptchaRetryCount, retryCount)
-                .Set(member => member.WelcomeMessageId, welcomeMessageId),
             cancellationToken: cancelToken.Token));
     }
 
