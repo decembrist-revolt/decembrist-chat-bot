@@ -5,6 +5,10 @@ on:
     branches:
       - release
 
+env:
+  SERVICE_NAME: chat-bot
+  NAMESPACE: chat-bot
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -19,10 +23,12 @@ jobs:
           registry: ${{ secrets.REGISTRY_HOST }}
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
-          
-      - name: Set date and time (YYYYMMDD-HHMMSS)
+
+      - name: Set datetime and image
         id: set-datetime
-        run: echo "DATETIME=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
+        run: |
+          echo "DATETIME=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${{ env.SERVICE_NAME }}:${{ env.DATETIME }}-${{ github.sha }}" >> $GITHUB_ENV
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
@@ -30,5 +36,55 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.REGISTRY_HOST }}/chat-bot:latest
-            ${{ secrets.REGISTRY_HOST }}/chat-bot:${{ env.DATETIME }}-${{ github.sha }}
+            ${{ secrets.REGISTRY_HOST }}/${{ env.SERVICE_NAME }}:latest
+            ${{ secrets.REGISTRY_HOST }}/${{ env.IMAGE_TAG }}
+  
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure Kubernetes access
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_DATA }}" | base64 --decode > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Verify access
+        run: |
+          echo "Проверяем доступ к namespace ${{ env.NAMESPACE }}"
+          kubectl auth can-i patch deployments -n ${{ env.NAMESPACE }}
+          kubectl get deployments -n ${{ env.NAMESPACE }}
+
+      - name: Get current deployment revision
+        id: get-old-rev
+        run: |
+          rev=$(kubectl get deployment ${{ env.SERVICE_NAME }} -n ${{ env.NAMESPACE }} -o jsonpath='{.metadata.annotations.deployment\.kubernetes\.io/revision}' 2>/dev/null || echo "")
+          echo "old_rev=$rev" >> $GITHUB_OUTPUT
+
+      - name: Deploy new image
+        run: |
+          kubectl set image deployment/${{ env.SERVICE_NAME }} ${{ env.SERVICE_NAME }}=${{ secrets.REGISTRY_HOST }}/${{ env.IMAGE_TAG }} -n ${{ env.NAMESPACE }}
+          kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n ${{ env.NAMESPACE }} --timeout=300s
+
+      - name: Rollback if failed
+        if: failure()
+        run: |
+          if [ -z "${{ steps.get-old-rev.outputs.old_rev }}" ]; then
+            echo "ERROR: Cannot rollback - no previous revision found"
+            echo "This might be the first deployment"
+            exit 1
+          fi
+          echo "Rolling back to revision ${{ steps.get-old-rev.outputs.old_rev }}"
+          kubectl rollout undo deployment/${{ env.SERVICE_NAME }} -n ${{ env.NAMESPACE }} --to-revision=${{ steps.get-old-rev.outputs.old_rev }}
+          kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n ${{ env.NAMESPACE }} --timeout=300s
+          echo "ERROR: Deployment failed, rolled back to revision ${{ steps.get-old-rev.outputs.old_rev }}"
+          exit 1
+
+      - name: Deployment success
+        run: |
+          echo "🎉 Deployment successful!"
+          kubectl get deployment ${{ env.SERVICE_NAME }} -n ${{ env.NAMESPACE }}
+          echo "New image: ${{ secrets.REGISTRY_HOST }}/${{ env.IMAGE_TAG }}"
