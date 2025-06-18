@@ -39,13 +39,6 @@ public class NewMemberRepository(MongoDatabase db, CancellationTokenSource cance
             .ToEither();
     }
 
-    public TryAsync<bool> TryRemoveNewMember(NewMember.CompositeId id)
-    {
-        var newMembers = GetCollection();
-        var tryResult = TryAsync(newMembers.DeleteOneAsync(member => member.Id == id, cancelToken.Token));
-        return tryResult.Map(result => result.DeletedCount > 0);
-    }
-
     public Task<bool> RemoveNewMember(NewMember.CompositeId id) =>
         GetCollection().DeleteOneAsync(member => member.Id == id, cancelToken.Token)
             .ToTryAsync()
@@ -59,15 +52,6 @@ public class NewMemberRepository(MongoDatabase db, CancellationTokenSource cance
                     Log.Error(ex, "Failed to delete new member {0}", id);
                     return false;
                 });
-
-    public TryAsync<UpdateResult> UpdateNewMemberRetries(NewMember.CompositeId id, int retryCount)
-    {
-        var newMembers = GetCollection();
-        return TryAsync(newMembers.UpdateOneAsync(
-            member => member.Id == id,
-            Builders<NewMember>.Update.Set(member => member.CaptchaRetryCount, retryCount),
-            cancellationToken: cancelToken.Token));
-    }
 
     public async Task<bool> AddMemberItem(NewMember newMember, IMongoSession? session = null)
     {
