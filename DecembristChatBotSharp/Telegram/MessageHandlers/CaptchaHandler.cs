@@ -83,7 +83,7 @@ public class CaptchaHandler(
         {
             _ when retryCount >= _captchaConfig.CaptchaRetryCount => KickCaptchaFailedUser(chatId, newMember),
             _ when retryCount % _captchaConfig.CaptchaRequestAgainCount == 0 => SendCaptchaMessage(chatId, newMember),
-            _ => newMemberRepository.AddMemberItem(newMember with { CaptchaRetryCount = retryCount + 1 }).ToUnit()
+            _ => newMemberRepository.AddNewMember(newMember with { CaptchaRetryCount = retryCount + 1 }).ToUnit()
         };
         return await Array(captchaTask,
             messageAssistance.DeleteCommandMessage(chatId, messageId, nameof(CaptchaHandler))).WhenAll();
@@ -105,7 +105,7 @@ public class CaptchaHandler(
             .ToTryAsync()
             .Match(async message =>
                 {
-                    await newMemberRepository.AddMemberItem(newMember with
+                    await newMemberRepository.AddNewMember(newMember with
                     {
                         CaptchaRetryCount = newMember.CaptchaRetryCount + 1, WelcomeMessageId = message.MessageId
                     });

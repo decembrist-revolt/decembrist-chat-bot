@@ -64,7 +64,7 @@ public class NewMemberHandler(
             botClient.SendMessage(chatId: chatId, text: welcomeText, cancellationToken: cancelToken.Token));
 
         return await trySend
-            .Bind(message => newMemberRepository.AddNewMember(user.Id, username, chatId, message.MessageId))
+            .Bind(message => newMemberRepository.TryAddNewMember(user.Id, username, chatId, message.MessageId))
             .ToEither()
             .BiMap(
                 _ => username,
