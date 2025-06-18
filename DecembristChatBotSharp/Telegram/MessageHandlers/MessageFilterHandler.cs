@@ -8,9 +8,9 @@ using Telegram.Bot.Types;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
-public class SuspiciousMessageHandler(
+public class MessageFilterHandler(
     WhiteListRepository whiteListRepository,
-    SuspiciousMessageRepository suspiciousMessageRepository,
+    MessageFilterRepository messageFilterRepository,
     BotClient botClient,
     CancellationTokenSource cancelToken,
     AppConfig appConfig)
@@ -21,9 +21,9 @@ public class SuspiciousMessageHandler(
         var (messageId, telegramId, chatId) = parameters;
 
         if (!IsBlackWord(text) || await whiteListRepository.IsWhiteListMember((telegramId, chatId))) return false;
-        var messageText = string.Format(appConfig.BlackListConfig.CaptchaMessage,
-            appConfig.BlackListConfig.CaptchaAnswer,
-            appConfig.BlackListConfig.CaptchaTimeSeconds);
+        var messageText = string.Format(appConfig.MessageFilterConfig.CaptchaMessage,
+            appConfig.MessageFilterConfig.CaptchaAnswer,
+            appConfig.MessageFilterConfig.CaptchaTimeSeconds);
 
         return await botClient.SendMessage(chatId, messageText,
                 replyParameters: new ReplyParameters { MessageId = messageId },
@@ -31,8 +31,8 @@ public class SuspiciousMessageHandler(
             .ToTryAsync()
             .Match(async m =>
                 {
-                    var message = new SuspiciousMessage((chatId, messageId), telegramId, m.MessageId, DateTime.UtcNow);
-                    await suspiciousMessageRepository.AddSuspiciousMessage(message);
+                    var message = new FilteredMessage((chatId, messageId), telegramId, m.MessageId, DateTime.UtcNow);
+                    await messageFilterRepository.AddFilteredMessage(message);
 
                     Log.Information("Success create suspicious message {0}, author: {1}", message.Id, telegramId);
                     return true;
@@ -45,7 +45,7 @@ public class SuspiciousMessageHandler(
     }
 
     private bool IsBlackWord(string text) =>
-        appConfig.BlackListConfig.SuspiciousWords != null &&
-        appConfig.BlackListConfig.SuspiciousWords.Any(w =>
+        appConfig.MessageFilterConfig.FilterWords != null &&
+        appConfig.MessageFilterConfig.FilterWords.Any(w =>
             text.Contains(w, StringComparison.OrdinalIgnoreCase));
 }

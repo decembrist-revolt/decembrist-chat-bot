@@ -13,7 +13,7 @@ public class CheckBlackListCaptchaJob(
     AppConfig appConfig,
     BanService banService,
     MessageAssistance messageAssistance,
-    SuspiciousMessageRepository db,
+    MessageFilterRepository db,
     CancellationTokenSource cancelToken) : IRegisterJob
 {
     public async Task Register(IScheduler scheduler)
@@ -26,7 +26,7 @@ public class CheckBlackListCaptchaJob(
             .WithIdentity(nameof(CheckBlackListCaptchaJob))
             .StartNow()
             .WithSimpleSchedule(x => x
-                .WithIntervalInSeconds(appConfig.BlackListConfig.CheckCaptchaIntervalSeconds)
+                .WithIntervalInSeconds(appConfig.MessageFilterConfig.CheckCaptchaIntervalSeconds)
                 .RepeatForever())
             .Build();
 
@@ -35,14 +35,14 @@ public class CheckBlackListCaptchaJob(
 
     public async Task Execute(IJobExecutionContext context)
     {
-        var olderThanUtc = DateTime.UtcNow.AddSeconds(-appConfig.BlackListConfig.CaptchaTimeSeconds);
+        var olderThanUtc = DateTime.UtcNow.AddSeconds(-appConfig.MessageFilterConfig.CaptchaTimeSeconds);
         var members = await db.GetExpiredMessages(olderThanUtc);
 
         await members.Select(HandleExpiredMember).WhenAll();
     }
 
-    private async Task<Unit> HandleExpiredMember(SuspiciousMessage message) => await Array(
+    private async Task<Unit> HandleExpiredMember(FilteredMessage message) => await Array(
         messageAssistance.DeleteCommandMessage(message.Id.ChatId, message.CaptchaMessageId, nameof(CheckCaptchaJob)),
         messageAssistance.DeleteCommandMessage(message.Id.ChatId, message.Id.MessageId, nameof(CheckCaptchaJob)),
-        db.DeleteSuspiciousMessage(message.Id).UnitTask()).WhenAll();
+        db.RemoveFilteredMessage(message.Id).UnitTask()).WhenAll();
 }

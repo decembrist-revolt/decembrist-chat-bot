@@ -4,19 +4,19 @@ using Lamar;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
-public class BlackListCaptchaHandler(
-    SuspiciousMessageRepository suspiciousMessageRepository,
+public class MessageFilterCaptchaHandler(
+    MessageFilterRepository messageFilterRepository,
     MessageAssistance messageAssistance,
     AppConfig appConfig)
 {
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
-        var maybeMessage = suspiciousMessageRepository.GetCurseMember(chatId, telegramId);
+        var maybeMessage = messageFilterRepository.GetFilteredMessage(chatId, telegramId);
         return await maybeMessage.MatchAsync(async m =>
         {
-            await messageAssistance.DeleteCommandMessage(chatId, m.CaptchaMessageId, nameof(BlackListCaptchaHandler));
-            await suspiciousMessageRepository.DeleteSuspiciousMessage(m.Id);
+            await messageAssistance.DeleteCommandMessage(chatId, m.CaptchaMessageId, nameof(MessageFilterCaptchaHandler));
+            await messageFilterRepository.RemoveFilteredMessage(m.Id);
 
             return IsCaptchaPassed(parameters.Payload)
                 ? await SendSuccessCaptcha(chatId, messageId)
@@ -26,18 +26,18 @@ public class BlackListCaptchaHandler(
 
     private async Task<bool> SendFailedCaptcha(long chatId, int suspiciousMessageId)
     {
-        var text = appConfig.BlackListConfig.FailedMessage;
+        var text = appConfig.MessageFilterConfig.FailedMessage;
         await Array(
-            messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(BlackListCaptchaHandler)),
-            messageAssistance.SendCommandResponse(chatId, text, nameof(BlackListCaptchaHandler))).WhenAll();
+            messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(MessageFilterCaptchaHandler)),
+            messageAssistance.SendCommandResponse(chatId, text, nameof(MessageFilterCaptchaHandler))).WhenAll();
         return false;
     }
 
     private async Task<bool> SendSuccessCaptcha(long chatId, int messageId)
     {
-        var text = appConfig.BlackListConfig.SuccessMessage;
-        await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, nameof(BlackListCaptchaHandler)),
-            messageAssistance.SendCommandResponse(chatId, text, nameof(BlackListCaptchaHandler))).WhenAll();
+        var text = appConfig.MessageFilterConfig.SuccessMessage;
+        await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, nameof(MessageFilterCaptchaHandler)),
+            messageAssistance.SendCommandResponse(chatId, text, nameof(MessageFilterCaptchaHandler))).WhenAll();
         return true;
     }
 
