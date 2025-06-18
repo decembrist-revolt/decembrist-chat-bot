@@ -12,6 +12,7 @@ public class ProfilePrivateCallbackHandler(
     CallbackService callbackService,
     MessageAssistance messageAssistance,
     LoreButtons loreButtons,
+    AdminPanelButton adminPanelButton,
     AppConfig appConfig,
     ProfileButtons profileButtons,
     InventoryService inventoryService) : IPrivateCallbackHandler
@@ -35,6 +36,7 @@ public class ProfilePrivateCallbackHandler(
                 {
                     ProfileSuffix.Lore => await SwitchToLore(messageId, telegramId, targetChatId),
                     ProfileSuffix.Inventory => await SwitchToInventory(messageId, telegramId, targetChatId),
+                    ProfileSuffix.AdminPanel => await SwitchToAdminPanel(messageId, telegramId, targetChatId),
                     ProfileSuffix.Back => await SwitchToWelcome(messageId, telegramId, targetChatId),
                     _ => throw new ArgumentOutOfRangeException(nameof(suffix), suffix, null)
                 };
@@ -64,11 +66,19 @@ public class ProfilePrivateCallbackHandler(
         var message = appConfig.MenuConfig.LorDescription;
         return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
     }
+
+    private async Task<Unit> SwitchToAdminPanel(int messageId, long telegramId, long chatId)
+    {
+        var markup = adminPanelButton.GetMarkup(chatId);
+        var message = appConfig.MenuConfig.LorDescription;
+        return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
+    }
 }
 
 public enum ProfileSuffix
 {
     Lore,
     Inventory,
+    AdminPanel,
     Back
 }

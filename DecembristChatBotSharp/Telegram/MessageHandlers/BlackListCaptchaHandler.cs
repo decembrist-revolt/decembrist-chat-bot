@@ -5,18 +5,18 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
 public class BlackListCaptchaHandler(
-    SuspiciousMessageRepository suspiciousMessageRepository,
+    FilteredMessageRepository filteredMessageRepository,
     MessageAssistance messageAssistance,
     AppConfig appConfig)
 {
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
-        var maybeMessage = suspiciousMessageRepository.GetCurseMember(chatId, telegramId);
+        var maybeMessage = filteredMessageRepository.GetFilteredMessage(chatId, telegramId);
         return await maybeMessage.MatchAsync(async m =>
         {
             await messageAssistance.DeleteCommandMessage(chatId, m.CaptchaMessageId, nameof(BlackListCaptchaHandler));
-            await suspiciousMessageRepository.DeleteSuspiciousMessage(m.Id);
+            await filteredMessageRepository.DeleteFilteredMessage(m.Id);
 
             return IsCaptchaPassed(parameters.Payload)
                 ? await SendSuccessCaptcha(chatId, messageId)
@@ -26,7 +26,7 @@ public class BlackListCaptchaHandler(
 
     private async Task<bool> SendFailedCaptcha(long chatId, int suspiciousMessageId)
     {
-        var text = appConfig.BlackListConfig.FailedMessage;
+        var text = appConfig.FilterConfig.FailedMessage;
         await Array(
             messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(BlackListCaptchaHandler)),
             messageAssistance.SendCommandResponse(chatId, text, nameof(BlackListCaptchaHandler))).WhenAll();
@@ -35,7 +35,7 @@ public class BlackListCaptchaHandler(
 
     private async Task<bool> SendSuccessCaptcha(long chatId, int messageId)
     {
-        var text = appConfig.BlackListConfig.SuccessMessage;
+        var text = appConfig.FilterConfig.SuccessMessage;
         await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, nameof(BlackListCaptchaHandler)),
             messageAssistance.SendCommandResponse(chatId, text, nameof(BlackListCaptchaHandler))).WhenAll();
         return true;

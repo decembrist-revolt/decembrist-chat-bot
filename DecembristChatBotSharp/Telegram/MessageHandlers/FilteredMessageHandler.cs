@@ -8,9 +8,9 @@ using Telegram.Bot.Types;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
-public class SuspiciousMessageHandler(
+public class FilteredMessageHandler(
     WhiteListRepository whiteListRepository,
-    SuspiciousMessageRepository suspiciousMessageRepository,
+    FilteredMessageRepository filteredMessageRepository,
     BotClient botClient,
     CancellationTokenSource cancelToken,
     AppConfig appConfig)
@@ -20,10 +20,10 @@ public class SuspiciousMessageHandler(
         if (parameters.Payload is not TextPayload { Text: var text }) return false;
         var (messageId, telegramId, chatId) = parameters;
 
-        if (!IsBlackWord(text) || await whiteListRepository.IsWhiteListMember((telegramId, chatId))) return false;
-        var messageText = string.Format(appConfig.BlackListConfig.CaptchaMessage,
-            appConfig.BlackListConfig.CaptchaAnswer,
-            appConfig.BlackListConfig.CaptchaTimeSeconds);
+        if (!IsFiltered(text) || await whiteListRepository.IsWhiteListMember((telegramId, chatId))) return false;
+        var messageText = string.Format(appConfig.FilterConfig.CaptchaMessage,
+            appConfig.FilterConfig.CaptchaAnswer,
+            appConfig.FilterConfig.CaptchaTimeSeconds);
 
         return await botClient.SendMessage(chatId, messageText,
                 replyParameters: new ReplyParameters { MessageId = messageId },
@@ -31,21 +31,21 @@ public class SuspiciousMessageHandler(
             .ToTryAsync()
             .Match(async m =>
                 {
-                    var message = new SuspiciousMessage((chatId, messageId), telegramId, m.MessageId, DateTime.UtcNow);
-                    await suspiciousMessageRepository.AddSuspiciousMessage(message);
+                    var message = new FilteredMessage((chatId, messageId), telegramId, m.MessageId, DateTime.UtcNow);
+                    await filteredMessageRepository.AddFilteredMessage(message);
 
-                    Log.Information("Success create suspicious message {0}, author: {1}", message.Id, telegramId);
+                    Log.Information("Success create filtered message {0}, author: {1}", message.Id, telegramId);
                     return true;
                 },
                 ex =>
                 {
-                    Log.Error(ex, "Failed to create suspicious message in chat {0}, author: {1}", chatId, telegramId);
+                    Log.Error(ex, "Failed to create filtered message in chat {0}, author: {1}", chatId, telegramId);
                     return false;
                 });
     }
 
-    private bool IsBlackWord(string text) =>
-        appConfig.BlackListConfig.SuspiciousWords != null &&
-        appConfig.BlackListConfig.SuspiciousWords.Any(w =>
+    private bool IsFiltered(string text) =>
+        appConfig.FilterConfig.FilterPhrases != null &&
+        appConfig.FilterConfig.FilterPhrases.Any(w =>
             text.Contains(w, StringComparison.OrdinalIgnoreCase));
 }
