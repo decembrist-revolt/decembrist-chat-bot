@@ -145,6 +145,8 @@ public record CommandConfig(
     [property: Required(AllowEmptyStrings = false)]
     string FastReplyDuplicateMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string FastReplyBlockedMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string WrongCommandMessage,
     [property: Range(1, int.MaxValue)] int FastReplyDaysDuration
 );
@@ -342,6 +344,9 @@ public record ItemConfig(
     string SuccessInventoryMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FailedToOpenBoxMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string StoneDescription,
+    [property: Range(1, int.MaxValue)] int UniqueItemGiveExpirationMinutes,
     [property: Range(1, int.MaxValue)] int BoxMessageExpiration
 );
 
@@ -354,6 +359,8 @@ public record GiveConfig(
     string HelpMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FailedMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string GiveNotExpiredMessage,
     [property: Required(AllowEmptyStrings = false)]
     string SelfMessage,
     [property: Required(AllowEmptyStrings = false)]
