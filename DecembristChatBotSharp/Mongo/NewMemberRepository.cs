@@ -1,7 +1,9 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using System.Linq.Expressions;
+using DecembristChatBotSharp.Entity;
 using Lamar;
 using LanguageExt.Common;
 using MongoDB.Driver;
+using Serilog;
 
 namespace DecembristChatBotSharp.Mongo;
 
@@ -37,21 +39,42 @@ public class NewMemberRepository(MongoDatabase db, CancellationTokenSource cance
             .ToEither();
     }
 
-    public TryAsync<bool> RemoveNewMember(NewMember.CompositeId id)
+    public Task<bool> RemoveNewMember(NewMember.CompositeId id) =>
+        GetCollection().DeleteOneAsync(member => member.Id == id, cancelToken.Token)
+            .ToTryAsync()
+            .Match(result =>
+                {
+                    Log.Information("Successfully to delete new member {0}", id);
+                    return result.DeletedCount > 0;
+                },
+                ex =>
+                {
+                    Log.Error(ex, "Failed to delete new member {0}", id);
+                    return false;
+                });
+
+    public async Task<bool> AddMemberItem(NewMember newMember, IMongoSession? session = null)
     {
-        var newMembers = GetCollection();
-        var tryResult = TryAsync(newMembers.DeleteOneAsync(member => member.Id == id, cancelToken.Token));
-        return tryResult.Map(result => result.DeletedCount > 0);
+        var collection = GetCollection();
+
+        var update = Builders<NewMember>.Update
+            .Set(member => member.WelcomeMessageId, newMember.WelcomeMessageId)
+            .Set(member => member.CaptchaRetryCount, newMember.CaptchaRetryCount);
+        var options = new UpdateOptions { IsUpsert = true };
+
+        Expression<Func<NewMember, bool>> findExpr = member => member.Id == newMember.Id;
+        var updateTask = not(session.IsNull())
+            ? collection.UpdateOneAsync(session, findExpr, update, options, cancelToken.Token)
+            : collection.UpdateOneAsync(findExpr, update, options, cancelToken.Token);
+
+        return await updateTask.ToTryAsync().Match(
+            result => result.IsAcknowledged && (result.UpsertedId != null || result.ModifiedCount == 1),
+            ex =>
+            {
+                Log.Error(ex, "Failed to add new member {0}", newMember);
+                return false;
+            });
     }
 
-    public TryAsync<UpdateResult> UpdateNewMemberRetries(NewMember.CompositeId id, int retryCount)
-    {
-        var newMembers = GetCollection();
-        return TryAsync(newMembers.UpdateOneAsync(
-            member => member.Id == id,
-            Builders<NewMember>.Update.Set(member => member.CaptchaRetryCount, retryCount),
-            cancellationToken: cancelToken.Token));
-    }
-    
     private IMongoCollection<NewMember> GetCollection() => db.GetCollection<NewMember>(nameof(NewMember));
 }

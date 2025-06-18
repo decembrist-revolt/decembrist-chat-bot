@@ -36,7 +36,7 @@ public class NewMemberHandler(
         var user = parameters.User;
         var telegramId = user.Id;
 
-        if (await whiteListRepository.IsWhiteListMember(new(telegramId, chatId)))
+        if (await whiteListRepository.IsWhiteListMember((telegramId, chatId)))
         {
             Log.Information("Whitelist member {0} joined", telegramId);
             return unit;
@@ -58,7 +58,8 @@ public class NewMemberHandler(
             None: () => user.FirstName
         );
 
-        var welcomeText = string.Format(appConfig.WelcomeMessage, username, appConfig.CaptchaTimeSeconds);
+        var welcomeText = string.Format(
+            appConfig.CaptchaConfig.WelcomeMessage, username, appConfig.CaptchaConfig.CaptchaAnswer);
         var trySend = TryAsync(
             botClient.SendMessage(chatId: chatId, text: welcomeText, cancellationToken: cancelToken.Token));
 

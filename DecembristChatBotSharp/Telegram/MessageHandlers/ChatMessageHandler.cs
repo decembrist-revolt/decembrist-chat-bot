@@ -36,6 +36,8 @@ public readonly struct UnknownPayload : IMessagePayload;
 [Singleton]
 public class ChatMessageHandler(
     CaptchaHandler captchaHandler,
+    SuspiciousMessageHandler suspiciousMessageHandler,
+    BlackListCaptchaHandler blackListCaptchaHandler,
     ChatCommandHandler chatCommandHandler,
     FastReplyHandler fastReplyHandler,
     RestrictHandler restrictHandler,
@@ -49,6 +51,9 @@ public class ChatMessageHandler(
     {
         var result = await captchaHandler.Do(parameters);
         if (result == Result.Captcha) return unit;
+
+        await blackListCaptchaHandler.Do(parameters);
+        await suspiciousMessageHandler.Do(parameters);
 
         await curseHandler.Do(parameters);
         if (await restrictHandler.Do(parameters)) return unit;
