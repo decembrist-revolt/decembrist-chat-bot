@@ -28,7 +28,9 @@ public class MemberItemService(
         session.StartTransaction();
 
         if (!isAdmin && await memberItemRepository.IsUserHasItem(chatId, telegramId, MemberItemType.Stone, session))
+        {
             return await AbortSessionAndLog(UseFastReplyResult.Blocked, chatId, telegramId, session);
+        }
 
         var hasItem = isAdmin || await memberItemRepository
             .RemoveMemberItem(chatId, telegramId, MemberItemType.FastReply, session);
