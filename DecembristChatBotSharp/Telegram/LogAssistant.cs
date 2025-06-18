@@ -1,6 +1,8 @@
 ﻿using System.Runtime.CompilerServices;
+using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Service;
 using Lamar;
+using LanguageExt.UnsafeValueAccess;
 using Serilog;
 
 namespace DecembristChatBotSharp.Telegram;
@@ -94,6 +96,28 @@ public static class LogAssistant
                 Log.Information(
                     "Give operation FAILED: reason: {0}, from: {1}, chat: {2}, sender: {3}, receiverId: {4}, item: {5}",
                     result, callerName, chatId, senderId, receiverId, itemQuantity);
+                break;
+        }
+    }
+
+    public static void LogOpenBoxResult(this OpenBoxResult result, Option<MemberItemType> maybeItem,
+        long telegramId, long chatId,
+        [CallerMemberName] string callerName = "UnknownCaller")
+    {
+        switch (result)
+        {
+            case OpenBoxResult.Success or OpenBoxResult.SuccessX2 or OpenBoxResult.AmuletActivated
+                when maybeItem.IsSome:
+                Log.Information("Open box operation SUCCESS: result: {0}, from: {1}, chat: {2}, user: {3}, item: {4}",
+                    result, callerName, chatId, telegramId, maybeItem.ValueUnsafe());
+                break;
+            case OpenBoxResult.Failed:
+                Log.Error("Open box operation FAILED: reason: {0}, from: {1}, chat: {2}, user: {3}",
+                    result, callerName, chatId, telegramId);
+                break;
+            default:
+                Log.Information("Open box operation FAILED: reason: {0}, from: {1}, chat: {2}, user: {3}",
+                    result, callerName, chatId, telegramId);
                 break;
         }
     }

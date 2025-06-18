@@ -10,10 +10,8 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 public class OpenBoxCommandHandler(
     AppConfig appConfig,
     ExpiredMessageRepository expiredMessageRepository,
-    MemberItemService memberItemService,
-    AdminUserRepository adminUserRepository,
+    OpenBoxService openBoxService,
     MessageAssistance messageAssistance,
-    CommandLockRepository lockRepository,
     BotClient botClient,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
@@ -28,17 +26,8 @@ public class OpenBoxCommandHandler(
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload) return unit;
 
-        if (await adminUserRepository.IsAdmin(new(telegramId, chatId)))
-        {
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
-        }
-
-        if (!await lockRepository.TryAcquire(chatId, Command, telegramId: telegramId))
-        {
-            return await messageAssistance.CommandNotReady(chatId, messageId, Command);
-        }
-
-        var (itemType, result) = await memberItemService.OpenBox(chatId, telegramId);
+        var (itemType, result) = await openBoxService.OpenBox(chatId, telegramId);
+        result.LogOpenBoxResult(itemType, telegramId, chatId);
 
         var resultTask = result switch
         {

@@ -51,20 +51,6 @@
           "Quantity": 1
         }
       },
-      "Box": {
-        "Reward": {
-          "Item": "BlueDust",
-          "Range": {
-            "Min": 1,
-            "Max": 3
-          }
-        },
-        "PremiumReward": {
-          "Chance": 0.15,
-          "Item": "Box",
-          "Quantity": 1
-        }
-      },
       "Charm": {
         "Reward": {
           "Item": "RedDust",

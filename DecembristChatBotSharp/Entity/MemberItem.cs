@@ -23,7 +23,8 @@ public enum MemberItemType
     Amulet = 6,
     GreenDust = 7,
     BlueDust = 8,
-    RedDust = 9
+    RedDust = 9,
+    Stone = 10
 }
 
 public record MemberItemHistoryLogData(

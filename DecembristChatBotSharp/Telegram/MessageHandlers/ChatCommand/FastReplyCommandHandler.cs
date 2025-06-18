@@ -53,6 +53,7 @@ public class FastReplyCommandHandler(
             return result switch
             {
                 UseFastReplyResult.NoItems => await messageAssistance.SendNoItems(chatId),
+                UseFastReplyResult.Blocked => await SendBlocked(chatId),
                 UseFastReplyResult.Duplicate => await Array(
                     expiredMessageRepository.QueueMessage(chatId, messageId),
                     SendDuplicateMessage(chatId, fastReply.Id.Message)).WhenAll(),
@@ -137,6 +138,12 @@ public class FastReplyCommandHandler(
     private async Task<Unit> SendDuplicateMessage(long chatId, string text)
     {
         var message = string.Format(appConfig.CommandConfig.FastReplyDuplicateMessage, text);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private async Task<Unit> SendBlocked(long chatId)
+    {
+        var message = string.Format(appConfig.CommandConfig.FastReplyBlockedMessage);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 }

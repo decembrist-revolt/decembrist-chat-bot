@@ -12,6 +12,7 @@ public partial class GiveItemCommandHandler(
     AppConfig appConfig,
     BotClient botClient,
     MemberItemService memberItemService,
+    UniqueItemService uniqueItemService,
     GiveService giveService,
     MessageAssistance messageAssistance,
     CancellationTokenSource cancelToken) : ICommandHandler
@@ -59,6 +60,7 @@ public partial class GiveItemCommandHandler(
         return giveResult switch
         {
             GiveResult.NoItems => await messageAssistance.SendNoItems(chatId),
+            GiveResult.NotExpired => await SendNotExpired(chatId, itemQuantity.Item),
             GiveResult.Success => await SendSuccess(telegramId, receiverId, chatId, itemQuantity, isAmuletBroken),
             GiveResult.AdminSuccess =>
                 await SendAdminSuccess(telegramId, receiverId, chatId, itemQuantity, isAmuletBroken),
@@ -66,6 +68,18 @@ public partial class GiveItemCommandHandler(
             GiveResult.Failed => await SendFailed(chatId),
             _ => throw new ArgumentOutOfRangeException(nameof(giveResult), giveResult, null)
         };
+    }
+
+    private async Task<Unit> SendNotExpired(long chatId, MemberItemType itemType)
+    {
+        var maybeTime = await uniqueItemService.GetRemainingTime((chatId, itemType));
+        return await maybeTime.MatchAsync(async time =>
+            {
+                var message = string.Format(_giveConfig.GiveNotExpiredMessage, itemType, time);
+                return await messageAssistance.SendCommandResponse(chatId, message, Command);
+            },
+            async () => await SendFailed(chatId)
+        );
     }
 
 
