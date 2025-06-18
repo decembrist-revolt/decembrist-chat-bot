@@ -12,6 +12,9 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.set-datetime.outputs.image-tag }}
+      full-image: ${{ steps.set-datetime.outputs.full-image }}
 
     steps:
       - name: Checkout repository
@@ -25,14 +28,24 @@ jobs:
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Set datetime and image
-        id: vars
+        id: set-datetime
         run: |
           DATETIME=$(date +'%Y%m%d-%H%M%S')
-          SHORT_SHA=${GITHUB_SHA::8}
-          IMAGE_TAG="${SERVICE_NAME}:${DATETIME}-${SHORT_SHA}"
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+          IMAGE_TAG="${{ env.SERVICE_NAME }}:${DATETIME}-${SHORT_SHA}"
+          FULL_IMAGE="${{ secrets.REGISTRY_HOST }}/${IMAGE_TAG}"
+          
+          echo "DATETIME=$DATETIME" >> $GITHUB_ENV
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "FULL_IMAGE=$FULL_IMAGE" >> $GITHUB_ENV
+          
+          # Outputs для передачи в другие задачи
+          echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "full-image=$FULL_IMAGE" >> $GITHUB_OUTPUT
+          
           echo "Generated image tag: $IMAGE_TAG"
+          echo "Full image path: $FULL_IMAGE"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
@@ -40,13 +53,12 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.REGISTRY_HOST }}/${{ steps.vars.outputs.image_tag }}
             ${{ secrets.REGISTRY_HOST }}/${{ env.SERVICE_NAME }}:latest
-
+            ${{ secrets.REGISTRY_HOST }}/${{ env.IMAGE_TAG }}
+  
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-
     steps:
       - name: Install kubectl
         uses: azure/setup-kubectl@v3
@@ -66,15 +78,14 @@ jobs:
       - name: Get current deployment revision
         id: get-old-rev
         run: |
-          rev=$(kubectl get deployment ${{ env.SERVICE_NAME }} -n ${{ env.NAMESPACE }} \
-            -o jsonpath='{.metadata.annotations.deployment\.kubernetes\.io/revision}' 2>/dev/null || echo "")
+          rev=$(kubectl get deployment ${{ env.SERVICE_NAME }} -n ${{ env.NAMESPACE }} -o jsonpath='{.metadata.annotations.deployment\.kubernetes\.io/revision}' 2>/dev/null || echo "")
           echo "old_rev=$rev" >> $GITHUB_OUTPUT
 
       - name: Deploy new image
         run: |
-          kubectl set image deployment/${{ env.SERVICE_NAME }} \
-            ${{ env.SERVICE_NAME }}=${{ secrets.REGISTRY_HOST }}/${{ steps.vars.outputs.image_tag }} \
-            -n ${{ env.NAMESPACE }}
+          FULL_IMAGE="${{ needs.build-and-push.outputs.full-image }}"
+          echo "Deploying image: $FULL_IMAGE"
+          kubectl set image deployment/${{ env.SERVICE_NAME }} ${{ env.SERVICE_NAME }}=$FULL_IMAGE -n ${{ env.NAMESPACE }}
           kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n ${{ env.NAMESPACE }} --timeout=300s
 
       - name: Rollback if failed
@@ -86,8 +97,7 @@ jobs:
             exit 1
           fi
           echo "Rolling back to revision ${{ steps.get-old-rev.outputs.old_rev }}"
-          kubectl rollout undo deployment/${{ env.SERVICE_NAME }} -n ${{ env.NAMESPACE }} \
-            --to-revision=${{ steps.get-old-rev.outputs.old_rev }}
+          kubectl rollout undo deployment/${{ env.SERVICE_NAME }} -n ${{ env.NAMESPACE }} --to-revision=${{ steps.get-old-rev.outputs.old_rev }}
           kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n ${{ env.NAMESPACE }} --timeout=300s
           echo "ERROR: Deployment failed, rolled back to revision ${{ steps.get-old-rev.outputs.old_rev }}"
           exit 1
@@ -96,4 +106,4 @@ jobs:
         run: |
           echo "🎉 Deployment successful!"
           kubectl get deployment ${{ env.SERVICE_NAME }} -n ${{ env.NAMESPACE }}
-          echo "New image: ${{ secrets.REGISTRY_HOST }}/${{ steps.vars.outputs.image_tag }}"
+          echo "New image: ${{ needs.build-and-push.outputs.full-image }}"
