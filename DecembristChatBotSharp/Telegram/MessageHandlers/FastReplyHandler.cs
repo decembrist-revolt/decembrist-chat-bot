@@ -10,6 +10,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 [Singleton]
 public class FastReplyHandler(
     FastReplyRepository db,
+    MemberItemRepository memberItemRepository,
     BotClient botClient,
     CancellationTokenSource cancelToken)
 {
@@ -18,9 +19,8 @@ public class FastReplyHandler(
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
-        var chatId = parameters.ChatId;
-        var telegramId = parameters.TelegramId;
-        var messageId = parameters.MessageId;
+        var (messageId, telegramId, chatId) = parameters;
+        if (await memberItemRepository.IsUserHasItem(chatId, telegramId, MemberItemType.Stone)) return unit;
 
         var maybeReply = parameters.Payload switch
         {
@@ -29,13 +29,13 @@ public class FastReplyHandler(
             _ => None
         };
 
-        var trySend = 
+        var trySend =
             from reply in maybeReply.ToTryOptionAsync()
             from message in SendReply(reply, chatId, messageId).ToTryOption()
-            select fun(() => 
+            select fun(() =>
                 Log.Information("Sent fast reply to {0} payload {1} in chat {2}", telegramId, reply.Reply, chatId));
-        
-        return await trySend.IfFail(ex => 
+
+        return await trySend.IfFail(ex =>
             Log.Error(ex, "Failed to send fast reply to {0} payload {1} in chat {2}", telegramId, maybeReply, chatId));
     }
 

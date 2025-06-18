@@ -8,9 +8,11 @@ namespace DecembristChatBotSharp.Service;
 public class GiveService(
     MongoDatabase db,
     AdminUserRepository adminUserRepository,
+    UniqueItemRepository uniqueItemRepository,
     MemberItemRepository memberItemRepository,
     HistoryLogRepository historyLogRepository,
     MemberItemService memberItemService,
+    UniqueItemService uniqueItemService,
     CancellationTokenSource cancelToken)
 {
     public async Task<GiveOperationResult> GiveItem(
@@ -21,53 +23,90 @@ public class GiveService(
         using var session = await db.OpenSession();
         session.StartTransaction();
 
-        if (isAdmin) return await GiveItemAdmin(chatId, senderId, receiverId, itemQuantity, session);
+        if (isAdmin) return await GiveItemAdmin(chatId, senderId, receiverId, itemQuantity, session, isAdmin);
 
         var hasItem = await IsUserHasItem(chatId, senderId, itemQuantity, session);
         if (!hasItem) return await AbortWithResult(session, GiveResult.NoItems);
 
-        var result =
-            await IsGiveSuccess(session, chatId, senderId, receiverId, itemQuantity, MemberItemSourceType.Give);
-        return result.GiveResult != GiveResult.Failed
+        var result = await IsGiveSuccess(session, chatId, senderId, receiverId, itemQuantity);
+        return result.GiveResult == GiveResult.Success
             ? await CommitWithResult(session, result)
-            : await AbortWithResult(session);
+            : await AbortWithResult(session, result.GiveResult);
     }
 
     private async Task<GiveOperationResult> GiveItemAdmin(
-        long chatId, long senderId, long receiverId, ItemQuantity itemQuantity, IMongoSession session)
+        long chatId, long senderId, long receiverId, ItemQuantity itemQuantity, IMongoSession session, bool isAdmin)
     {
-        var result =
-            await IsGiveSuccess(session, chatId, senderId, receiverId, itemQuantity, MemberItemSourceType.Admin);
-        return result.GiveResult != GiveResult.Failed
+        var result = await IsGiveSuccess(session, chatId, senderId, receiverId, itemQuantity, isAdmin);
+        return result.GiveResult == GiveResult.Success
             ? await CommitWithResult(session, result with { GiveResult = GiveResult.AdminSuccess })
-            : await AbortWithResult(session);
+            : await AbortWithResult(session, result.GiveResult);
     }
 
-    private async Task<GiveOperationResult> IsGiveSuccess(IMongoSession session,
-        long chatId, long senderId, long receiverId, ItemQuantity itemQuantity, MemberItemSourceType sourceType)
+    private async Task<GiveOperationResult> IsGiveSuccess(IMongoSession session, long chatId, long senderId,
+        long receiverId, ItemQuantity itemQuantity, bool isAdmin = false)
     {
         var (item, quantity) = itemQuantity;
-        var isAmuletActivated = item == MemberItemType.Amulet &&
-                                await memberItemService.HandleAmuletItem((receiverId, chatId), session);
-        quantity = isAmuletActivated ? quantity - 1 : quantity;
-
-        var success = (isAmuletActivated && quantity <= 0) ||
-                      await memberItemRepository.AddMemberItem(chatId, receiverId, item, session, quantity);
-        if (success)
+        var success = item switch
         {
+            MemberItemType.Amulet => await GiveAmulet(chatId, receiverId, item, quantity, session),
+            MemberItemType.Stone => await GiveUnique(chatId, receiverId, item, quantity, session, isAdmin),
+            _ => await GiveDefault(chatId, receiverId, item, quantity, session)
+        };
+
+        if (success.GiveResult == GiveResult.Success)
+        {
+            var sourceType = isAdmin ? MemberItemSourceType.Admin : MemberItemSourceType.Give;
             await historyLogRepository.LogItem(chatId, receiverId, item, quantity, sourceType, session, senderId);
         }
 
-        return success
-            ? new GiveOperationResult(GiveResult.Success, isAmuletActivated)
+        return success;
+    }
+
+    private async Task<GiveOperationResult> GiveAmulet(long chatId, long receiverId, MemberItemType item, int quantity,
+        IMongoSession session)
+    {
+        var isAmuletExist = await memberItemService.HandleAmuletItem((receiverId, chatId), session);
+        if (isAmuletExist)
+        {
+            quantity -= 1;
+            if (quantity <= 0) return new GiveOperationResult(GiveResult.Success, isAmuletExist);
+        }
+
+        var result = await GiveDefault(chatId, receiverId, item, quantity, session);
+        return isAmuletExist ? result with { IsAmuletBroken = isAmuletExist } : result;
+    }
+
+    private async Task<GiveOperationResult> GiveUnique(
+        long chatId, long receiverId, MemberItemType item, int quantity, IMongoSession session, bool isAdmin)
+    {
+        if (isAdmin)
+        {
+            await memberItemRepository.RemoveAllItemsForChat(chatId, item, session);
+        }
+        else if (!await uniqueItemRepository.IsGiveExpired((chatId, item), session))
+        {
+            return new GiveOperationResult(GiveResult.NotExpired);
+        }
+
+        var isChange = await uniqueItemService.ChangeOwnerUniqueItem(chatId, receiverId, item, session);
+        return isChange
+            ? await GiveDefault(chatId, receiverId, item, quantity, session)
             : new GiveOperationResult(GiveResult.Failed);
+    }
+
+    private async Task<GiveOperationResult> GiveDefault(
+        long chatId, long receiverId, MemberItemType item, int quantity, IMongoSession session)
+    {
+        var success = await memberItemRepository.AddMemberItem(chatId, receiverId, item, session, quantity);
+        return success ? new GiveOperationResult(GiveResult.Success) : new GiveOperationResult(GiveResult.Failed);
     }
 
     private async Task<bool> IsUserHasItem(long chatId, long senderId, ItemQuantity itemQuantity, IMongoSession session)
     {
         var (item, quantity) = itemQuantity;
-        var isHas = await memberItemRepository.IsUserHasItem(chatId, senderId, item, session, quantity) &&
-                    await memberItemRepository.RemoveMemberItem(chatId, senderId, item, session, -quantity);
+        var isHas = await memberItemRepository.RemoveMemberItem(chatId, senderId, item, session, -quantity);
+
         if (isHas)
         {
             await historyLogRepository.LogItem(
@@ -95,6 +134,7 @@ public record GiveOperationResult(GiveResult GiveResult, bool IsAmuletBroken = f
 public enum GiveResult
 {
     NoItems,
+    NotExpired,
     Success,
     AdminSuccess,
     Failed,
