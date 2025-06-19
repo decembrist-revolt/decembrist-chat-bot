@@ -1,6 +1,7 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
+using Serilog;
 
 namespace DecembristChatBotSharp.Service;
 
@@ -41,8 +42,9 @@ public class OpenBoxService(
         var isHasUniqueItem = await memberItemRepository.IsUserHasItem(chatId, telegramId, itemType, session);
         if (isHasUniqueItem)
         {
-            return await LogInHistoryAndCommit(chatId, telegramId, OpenBoxResult.Success, MemberItemType.RedditMeme,
-                session, 1);
+            var compensation = appConfig.ItemConfig.CompensationItem;
+            Log.Information("User has unique {0}, compensating item: {1} has been issued", itemType, compensation);
+            return await LogInHistoryAndCommit(chatId, telegramId, OpenBoxResult.Success, compensation, session, 1);
         }
 
         var isChangeOwner = await memberItemRepository.RemoveAllItemsForChat(chatId, itemType, session)
