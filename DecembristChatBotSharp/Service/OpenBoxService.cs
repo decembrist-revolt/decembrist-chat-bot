@@ -38,6 +38,13 @@ public class OpenBoxService(
     private async Task<(Option<MemberItemType>, OpenBoxResult)> HandleUniqueItem(
         long chatId, long telegramId, MemberItemType itemType, IMongoSession session)
     {
+        var isHasUniqueItem = await memberItemRepository.IsUserHasItem(chatId, telegramId, itemType, session);
+        if (isHasUniqueItem)
+        {
+            return await LogInHistoryAndCommit(chatId, telegramId, OpenBoxResult.Success, MemberItemType.RedditMeme,
+                session, 1);
+        }
+
         var isChangeOwner = await memberItemRepository.RemoveAllItemsForChat(chatId, itemType, session)
                             && await uniqueItemService.ChangeOwnerUniqueItem(chatId, telegramId, itemType, session);
         return isChangeOwner
