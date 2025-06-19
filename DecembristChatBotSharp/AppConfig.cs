@@ -346,6 +346,7 @@ public record ItemConfig(
     string FailedToOpenBoxMessage,
     [property: Required(AllowEmptyStrings = false)]
     string StoneDescription,
+    MemberItemType CompensationItem,
     [property: Range(1, int.MaxValue)] int UniqueItemGiveExpirationMinutes,
     [property: Range(1, int.MaxValue)] int BoxMessageExpiration
 );
