@@ -33,7 +33,7 @@ public class OpenBoxCommandHandler(
         {
             OpenBoxResult.NoItems => messageAssistance.SendNoItems(chatId),
             OpenBoxResult.Failed => SendFailedToOpenBox(chatId, telegramId),
-            OpenBoxResult.Success => SendBoxResult(itemType, chatId, telegramId),
+            OpenBoxResult.Success or OpenBoxResult.SuccessUnique => SendBoxResult(itemType, chatId, telegramId),
             OpenBoxResult.SuccessX2 => SendBoxResult(itemType, chatId, telegramId, 2),
             OpenBoxResult.AmuletActivated => SendBoxResult(itemType, chatId, telegramId, 0),
             _ => throw new ArgumentOutOfRangeException()
