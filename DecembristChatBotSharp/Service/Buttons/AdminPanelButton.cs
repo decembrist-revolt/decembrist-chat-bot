@@ -14,7 +14,7 @@ public class AdminPanelButton
         {
             InlineKeyboard =
             [
-                [GetAdminPanelButton("Create white list", chatId, FilterSuffix.Create)],
+                [GetAdminPanelButton("Create filter record", chatId, FilterSuffix.Create)],
                 [ProfileButtons.GetBackButton(chatId)]
             ]
         };
@@ -22,7 +22,7 @@ public class AdminPanelButton
 
     private static InlineKeyboardButton GetAdminPanelButton(string name, long chatId, FilterSuffix suffix)
     {
-        var callback = GetCallback(LorePrivateCallbackHandler.PrefixKey, suffix, (ChatIdParameter, chatId));
+        var callback = GetCallback(FilterCallbackHandler.PrefixKey, suffix, (ChatIdParameter, chatId));
         return InlineKeyboardButton.WithCallbackData(name, callback);
     }
 }

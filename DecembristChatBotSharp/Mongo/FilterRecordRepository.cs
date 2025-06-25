@@ -10,6 +10,26 @@ public class FilterRecordRepository(
     CancellationTokenSource cancelToken)
     : IRepository
 {
+    private const string ExpireFilterRecordIndex = $"{nameof(FilterRecord)}_ExpireIndex_V1";
+
+    public async Task<Unit> EnsureIndexes()
+    {
+        var collection = GetCollection();
+        var indexes = await (await collection.Indexes.ListAsync(cancelToken.Token)).ToListAsync(cancelToken.Token);
+        if (indexes.Any(index => index["name"] == ExpireFilterRecordIndex)) return unit;
+
+        var indexKeys = Builders<FilterRecord>.IndexKeys
+            .Ascending(x => x.Id.ChatId)
+            .Ascending(x => x.Id.Key);
+
+        var options = new CreateIndexOptions
+        {
+            Name = ExpireFilterRecordIndex,
+        };
+        await collection.Indexes.CreateOneAsync(new CreateIndexModel<FilterRecord>(indexKeys, options));
+        return unit;
+    }
+
     public async Task<bool> AddFilterRecord(FilterRecord record, IMongoSession? session = null)
     {
         var collection = GetCollection();

@@ -37,7 +37,7 @@ public readonly struct UnknownPayload : IMessagePayload;
 public class ChatMessageHandler(
     CaptchaHandler captchaHandler,
     FilteredMessageHandler filteredMessageHandler,
-    BlackListCaptchaHandler filterCaptchaHandler,
+    FilterCaptchaHandler filterCaptchaHandler,
     ChatCommandHandler chatCommandHandler,
     FastReplyHandler fastReplyHandler,
     RestrictHandler restrictHandler,

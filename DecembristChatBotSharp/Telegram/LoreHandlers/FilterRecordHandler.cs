@@ -1,14 +1,12 @@
-﻿using DecembristChatBotSharp.Entity;
-using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
+using DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
 using Telegram.Bot;
 using Telegram.Bot.Types;
-using static DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback.FilterCallbackHandler;
 
 namespace DecembristChatBotSharp.Telegram.LoreHandlers;
 
 public class FilterRecordHandler(
-    MongoDatabase db,
     MessageAssistance messageAssistance,
     FilterService filterService,
     FilterRecordRepository filterRecordRepository,
@@ -17,6 +15,9 @@ public class FilterRecordHandler(
     BotClient botClient,
     AppConfig appConfig)
 {
+    public const string Tag = "#Filter";
+    public const string RecordSuffix = "Record";
+
     public async Task<Message> Do(Message message)
     {
         var replyText = message.ReplyToMessage!.Text;
@@ -35,7 +36,8 @@ public class FilterRecordHandler(
                 return suffix switch
                 {
                     _ when !await IsAdmin(telegramId, lorChatId) => SendNotAdmin(telegramId),
-                    RecordSuffix when isEmpty => HandleFilterRecord(messageText, lorChatId, telegramId, dateReply),
+                    RecordSuffix when isEmpty => HandleFilterRecord(messageText, lorChatId,
+                        telegramId, dateReply),
                     _ => SendHelpMessage(telegramId)
                 };
             }).Flatten();

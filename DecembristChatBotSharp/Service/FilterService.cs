@@ -5,7 +5,11 @@ using Lamar;
 namespace DecembristChatBotSharp.Service;
 
 [Singleton]
-public class FilterService(MongoDatabase db, FilterRecordRepository filterRecordRepository, AppConfig appConfig)
+public class FilterService(
+    MongoDatabase db,
+    FilterRecordRepository filterRecordRepository,
+    AppConfig appConfig,
+    CancellationTokenSource cancelToken)
 {
     public async Task<FilterRecordResult> HandleFilterRecord(string messageText, long targetChatId, DateTime date)
     {
@@ -16,8 +20,13 @@ public class FilterService(MongoDatabase db, FilterRecordRepository filterRecord
         if (await filterRecordRepository.IsFilterRecordExist((targetChatId, messageText), session))
             return FilterRecordResult.Duplicate;
 
-        await filterRecordRepository.AddFilterRecord(new FilterRecord((targetChatId, messageText)), session);
-        return FilterRecordResult.Success;
+        var isAdd = await filterRecordRepository.AddFilterRecord(new FilterRecord((targetChatId, messageText)),
+            session);
+
+        if (isAdd && await session.TryCommit(cancelToken.Token)) return FilterRecordResult.Success;
+
+        await session.TryAbort(cancelToken.Token);
+        return FilterRecordResult.Failed;
     }
 
     private bool IsExpired(DateTime date) =>
@@ -28,5 +37,6 @@ public enum FilterRecordResult
 {
     Success,
     Expire,
-    Duplicate
+    Duplicate,
+    Failed
 }

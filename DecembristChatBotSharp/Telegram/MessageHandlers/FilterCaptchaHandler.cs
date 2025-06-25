@@ -4,7 +4,7 @@ using Lamar;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
-public class BlackListCaptchaHandler(
+public class FilterCaptchaHandler(
     FilteredMessageRepository filteredMessageRepository,
     MessageAssistance messageAssistance,
     AppConfig appConfig)
@@ -15,7 +15,7 @@ public class BlackListCaptchaHandler(
         var maybeMessage = filteredMessageRepository.GetFilteredMessage(chatId, telegramId);
         return await maybeMessage.MatchAsync(async m =>
         {
-            await messageAssistance.DeleteCommandMessage(chatId, m.CaptchaMessageId, nameof(BlackListCaptchaHandler));
+            await messageAssistance.DeleteCommandMessage(chatId, m.CaptchaMessageId, nameof(FilterCaptchaHandler));
             await filteredMessageRepository.DeleteFilteredMessage(m.Id);
 
             return IsCaptchaPassed(parameters.Payload)
@@ -28,16 +28,16 @@ public class BlackListCaptchaHandler(
     {
         var text = appConfig.FilterConfig.FailedMessage;
         await Array(
-            messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(BlackListCaptchaHandler)),
-            messageAssistance.SendCommandResponse(chatId, text, nameof(BlackListCaptchaHandler))).WhenAll();
+            messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(FilterCaptchaHandler)),
+            messageAssistance.SendCommandResponse(chatId, text, nameof(FilterCaptchaHandler))).WhenAll();
         return false;
     }
 
     private async Task<bool> SendSuccessCaptcha(long chatId, int messageId)
     {
         var text = appConfig.FilterConfig.SuccessMessage;
-        await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, nameof(BlackListCaptchaHandler)),
-            messageAssistance.SendCommandResponse(chatId, text, nameof(BlackListCaptchaHandler))).WhenAll();
+        await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, nameof(FilterCaptchaHandler)),
+            messageAssistance.SendCommandResponse(chatId, text, nameof(FilterCaptchaHandler))).WhenAll();
         return true;
     }
 

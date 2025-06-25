@@ -10,6 +10,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 [Singleton]
 public class FilteredMessageHandler(
     WhiteListRepository whiteListRepository,
+    FilterRecordRepository filterRecordRepository,
     FilteredMessageRepository filteredMessageRepository,
     BotClient botClient,
     CancellationTokenSource cancelToken,
@@ -20,7 +21,8 @@ public class FilteredMessageHandler(
         if (parameters.Payload is not TextPayload { Text: var text }) return false;
         var (messageId, telegramId, chatId) = parameters;
 
-        if (!IsFiltered(text) || await whiteListRepository.IsWhiteListMember((telegramId, chatId))) return false;
+        if (!await IsFiltered(text, chatId) || await whiteListRepository.IsWhiteListMember((telegramId, chatId)))
+            return false;
         var messageText = string.Format(appConfig.FilterConfig.CaptchaMessage,
             appConfig.FilterConfig.CaptchaAnswer,
             appConfig.FilterConfig.CaptchaTimeSeconds);
@@ -44,8 +46,8 @@ public class FilteredMessageHandler(
                 });
     }
 
-    private bool IsFiltered(string text) =>
-        appConfig.FilterConfig.FilterPhrases != null &&
-        appConfig.FilterConfig.FilterPhrases.Any(w =>
-            text.Contains(w, StringComparison.OrdinalIgnoreCase));
+    private async Task<bool> IsFiltered(string text, long chatId) =>
+        (appConfig.FilterConfig.FilterPhrases != null && appConfig.FilterConfig.FilterPhrases.Any(w =>
+            text.Contains(w, StringComparison.OrdinalIgnoreCase))) ||
+        await filterRecordRepository.IsFilterRecordExist((chatId, text));
 }

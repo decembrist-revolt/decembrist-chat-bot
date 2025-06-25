@@ -1,5 +1,6 @@
 ﻿using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
+using DecembristChatBotSharp.Telegram.LoreHandlers;
 using Lamar;
 using Telegram.Bot.Types.ReplyMarkups;
 
@@ -12,14 +13,14 @@ public class FilterCallbackHandler(
     CallbackService callbackService
 ) : IPrivateCallbackHandler
 {
-    public const string RecordSuffix = "Record";
-    public const string Tag = "#Filter";
-    public string Prefix => "filter";
+    public const string PrefixKey = "Filter";
+    public string Prefix => PrefixKey;
 
     public async Task<Unit> Do(CallbackQueryParameters queryParameters)
     {
         var (_, suffix, chatId, telegramId, messageId, queryId, maybeParameters) = queryParameters;
         if (!Enum.TryParse(suffix, true, out FilterSuffix filterSuffix)) return unit;
+
         var taskResult = maybeParameters.MatchAsync(
             None: () => messageAssistance.SendCommandResponse(chatId, "OK", nameof(FilterCallbackHandler)),
             Some: async parameters =>
@@ -37,13 +38,14 @@ public class FilterCallbackHandler(
 
     private Task<Unit> SendRequestFilterRecord(long targetChatId, long chatId)
     {
-        var message = string.Format(appConfig.LoreConfig.KeyRequest, GetFilterTag(RecordSuffix, targetChatId));
+        var message = string.Format(appConfig.LoreConfig.KeyRequest,
+            GetFilterTag(FilterRecordHandler.RecordSuffix, targetChatId));
         return messageAssistance.SendCommandResponse(
-            chatId, message, nameof(LorePrivateCallbackHandler), replyMarkup: GetRecordTip());
+            chatId, message, nameof(FilterCallbackHandler), replyMarkup: GetRecordTip());
     }
 
     public static string GetFilterTag(string suffix, long targetChatId, string key = "") =>
-        $"\n{Tag}{suffix}:{key}:{targetChatId}";
+        $"\n{FilterRecordHandler.Tag}{suffix}:{key}:{targetChatId}";
 
     public ForceReplyMarkup GetRecordTip() => new()
     {
