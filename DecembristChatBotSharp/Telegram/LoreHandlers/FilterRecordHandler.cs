@@ -1,4 +1,6 @@
-﻿using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using static DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback.FilterCallbackHandler;
@@ -6,8 +8,10 @@ using static DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback.Fi
 namespace DecembristChatBotSharp.Telegram.LoreHandlers;
 
 public class FilterRecordHandler(
+    MongoDatabase db,
     MessageAssistance messageAssistance,
-    LoreUserRepository loreUserRepository,
+    FilterService filterService,
+    FilterRecordRepository filterRecordRepository,
     AdminUserRepository adminUserRepository,
     CancellationTokenSource cancelToken,
     BotClient botClient,
@@ -21,7 +25,7 @@ public class FilterRecordHandler(
         var dateReply = message.ReplyToMessage.Date;
 
         return await ParseReplyText(replyText).MatchAsync(
-            None: () => loreMessageAssistant.SendHelpMessage(telegramId),
+            None: () => SendHelpMessage(telegramId),
             Some: async tuple =>
             {
                 await messageAssistance.DeleteCommandMessage(telegramId, message.ReplyToMessage.Id, Tag);
@@ -30,23 +34,37 @@ public class FilterRecordHandler(
                 var isEmpty = string.IsNullOrWhiteSpace(key);
                 return suffix switch
                 {
-                    _ when !await IsLorUser(telegramId, lorChatId) => SendNotLoreUser(telegramId),
-                    RecordSuffix when isEmpty => HandleFilterRecord(messageText, lorChatId, telegramId),
+                    _ when !await IsAdmin(telegramId, lorChatId) => SendNotAdmin(telegramId),
+                    RecordSuffix when isEmpty => HandleFilterRecord(messageText, lorChatId, telegramId, dateReply),
                     _ => SendHelpMessage(telegramId)
                 };
             }).Flatten();
     }
 
-    private Task<Message> HandleFilterRecord(string messageText, long lorChatId, long telegramId)
+    private async Task<Message> HandleFilterRecord(string messageText, long targetChatId, long telegramId,
+        DateTime date)
     {
-        
-        return botClient.SendMessage(telegramId, "/success", cancellationToken: cancelToken.Token);
+        var result = await filterService.HandleFilterRecord(messageText, targetChatId, date);
+        return result switch
+        {
+            FilterRecordResult.Success => await SendSuccessMessage(telegramId),
+            FilterRecordResult.Expire => await SendExpireMessage(telegramId),
+            FilterRecordResult.Duplicate => await SendDuplicateMessage(telegramId),
+            _ => throw new ArgumentOutOfRangeException()
+        };
     }
 
-    private Task<Message> SendHelpMessage(long telegramId)
-    {
-        return botClient.SendMessage(telegramId, "/help", cancellationToken: cancelToken.Token);
-    }
+    private Task<Message> SendHelpMessage(long telegramId) =>
+        botClient.SendMessage(telegramId, "/help", cancellationToken: cancelToken.Token);
+
+    private Task<Message> SendDuplicateMessage(long telegramId) =>
+        botClient.SendMessage(telegramId, "/duplicate", cancellationToken: cancelToken.Token);
+
+    private Task<Message> SendSuccessMessage(long telegramId) =>
+        botClient.SendMessage(telegramId, "/success", cancellationToken: cancelToken.Token);
+
+    private Task<Message> SendExpireMessage(long telegramId) =>
+        botClient.SendMessage(telegramId, "/expire", cancellationToken: cancelToken.Token);
 
     private static Option<(string suffix, string record, long lorChatId)> ParseReplyText(string replyText) =>
         replyText.Split(Tag) is [_, var recordAndId] &&
@@ -55,10 +73,9 @@ public class FilterRecordHandler(
             ? (suffix, maybeRecord, lorChatId)
             : None;
 
-    private async Task<bool> IsLorUser(long telegramId, long lorChatId) =>
-        await loreUserRepository.IsLoreUser((telegramId, lorChatId))
-        || await adminUserRepository.IsAdmin((telegramId, lorChatId));
+    private async Task<bool> IsAdmin(long telegramId, long lorChatId) =>
+        await adminUserRepository.IsAdmin((telegramId, lorChatId));
 
-    private Task<Message> SendNotLoreUser(long telegramId) =>
-        botClient.SendMessage(telegramId, appConfig.LoreConfig.NotLoreUser, cancellationToken: cancelToken.Token);
+    private Task<Message> SendNotAdmin(long telegramId) =>
+        botClient.SendMessage(telegramId, "/not admin", cancellationToken: cancelToken.Token);
 }
