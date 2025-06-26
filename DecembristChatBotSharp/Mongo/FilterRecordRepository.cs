@@ -11,26 +11,6 @@ public class FilterRecordRepository(
     CancellationTokenSource cancelToken)
     : IRepository
 {
-    private const string CompositeIdFilterRecordIndex = $"{nameof(FilterRecord)}_CompositeId_V1";
-
-    public async Task<Unit> EnsureIndexes()
-    {
-        var collection = GetCollection();
-        var indexes = await (await collection.Indexes.ListAsync(cancelToken.Token)).ToListAsync(cancelToken.Token);
-        if (indexes.Any(index => index["name"] == CompositeIdFilterRecordIndex)) return unit;
-
-        var indexKeys = Builders<FilterRecord>.IndexKeys
-            .Ascending(x => x.Id.ChatId)
-            .Ascending(x => x.Id.Key);
-
-        var options = new CreateIndexOptions
-        {
-            Name = CompositeIdFilterRecordIndex,
-        };
-        await collection.Indexes.CreateOneAsync(new CreateIndexModel<FilterRecord>(indexKeys, options));
-        return unit;
-    }
-
     public async Task<bool> AddFilterRecord(FilterRecord record, IMongoSession session) =>
         await GetCollection().InsertOneAsync(session, record, cancellationToken: cancelToken.Token)
             .ToTryAsync()

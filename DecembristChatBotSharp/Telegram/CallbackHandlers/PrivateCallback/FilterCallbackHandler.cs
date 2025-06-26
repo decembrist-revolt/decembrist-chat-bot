@@ -1,6 +1,5 @@
 ﻿using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
-using DecembristChatBotSharp.Telegram.LoreHandlers;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -54,8 +53,8 @@ public class FilterCallbackHandler(
             replyMarkup: new ForceReplyMarkup());
     }
 
-    public static string GetFilterTag(string suffix, long targetChatId, string key = "") =>
-        $"\n{FilterRecordHandler.Tag}{suffix}:{key}:{targetChatId}";
+    private static string GetFilterTag(string suffix, long targetChatId) =>
+        $"\n{FilterRecordHandler.Tag}{suffix}:{targetChatId}";
 }
 
 public enum FilterSuffix

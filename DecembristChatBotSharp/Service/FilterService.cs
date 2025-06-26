@@ -31,9 +31,6 @@ public class FilterService(
         return FilterCreateResult.Failed;
     }
 
-    private bool IsExpired(DateTime date) =>
-        (DateTime.UtcNow - date).TotalMinutes > appConfig.FilterConfig.ExpiredAddMinutes;
-
     public async Task<FilterDeleteResult> DeleteFilterRecord(string messageText, long targetChatId, DateTime dateReply)
     {
         if (IsExpired(dateReply)) return FilterDeleteResult.Expire;
@@ -50,6 +47,9 @@ public class FilterService(
         await session.TryAbort(cancelToken.Token);
         return FilterDeleteResult.Failed;
     }
+
+    private bool IsExpired(DateTime date) =>
+        (DateTime.UtcNow - date).TotalMinutes > appConfig.FilterConfig.ExpiredAddMinutes;
 
     public void LogFilter(byte result,
         long telegramId,
