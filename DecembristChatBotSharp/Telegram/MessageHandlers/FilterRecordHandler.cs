@@ -32,7 +32,7 @@ public class FilterRecordHandler(
             {
                 await messageAssistance.DeleteCommandMessage(telegramId, message.ReplyToMessage.Id, Tag);
                 await messageAssistance.DeleteCommandMessage(telegramId, message.Id, Tag);
-                var (suffix, key, lorChatId) = tuple;
+                var (suffix, lorChatId) = tuple;
                 return suffix switch
                 {
                     _ when !await IsAdmin(telegramId, lorChatId) => SendNotAdmin(telegramId),
@@ -107,11 +107,11 @@ public class FilterRecordHandler(
         return botClient.SendMessage(telegramId, message, cancellationToken: cancelToken.Token);
     }
 
-    private static Option<(string suffix, string record, long lorChatId)> ParseReplyText(string replyText) =>
+    private static Option<(string suffix, long lorChatId)> ParseReplyText(string replyText) =>
         replyText.Split(Tag) is [_, var recordAndId] &&
-        recordAndId.Split(":") is [var suffix, var maybeRecord, var idText] &&
+        recordAndId.Split(":") is [var suffix, var idText] &&
         long.TryParse(idText, out var lorChatId)
-            ? (suffix, maybeRecord, lorChatId)
+            ? (suffix, lorChatId)
             : None;
 
     private async Task<bool> IsAdmin(long telegramId, long lorChatId) =>

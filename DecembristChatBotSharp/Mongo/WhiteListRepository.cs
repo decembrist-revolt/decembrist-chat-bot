@@ -37,6 +37,17 @@ public class WhiteListRepository(
                 });
     }
 
+    public async Task<bool> DeleteWhiteListMember(CompositeId id) =>
+        await GetCollection().DeleteOneAsync(m => m.Id == id, cancelToken.Token)
+            .ToTryAsync()
+            .Match(
+                result => result.DeletedCount > 0,
+                ex =>
+                {
+                    Log.Error(ex, "Failed to delete user with telegramId {0} in whitelist db", id);
+                    return false;
+                });
+
     private IMongoCollection<WhiteListMember> GetCollection() =>
         db.GetCollection<WhiteListMember>(nameof(WhiteListMember));
 }
