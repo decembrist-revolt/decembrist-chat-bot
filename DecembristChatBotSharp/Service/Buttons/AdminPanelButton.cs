@@ -15,6 +15,7 @@ public class AdminPanelButton
             InlineKeyboard =
             [
                 [GetAdminPanelButton("Create filter record", chatId, FilterSuffix.Create)],
+                [GetAdminPanelButton("Delete filter record", chatId, FilterSuffix.Delete)],
                 [ProfileButtons.GetBackButton(chatId)]
             ]
         };

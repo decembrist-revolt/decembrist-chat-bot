@@ -1,6 +1,8 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using System.Runtime.CompilerServices;
+using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
+using Serilog;
 
 namespace DecembristChatBotSharp.Service;
 
@@ -11,32 +13,81 @@ public class FilterService(
     AppConfig appConfig,
     CancellationTokenSource cancelToken)
 {
-    public async Task<FilterRecordResult> HandleFilterRecord(string messageText, long targetChatId, DateTime date)
+    public async Task<FilterCreateResult> HandleFilterRecord(string messageText, long targetChatId, DateTime date)
     {
-        if (IsExpired(date)) return FilterRecordResult.Expire;
+        if (IsExpired(date)) return FilterCreateResult.Expire;
         using var session = await db.OpenSession();
         session.StartTransaction();
 
         if (await filterRecordRepository.IsFilterRecordExist((targetChatId, messageText), session))
-            return FilterRecordResult.Duplicate;
+            return FilterCreateResult.Duplicate;
 
         var isAdd = await filterRecordRepository.AddFilterRecord(new FilterRecord((targetChatId, messageText)),
             session);
 
-        if (isAdd && await session.TryCommit(cancelToken.Token)) return FilterRecordResult.Success;
+        if (isAdd && await session.TryCommit(cancelToken.Token)) return FilterCreateResult.Success;
 
         await session.TryAbort(cancelToken.Token);
-        return FilterRecordResult.Failed;
+        return FilterCreateResult.Failed;
     }
 
     private bool IsExpired(DateTime date) =>
-        (DateTime.UtcNow - date).TotalMinutes > appConfig.LoreConfig.ContentEditExpiration;
+        (DateTime.UtcNow - date).TotalMinutes > appConfig.FilterConfig.ExpiredAddMinutes;
+
+    public async Task<FilterDeleteResult> DeleteFilterRecord(string messageText, long targetChatId, DateTime dateReply)
+    {
+        if (IsExpired(dateReply)) return FilterDeleteResult.Expire;
+        using var session = await db.OpenSession();
+        session.StartTransaction();
+
+        if (!await filterRecordRepository.IsFilterRecordExist((targetChatId, messageText), session))
+            return FilterDeleteResult.NotFound;
+
+        var isDelete = await filterRecordRepository.DeleteFilterRecord((targetChatId, messageText), session);
+
+        if (isDelete && await session.TryCommit(cancelToken.Token)) return FilterDeleteResult.Success;
+
+        await session.TryAbort(cancelToken.Token);
+        return FilterDeleteResult.Failed;
+    }
+
+    public void LogFilter(byte result,
+        long telegramId,
+        long chatId,
+        string record,
+        [CallerMemberName] string callerName = "UnknownCaller")
+    {
+        switch (result)
+        {
+            case 0:
+                Log.Information("Filter operation SUCCESS: from: {0}, record: {1}, chat: {2}, by: {3}",
+                    callerName, record, chatId, telegramId);
+                break;
+            case 1:
+                Log.Error("Filter operation FAILED: reason: {0}, from: {1}, key: {2}, chat: {3}, by: {4}",
+                    result, callerName, record, chatId, telegramId);
+                break;
+            default:
+                Log.Information(
+                    "Filter operation FAILED: reason: {0}, from: {1}, record: {2}, chat: {3}, by: {4}",
+                    result, callerName, record, chatId, telegramId);
+                break;
+        }
+    }
 }
 
-public enum FilterRecordResult
+public enum FilterCreateResult : byte
 {
-    Success,
+    Success = 0,
+    Failed = 1,
     Expire,
     Duplicate,
-    Failed
+}
+
+public enum FilterDeleteResult : byte
+{
+    Success = 0,
+    Failed = 1,
+    Expire,
+    NotFound,
 }

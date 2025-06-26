@@ -1,6 +1,7 @@
 ﻿using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
 using DecembristChatBotSharp.Telegram.LoreHandlers;
+using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
 using Telegram.Bot.Types.ReplyMarkups;
 
@@ -30,30 +31,35 @@ public class FilterCallbackHandler(
                 return filterSuffix switch
                 {
                     FilterSuffix.Create => await SendRequestFilterRecord(targetChatId, telegramId),
+                    FilterSuffix.Delete => await SendRequestDelete(targetChatId, telegramId),
                     _ => throw new ArgumentOutOfRangeException(nameof(suffix), suffix, null)
                 };
             });
         return await Array(taskResult, messageAssistance.AnswerCallbackQuery(queryId, chatId, Prefix)).WhenAll();
     }
 
+    private Task<Unit> SendRequestDelete(long targetChatId, long chatId)
+    {
+        var message = string.Format(appConfig.FilterConfig.DeleteRequest,
+            GetFilterTag(FilterRecordHandler.DeleteSuffix, targetChatId));
+        return messageAssistance.SendCommandResponse(chatId, message, nameof(FilterCallbackHandler),
+            replyMarkup: new ForceReplyMarkup());
+    }
+
     private Task<Unit> SendRequestFilterRecord(long targetChatId, long chatId)
     {
-        var message = string.Format(appConfig.LoreConfig.KeyRequest,
+        var message = string.Format(appConfig.FilterConfig.CreateRequest,
             GetFilterTag(FilterRecordHandler.RecordSuffix, targetChatId));
-        return messageAssistance.SendCommandResponse(
-            chatId, message, nameof(FilterCallbackHandler), replyMarkup: GetRecordTip());
+        return messageAssistance.SendCommandResponse(chatId, message, nameof(FilterCallbackHandler),
+            replyMarkup: new ForceReplyMarkup());
     }
 
     public static string GetFilterTag(string suffix, long targetChatId, string key = "") =>
         $"\n{FilterRecordHandler.Tag}{suffix}:{key}:{targetChatId}";
-
-    public ForceReplyMarkup GetRecordTip() => new()
-    {
-        InputFieldPlaceholder = string.Format(appConfig.LoreConfig.Tip, appConfig.LoreConfig.KeyLimit),
-    };
 }
 
 public enum FilterSuffix
 {
     Create,
+    Delete
 }

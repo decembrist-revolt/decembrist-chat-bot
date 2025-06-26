@@ -159,7 +159,9 @@ public record MenuConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ProfileTitle,
     [property: Required(AllowEmptyStrings = false)]
-    string LorDescription
+    string LoreDescription,
+    [property: Required(AllowEmptyStrings = false)]
+    string FilterDescription
 );
 
 public record LoreConfig(
@@ -224,9 +226,27 @@ public record FilterConfig(
     string SuccessMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FailedMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessAddMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FailedAddMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string DuplicateMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ExpiredMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string HelpMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string CreateRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string DeleteRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string DeleteSuccess,
+    [property: Required(AllowEmptyStrings = false)]
+    string NotFound,
     [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalSeconds,
     [property: Range(1, int.MaxValue)] int CaptchaTimeSeconds,
-    System.Collections.Generic.HashSet<string>? FilterPhrases
+    [property: Range(1, int.MaxValue)] int ExpiredAddMinutes
 );
 
 public record RedditConfig(

@@ -63,14 +63,14 @@ public class ProfilePrivateCallbackHandler(
     private async Task<Unit> SwitchToLore(int messageId, long telegramId, long chatId)
     {
         var markup = loreButtons.GetLoreMarkup(chatId);
-        var message = appConfig.MenuConfig.LorDescription;
+        var message = appConfig.MenuConfig.LoreDescription;
         return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
     }
 
     private async Task<Unit> SwitchToAdminPanel(int messageId, long telegramId, long chatId)
     {
         var markup = adminPanelButton.GetMarkup(chatId);
-        var message = appConfig.MenuConfig.LorDescription;
+        var message = appConfig.MenuConfig.LoreDescription;
         return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
     }
 }

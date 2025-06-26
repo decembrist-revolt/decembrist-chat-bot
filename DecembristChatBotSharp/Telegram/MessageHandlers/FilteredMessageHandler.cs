@@ -47,7 +47,5 @@ public class FilteredMessageHandler(
     }
 
     private async Task<bool> IsFiltered(string text, long chatId) =>
-        (appConfig.FilterConfig.FilterPhrases != null && appConfig.FilterConfig.FilterPhrases.Any(w =>
-            text.Contains(w, StringComparison.OrdinalIgnoreCase))) ||
-        await filterRecordRepository.IsFilterRecordExist((chatId, text));
+        await filterRecordRepository.IsFilterRecordExist((chatId, text.ToLower()));
 }
