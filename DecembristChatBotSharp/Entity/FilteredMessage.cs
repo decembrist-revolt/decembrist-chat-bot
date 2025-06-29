@@ -2,8 +2,8 @@
 
 namespace DecembristChatBotSharp.Entity;
 
-public record SuspiciousMessage(
-    [property: BsonId] SuspiciousMessage.CompositeId Id,
+public record FilteredMessage(
+    [property: BsonId] FilteredMessage.CompositeId Id,
     long OwnerId,
     int CaptchaMessageId,
     DateTime CreatedAt)

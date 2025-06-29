@@ -27,7 +27,7 @@ public class LorePrivateCallbackHandler(
         if (!Enum.TryParse(suffix, true, out LoreSuffix loreSuffix)) return unit;
 
         var taskResult = maybeParameters.MatchAsync(
-            None: () => messageAssistance.SendCommandResponse(chatId, "OK", nameof(ProfilePrivateCallbackHandler)),
+            None: () => messageAssistance.SendCommandResponse(chatId, "OK", nameof(LorePrivateCallbackHandler)),
             Some: async parameters =>
             {
                 if (!callbackService.HasChatIdKey(parameters, out var targetChatId)) return unit;

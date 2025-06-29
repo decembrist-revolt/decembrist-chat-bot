@@ -18,9 +18,15 @@ public class ProfileButtons(
         markup.Add([GetProfileButton("Inventory", chatId, ProfileSuffix.Inventory)]);
 
         var id = (telegramId, chatId);
-        if (await loreUserRepository.IsLoreUser(id) || await adminUserRepository.IsAdmin(id))
+        var isAdmin = await adminUserRepository.IsAdmin(id);
+        if (isAdmin || await loreUserRepository.IsLoreUser(id))
         {
             markup.Add([GetProfileButton("Lore", chatId, ProfileSuffix.Lore)]);
+        }
+
+        if (isAdmin)
+        {
+            markup.Add([GetProfileButton("Admin Panel", chatId, ProfileSuffix.AdminPanel)]);
         }
 
         return new InlineKeyboardMarkup(markup);
