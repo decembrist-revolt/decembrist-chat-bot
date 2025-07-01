@@ -22,7 +22,7 @@ public record AppConfig(
     MenuConfig MenuConfig,
     LoreConfig LoreConfig,
     LoreListConfig LoreListConfig,
-    BlackListConfig BlackListConfig,
+    FilterConfig FilterConfig,
     RedditConfig RedditConfig,
     RestrictConfig RestrictConfig,
     CurseConfig CurseConfig,
@@ -159,7 +159,9 @@ public record MenuConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ProfileTitle,
     [property: Required(AllowEmptyStrings = false)]
-    string LorDescription
+    string LoreDescription,
+    [property: Required(AllowEmptyStrings = false)]
+    string FilterDescription
 );
 
 public record LoreConfig(
@@ -215,7 +217,7 @@ public record LoreListConfig(
     [property: Range(1, int.MaxValue)] int ExpirationMinutes
 );
 
-public record BlackListConfig(
+public record FilterConfig(
     [property: Required(AllowEmptyStrings = false)]
     string CaptchaMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -224,9 +226,27 @@ public record BlackListConfig(
     string SuccessMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FailedMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessAddMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FailedAddMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string DuplicateMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ExpiredMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string HelpMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string CreateRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string DeleteRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string DeleteSuccess,
+    [property: Required(AllowEmptyStrings = false)]
+    string NotFound,
     [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalSeconds,
     [property: Range(1, int.MaxValue)] int CaptchaTimeSeconds,
-    System.Collections.Generic.HashSet<string>? SuspiciousWords
+    [property: Range(1, int.MaxValue)] int ExpiredAddMinutes
 );
 
 public record RedditConfig(
@@ -346,6 +366,7 @@ public record ItemConfig(
     string FailedToOpenBoxMessage,
     [property: Required(AllowEmptyStrings = false)]
     string StoneDescription,
+    MemberItemType CompensationItem,
     [property: Range(1, int.MaxValue)] int UniqueItemGiveExpirationMinutes,
     [property: Range(1, int.MaxValue)] int BoxMessageExpiration
 );
