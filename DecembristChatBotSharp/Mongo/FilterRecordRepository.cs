@@ -1,5 +1,5 @@
-﻿using System.Linq.Expressions;
-using DecembristChatBotSharp.Entity;
+﻿using DecembristChatBotSharp.Entity;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using Serilog;
@@ -42,6 +42,26 @@ public class FilterRecordRepository(
             .Match(identity, ex =>
             {
                 Log.Error(ex, "Failed to find filter record with id: {0}", id);
+                return false;
+            });
+    }
+
+    public async Task<bool> IsFilterRecordContain(long chatId, string text)
+    {
+        var builder = Builders<FilterRecord>.Filter;
+        var filter = builder.And(builder.Eq(r => r.Id.ChatId, chatId),
+            new BsonDocument("$expr", new BsonDocument("$gt", new BsonArray
+            {
+                new BsonDocument("$indexOfCP", new BsonArray { text, "$_id.Key" }),
+                -1
+            }))
+        );
+        return await GetCollection().Find(filter)
+            .AnyAsync(cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .Match(identity, ex =>
+            {
+                Log.Error(ex, "Failed to find filter records list with chat: {0}", chatId);
                 return false;
             });
     }
