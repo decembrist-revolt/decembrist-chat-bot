@@ -4,6 +4,7 @@ using Lamar;
 using Quartz;
 using Serilog;
 using Telegram.Bot;
+using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Scheduler;
 
@@ -107,7 +108,8 @@ public class DailyPremiumRewardJob(
         var usernamesString = (await usernames.Traverse(identity)).ToFullString();
 
         var message = string.Format(appConfig.CommandConfig.PremiumConfig.DailyPremiumRewardMessage, usernamesString);
-        return await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token)
+        return await botClient.SendMessage(
+                chatId, message, parseMode: ParseMode.MarkdownV2, cancellationToken: cancelToken.Token)
             .ToTryAsync()
             .Match(
                 _ =>
