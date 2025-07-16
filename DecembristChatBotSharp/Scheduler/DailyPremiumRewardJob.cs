@@ -105,7 +105,7 @@ public class DailyPremiumRewardJob(
             select botClient.GetUsername(chatId, telegramId, cancelToken.Token)
                 .ToAsync()
                 .IfNone(telegramId.ToString);
-        var usernamesString = (await usernames.Traverse(identity)).ToFullString();
+        var usernamesString = (await usernames.Traverse(identity)).Map(username => username.EscapeMarkdown()).ToFullString();
 
         var message = string.Format(appConfig.CommandConfig.PremiumConfig.DailyPremiumRewardMessage, usernamesString);
         return await botClient.SendMessage(
