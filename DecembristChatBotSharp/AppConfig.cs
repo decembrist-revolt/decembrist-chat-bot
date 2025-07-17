@@ -125,6 +125,7 @@ public record MongoConfig(
 );
 
 public record CommandConfig(
+    [property: Range(1, int.MaxValue)] 
     int CommandIntervalSeconds,
     LikeConfig LikeConfig,
     BanConfig BanConfig,
@@ -148,7 +149,12 @@ public record CommandConfig(
     string FastReplyBlockedMessage,
     [property: Required(AllowEmptyStrings = false)]
     string WrongCommandMessage,
-    [property: Range(1, int.MaxValue)] int FastReplyDaysDuration
+    [property: Range(1, int.MaxValue)] 
+    int FastReplyDaysDuration,
+    [property: Required(AllowEmptyStrings = false)]
+    string FastReplyExpiredMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FastReplyCheckExpireCronUtc
 );
 
 public record MenuConfig(

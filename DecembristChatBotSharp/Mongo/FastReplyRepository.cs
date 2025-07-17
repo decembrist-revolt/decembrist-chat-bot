@@ -1,5 +1,6 @@
 ﻿using DecembristChatBotSharp.Entity;
 using Lamar;
+using LanguageExt.UnsafeValueAccess;
 using MongoDB.Driver;
 using Serilog;
 
@@ -16,15 +17,11 @@ public class FastReplyRepository(
     {
         var collection = GetCollection();
         var indexes = await (await collection.Indexes.ListAsync(cancelToken.Token)).ToListAsync(cancelToken.Token);
-        if (indexes.Any(index => index["name"] == ExpireFastReplyIndex)) return unit;
-
-        var expireAtIndex = Builders<FastReply>.IndexKeys.Ascending(x => x.ExpireAt);
-        var options = new CreateIndexOptions
+        if (indexes.Any(index => index["name"] == ExpireFastReplyIndex))
         {
-            ExpireAfter = TimeSpan.Zero,
-            Name = ExpireFastReplyIndex
-        };
-        await collection.Indexes.CreateOneAsync(new CreateIndexModel<FastReply>(expireAtIndex, options));
+            await collection.Indexes.DropOneAsync(ExpireFastReplyIndex, cancelToken.Token);
+        }
+
         return unit;
     }
 
@@ -67,6 +64,35 @@ public class FastReplyRepository(
                     return InsertResult.Failed;
                 });
     }
+    
+    public async Task<Arr<FastReply>> GetExpiredFastReplies(IMongoSession session)
+    {
+        var collection = GetCollection();
+
+        return await collection.Find(session, reply => reply.ExpireAt < DateTime.UtcNow)
+            .ToListAsync(cancelToken.Token)
+            .ToTryAsync()
+            .Match(
+                replies => replies.ToArr(),
+                ex =>
+                {
+                    Log.Error(ex, "Failed to get expired fast replies");
+                    return Arr<FastReply>.Empty;
+                });
+    }
+    
+    public async Task<bool> DeleteFastReplies(Arr<FastReply> fastReplies, IMongoSession session) 
+    {
+        if (fastReplies.IsEmpty) return true;
+
+        var collection = GetCollection();
+        var ids = fastReplies.Map(reply => reply.Id).ToList();
+
+        var taskResult = await collection.DeleteManyAsync(session,
+            reply => ids.Contains(reply.Id), cancellationToken: cancelToken.Token);
+
+        return taskResult.DeletedCount > 0;
+    }
 
     public async Task<bool> DeleteFastReply(FastReply.CompositeId id, IMongoSession? session = null)
     {
@@ -84,7 +110,7 @@ public class FastReplyRepository(
     }
 
     private IMongoCollection<FastReply> GetCollection() => db.GetCollection<FastReply>(nameof(FastReply));
-    
+
     public enum InsertResult
     {
         Success,

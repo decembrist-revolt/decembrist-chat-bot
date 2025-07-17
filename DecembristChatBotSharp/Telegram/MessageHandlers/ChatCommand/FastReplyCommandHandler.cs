@@ -19,6 +19,7 @@ public class FastReplyCommandHandler(
 ) : ICommandHandler
 {
     public const string CommandKey = "/fastreply";
+    public const string ArgSeparator = "@";
 
     public string Command => CommandKey;
     public string Description => "Creates new fast reply option '/fastreply' for help";
@@ -30,7 +31,7 @@ public class FastReplyCommandHandler(
 
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
-        var args = text.Trim().Split("@").Skip(1).ToArray();
+        var args = text.Trim().Split(ArgSeparator).Skip(1).ToArray();
         if (args is not [var message, var reply])
         {
             return await Array(
