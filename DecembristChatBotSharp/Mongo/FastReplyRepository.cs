@@ -8,6 +8,7 @@ namespace DecembristChatBotSharp.Mongo;
 
 [Singleton]
 public class FastReplyRepository(
+    AppConfig appConfig,
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
 {
@@ -23,6 +24,31 @@ public class FastReplyRepository(
         }
 
         return unit;
+    }
+
+    public async Task<Option<int>> GetMessagesCount(long chatId) =>
+        await GetCollection()
+            .CountDocumentsAsync(m => m.Id.ChatId == chatId)
+            .ToTryAsync()
+            .Match(x => x == 0 ? None : Some((int)x),
+                ex =>
+                {
+                    Log.Error(ex, "Failed get keys count in fast reply db for chat {0}", chatId);
+                    return None;
+                });
+
+    public async Task<Option<List<string>>> GetFastReplyMessages(long chatId, int skip = 0)
+    {
+        if (skip < 0) return None;
+        var items = await GetCollection()
+            .Find(m => m.Id.ChatId == chatId && m.MessageType == FastReplyType.Text)
+            .SortBy(m => m.Id.Message)
+            .Skip(skip)
+            .Limit(appConfig.ListConfig.RowLimit)
+            .Project(record => record.Id.Message)
+            .ToListAsync();
+
+        return items.Count == 0 ? None : items;
     }
 
     public async Task<Option<FastReply>> FindOne(long chatId, string message, FastReplyType type)
@@ -42,7 +68,7 @@ public class FastReplyRepository(
                 return None;
             });
     }
-    
+
     public async Task<InsertResult> AddFastReply(FastReply fastReply, IMongoSession session)
     {
         var collection = GetCollection();
@@ -52,7 +78,7 @@ public class FastReplyRepository(
             .ToTryOption();
 
         if (tryFind.IsSome()) return InsertResult.Duplicate;
-        
+
         return await collection
             .InsertOneAsync(session, fastReply, cancellationToken: cancelToken.Token)
             .ToTryAsync()
@@ -64,7 +90,7 @@ public class FastReplyRepository(
                     return InsertResult.Failed;
                 });
     }
-    
+
     public async Task<Arr<FastReply>> GetExpiredFastReplies(IMongoSession session)
     {
         var collection = GetCollection();
@@ -80,8 +106,8 @@ public class FastReplyRepository(
                     return Arr<FastReply>.Empty;
                 });
     }
-    
-    public async Task<bool> DeleteFastReplies(Arr<FastReply> fastReplies, IMongoSession session) 
+
+    public async Task<bool> DeleteFastReplies(Arr<FastReply> fastReplies, IMongoSession session)
     {
         if (fastReplies.IsEmpty) return true;
 

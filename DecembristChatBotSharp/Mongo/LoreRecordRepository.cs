@@ -76,7 +76,7 @@ public class LoreRecordRepository(
             .Find(m => m.Id.ChatId == chatId)
             .SortBy(m => m.Id.Key)
             .Skip(skip)
-            .Limit(appConfig.LoreListConfig.RowLimit)
+            .Limit(appConfig.ListConfig.RowLimit)
             .Project(record => record.Id.Key)
             .ToListAsync();
 

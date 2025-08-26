@@ -52,7 +52,8 @@ public partial class LoreCommandHandler(
 
     private Task<Unit> SendNotFound(long chatId)
     {
-        var message = string.Format(appConfig.LoreConfig.LoreNotFound, Command, LoreListCommandHandler.CommandKey);
+        var message = string.Format(appConfig.LoreConfig.LoreNotFound, Command,
+            $"{ListCommandHandler.CommandKey} {ListType.Lore}");
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 }
