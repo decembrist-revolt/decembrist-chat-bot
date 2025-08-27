@@ -37,18 +37,23 @@ public class FastReplyRepository(
                     return None;
                 });
 
-    public async Task<Option<List<string>>> GetFastReplyMessages(long chatId, int skip = 0)
+    public async Task<Option<List<(string, DateTime)>>> GetFastReplyMessages(long chatId, int skip = 0)
     {
         if (skip < 0) return None;
-        var items = await GetCollection()
+        return await GetCollection()
             .Find(m => m.Id.ChatId == chatId && m.MessageType == FastReplyType.Text)
             .SortBy(m => m.Id.Message)
             .Skip(skip)
             .Limit(appConfig.ListConfig.RowLimit)
-            .Project(record => record.Id.Message)
-            .ToListAsync();
-
-        return items.Count == 0 ? None : items;
+            .Project(record => new { record.Id.Message, record.ExpireAt })
+            .ToListAsync()
+            .ToTryAsync()
+            .Match(items => items.Count != 0 ? Some(items.Select(i => (i.Message, i.ExpireAt)).ToList()) : None,
+                ex =>
+                {
+                    Log.Error(ex, "Failed to get fast reply messages for chat {0}", chatId);
+                    return None;
+                });
     }
 
     public async Task<Option<FastReply>> FindOne(long chatId, string message, FastReplyType type)

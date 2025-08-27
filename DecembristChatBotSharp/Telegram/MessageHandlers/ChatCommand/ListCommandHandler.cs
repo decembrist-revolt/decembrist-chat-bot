@@ -65,7 +65,7 @@ public partial class ListCommandHandler(
             return await messageAssistance.CommandNotReady(chatId, 0, Command);
         }
 
-        var maybeKeysAndCount = await listService.GetKeys(chatId, listType);
+        var maybeKeysAndCount = await listService.GetListBody(chatId, listType);
         return await maybeKeysAndCount.MatchAsync(
             None: () => SendNotFound(chatId, listType),
             Some: tuple => SendListSuccess(chatId, telegramId, listType, tuple.Item1, tuple.Item2));

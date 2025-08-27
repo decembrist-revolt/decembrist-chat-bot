@@ -38,7 +38,7 @@ public class ListCallbackHandler(
         var hasPermission = await callbackRepository.HasPermission(id);
         if (!hasPermission) return await SendNotAccess(queryId, chatId);
 
-        var maybeKeysAndCount = await listService.GetKeys(chatId, listType, currentOffset);
+        var maybeKeysAndCount = await listService.GetListBody(chatId, listType, currentOffset);
         return await maybeKeysAndCount.Match(
             tuple => EditSuccess(chatId, messageId, currentOffset, listType, tuple),
             () => SendNotFound(queryId, chatId));

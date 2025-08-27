@@ -22,57 +22,58 @@ public class ListService(
         var output = x.Outputs.Count == 1
             ? x.Outputs[0].Item.ToString()
             : string.Join(", ", x.Outputs.Select(i => $"{i.Item} - {i.Chance:P}"));
-        return input + ("⇒" + output).EscapeMarkdown();
+        return input + (" ⇒ " + output).EscapeMarkdown();
     }).ToImmutableList();
 
-    public async Task<Option<(string, int)>> GetKeys(long chatId, ListType listType, int currentOffset = 0)
-    {
-        if (listType is ListType.Craft or ListType.Dust)
+    public async Task<Option<(string, int)>> GetListBody(long chatId, ListType listType, int currentOffset = 0) =>
+        listType switch
         {
-            return FillListRecipes(listType, currentOffset);
-        }
-
-        var maybeCount = listType switch
-        {
-            ListType.FastReply => await fastReplyRepository.GetMessagesCount(chatId),
-            ListType.Lore => await loreRecordRepository.GetKeysCount(chatId),
+            ListType.Lore => await FillListLore(currentOffset, chatId),
+            ListType.FastReply => await FillListFastReply(currentOffset, chatId),
+            ListType.Craft or ListType.Dust => FillListRecipes(listType, currentOffset),
             _ => None
         };
-        return await maybeCount.MatchAsync(
-            None: () => None,
-            Some: async keysCount =>
-            {
-                if (keysCount < currentOffset) return None;
-                var h = await FillList(listType, currentOffset, chatId);
-                return h.Match(
-                    x => Some((x, m: keysCount)),
-                    () => None);
-            });
-    }
 
-    private async Task<Option<string>> FillList(ListType listType, int currentOffset, long chatId)
-    {
-        var maybeResult = listType switch
+    private Task<Option<(string, int)>> FillListLore(int currentOffset, long chatId) =>
+        loreRecordRepository.GetKeysCount(chatId).BindAsync(keysCount =>
         {
-            ListType.FastReply => await fastReplyRepository.GetFastReplyMessages(chatId, currentOffset),
-            ListType.Lore => await loreRecordRepository.GetLoreKeys(chatId, currentOffset),
-            _ => None
-        };
-        return maybeResult.Match(
-            None: () => None,
-            Some: keys =>
-            {
-                var sb = new StringBuilder();
-                foreach (var key in keys)
+            if (keysCount < currentOffset) return None;
+
+            var maybeResult = loreRecordRepository.GetLoreKeys(chatId, currentOffset);
+            return maybeResult.BindAsync(keys =>
                 {
-                    var escape = key.EscapeMarkdown();
-                    sb.Append("• `").Append(escape).AppendLine("`");
-                }
+                    var sb = new StringBuilder();
+                    foreach (var key in keys)
+                    {
+                        sb.Append("• `").Append(key.EscapeMarkdown()).AppendLine("`");
+                    }
 
-                return Some(sb.ToString());
-            }
-        );
-    }
+                    return Some((sb.ToString(), keysCount));
+                }
+            );
+        }).ToOption();
+
+    private Task<Option<(string, int)>> FillListFastReply(int currentOffset, long chatId) =>
+        fastReplyRepository.GetMessagesCount(chatId).BindAsync(keysCount =>
+        {
+            if (keysCount < currentOffset) return None;
+
+            var maybeResult = fastReplyRepository.GetFastReplyMessages(chatId, currentOffset);
+            return maybeResult.BindAsync(keysAndDate =>
+                {
+                    var sb = new StringBuilder();
+                    foreach (var (key, date) in keysAndDate)
+                    {
+                        sb.Append("• `")
+                            .Append(key.EscapeMarkdown())
+                            .Append('`')
+                            .AppendLine($" - {date:d}".EscapeMarkdown());
+                    }
+
+                    return Some((sb.ToString(), keysCount));
+                }
+            );
+        }).ToOption();
 
     private Option<(string, int)> FillListRecipes(ListType listType, int currentOffset)
     {
@@ -82,7 +83,7 @@ public class ListService(
             ListType.Craft => _craftRecipes,
             _ => []
         };
-        if (maybeResult.IsEmpty) return None;
+        if (maybeResult.IsEmpty || maybeResult.Count < currentOffset) return None;
 
         var sb = new StringBuilder();
         foreach (var line in maybeResult.Skip(currentOffset).Take(appConfig.ListConfig.RowLimit))

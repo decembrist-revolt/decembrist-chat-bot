@@ -72,15 +72,20 @@ public class LoreRecordRepository(
     public async Task<Option<List<string>>> GetLoreKeys(long chatId, int skip = 0)
     {
         if (skip < 0) return None;
-        var items = await GetCollection()
+        return await GetCollection()
             .Find(m => m.Id.ChatId == chatId)
             .SortBy(m => m.Id.Key)
             .Skip(skip)
             .Limit(appConfig.ListConfig.RowLimit)
             .Project(record => record.Id.Key)
-            .ToListAsync();
-
-        return items.Count == 0 ? None : items;
+            .ToListAsync()
+            .ToTryAsync()
+            .Match(list => list.Count == 0 ? None : Some(list),
+                ex =>
+                {
+                    Log.Error(ex, "Failed to get lore record for chat {0}", chatId);
+                    return None;
+                });
     }
 
     public async Task<Option<int>> GetKeysCount(long chatId) =>
