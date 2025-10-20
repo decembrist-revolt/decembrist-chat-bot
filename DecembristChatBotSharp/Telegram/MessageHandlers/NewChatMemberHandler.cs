@@ -27,6 +27,7 @@ public class NewMemberHandler(
     BotClient botClient,
     NewMemberRepository newMemberRepository,
     WhiteListRepository whiteListRepository,
+    ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken
 )
 {
@@ -64,7 +65,12 @@ public class NewMemberHandler(
             botClient.SendMessage(chatId: chatId, text: welcomeText, cancellationToken: cancelToken.Token));
 
         return await trySend
-            .Bind(message => newMemberRepository.AddNewMember(user.Id, username, chatId, message.MessageId))
+            .Bind(message =>
+            {
+                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.CaptchaConfig.WelcomeMessageExpiration);
+                expiredMessageRepository.QueueMessage(chatId, message.MessageId, expireAt);
+                return newMemberRepository.AddNewMember(user.Id, username, chatId, message.MessageId);
+            })
             .ToEither()
             .BiMap(
                 _ => username,
