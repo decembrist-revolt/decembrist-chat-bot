@@ -23,6 +23,7 @@ public class CaptchaHandler(
     NewMemberRepository newMemberRepository,
     WhiteListRepository whiteListRepository,
     MessageAssistance messageAssistance,
+    ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken
 )
 {
@@ -105,6 +106,8 @@ public class CaptchaHandler(
             .ToTryAsync()
             .Match(async message =>
                 {
+                    var expireAt = DateTime.UtcNow.AddMinutes(appConfig.CaptchaConfig.CaptchaRequestAgainExpiration);
+                    expiredMessageRepository.QueueMessage(chatId, message.MessageId, expireAt);
                     await newMemberRepository.AddMemberItem(newMember with
                     {
                         CaptchaRetryCount = newMember.CaptchaRetryCount + 1, WelcomeMessageId = message.MessageId

@@ -99,6 +99,7 @@ public record AppConfig(
 public record CaptchaConfig(
     [property: Required(AllowEmptyStrings = false)]
     string WelcomeMessage,
+    [property: Range(1, int.MaxValue)] int WelcomeMessageExpiration,
     [property: Required(AllowEmptyStrings = false)]
     string CaptchaAnswer,
     [property: Required(AllowEmptyStrings = false)]
@@ -108,6 +109,7 @@ public record CaptchaConfig(
     [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalHours,
     [property: Range(1, long.MaxValue)] long CaptchaTimeHours,
     [property: Range(1, int.MaxValue)] int CaptchaRequestAgainCount,
+    [property: Range(1, int.MaxValue)] int CaptchaRequestAgainExpiration,
     [property: Range(1, int.MaxValue)] int CaptchaRetryCount);
 
 public record AllowedChatConfig(
