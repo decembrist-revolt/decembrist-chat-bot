@@ -12,5 +12,5 @@ public record CallbackPermission(
 
 public enum CallbackType
 {
-    LoreList
+    List
 }

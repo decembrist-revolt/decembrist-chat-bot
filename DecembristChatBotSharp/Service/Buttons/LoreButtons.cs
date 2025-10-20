@@ -23,28 +23,10 @@ public class LoreButtons(AppConfig appConfig)
         };
     }
 
-
-    public InlineKeyboardMarkup GetLoreListChatMarkup(int totalCount, int currentOffset = 0)
-    {
-        var markup = new List<InlineKeyboardButton>();
-        var limit = appConfig.LoreListConfig.RowLimit;
-        if (currentOffset > 0)
-        {
-            markup.Add(GetLoreListChatButton("⬅️ Prev", currentOffset - limit));
-        }
-
-        if (currentOffset + limit < totalCount)
-        {
-            markup.Add(GetLoreListChatButton("Next ➡️", currentOffset + limit));
-        }
-
-        return new InlineKeyboardMarkup(markup);
-    }
-
     public InlineKeyboardMarkup GetLoreListPrivateMarkup(long chatId, int currentOffset, int totalCount)
     {
         var markup = new List<InlineKeyboardButton>();
-        var limit = appConfig.LoreListConfig.RowLimit;
+        var limit = appConfig.ListConfig.RowLimit;
         if (currentOffset > 0)
         {
             markup.Add(GetLoreListButton("⬅️ Prev", chatId, currentOffset - limit));
@@ -75,13 +57,6 @@ public class LoreButtons(AppConfig appConfig)
     {
         (string, object)[] parameters = [(IndexStartParameter, startIndex), (ChatIdParameter, chatId)];
         var callback = GetCallback(LorePrivateCallbackHandler.PrefixKey, LoreSuffix.List, parameters);
-        return InlineKeyboardButton.WithCallbackData(name, callback);
-    }
-
-    private static InlineKeyboardButton GetLoreListChatButton(string name, int startIndex)
-    {
-        var loreListParameter = (IndexStartParameter, startIndex);
-        var callback = GetCallback(LoreCallbackHandler.PrefixKey, LoreChatSuffix.List, loreListParameter);
         return InlineKeyboardButton.WithCallbackData(name, callback);
     }
 }

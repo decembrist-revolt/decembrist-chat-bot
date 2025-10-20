@@ -21,7 +21,7 @@ public record AppConfig(
     CommandConfig CommandConfig,
     MenuConfig MenuConfig,
     LoreConfig LoreConfig,
-    LoreListConfig LoreListConfig,
+    ListConfig ListConfig,
     FilterConfig FilterConfig,
     RedditConfig RedditConfig,
     RestrictConfig RestrictConfig,
@@ -127,8 +127,7 @@ public record MongoConfig(
 );
 
 public record CommandConfig(
-    [property: Range(1, int.MaxValue)] 
-    int CommandIntervalSeconds,
+    [property: Range(1, int.MaxValue)] int CommandIntervalSeconds,
     LikeConfig LikeConfig,
     BanConfig BanConfig,
     TelegramPostConfig TelegramPostConfig,
@@ -151,8 +150,7 @@ public record CommandConfig(
     string FastReplyBlockedMessage,
     [property: Required(AllowEmptyStrings = false)]
     string WrongCommandMessage,
-    [property: Range(1, int.MaxValue)] 
-    int FastReplyDaysDuration,
+    [property: Range(1, int.MaxValue)] int FastReplyDaysDuration,
     [property: Required(AllowEmptyStrings = false)]
     string FastReplyExpiredMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -214,11 +212,13 @@ public record LoreConfig(
     [property: Range(1, int.MaxValue)] int KeyLimit
 );
 
-public record LoreListConfig(
+public record ListConfig(
     [property: Required(AllowEmptyStrings = false)]
     string NotFound,
     [property: Required(AllowEmptyStrings = false)]
     string SuccessTemplate,
+    [property: Required(AllowEmptyStrings = false)]
+    string HelpMessage,
     [property: Required(AllowEmptyStrings = false)]
     string NotAccess,
     [property: Range(1, int.MaxValue)] int RowLimit,

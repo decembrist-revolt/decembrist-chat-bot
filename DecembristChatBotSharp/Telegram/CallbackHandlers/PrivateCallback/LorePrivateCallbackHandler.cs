@@ -2,6 +2,7 @@
 using DecembristChatBotSharp.Service.Buttons;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
 using DecembristChatBotSharp.Telegram.LoreHandlers;
+using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Lamar;
 using LanguageExt.UnsafeValueAccess;
 using Telegram.Bot.Types.Enums;
@@ -75,7 +76,7 @@ public class LorePrivateCallbackHandler(
             {
                 var (keys, totalCount) = tuple;
                 var keyboard = loreButtons.GetLoreListPrivateMarkup(targetChatId, currentOffset, totalCount);
-                var message = string.Format(appConfig.LoreListConfig.SuccessTemplate, totalCount, keys);
+                var message = string.Format(appConfig.ListConfig.SuccessTemplate, ListType.Lore, totalCount, keys);
                 return messageAssistance.EditProfileMessage(telegramId, targetChatId, messageId, keyboard, message,
                     Prefix, ParseMode.MarkdownV2);
             });
