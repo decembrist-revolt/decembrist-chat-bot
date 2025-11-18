@@ -304,6 +304,10 @@
           {
             "Item": "Charm",
             "Chance": 0.05
+          },
+          {
+            "Item": "Mina",
+            "Chance": 0.05
           }
         ]
       },
@@ -321,11 +325,15 @@
         "Outputs": [
           {
             "Item": "Charm",
-            "Chance": 0.45
+            "Chance": 0.33
           },
           {
             "Item": "Curse",
-            "Chance": 0.45
+            "Chance": 0.33
+          },
+          {
+            "Item": "Mina",
+            "Chance": 0.33
           },
           {
             "Item": "Box",
@@ -499,6 +507,60 @@
         "Outputs": [
           {
             "Item": "Amulet",
+            "Chance": 1.0
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "RedDust",
+            "Quantity": 2
+          },
+          {
+            "Item": "Curse",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Charm",
+            "Chance": 1.0
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "RedDust",
+            "Quantity": 2
+          },
+          {
+            "Item": "Charm",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Mina",
+            "Chance": 1.0
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "RedDust",
+            "Quantity": 2
+          },
+          {
+            "Item": "Mina",
+            "Quantity": 1
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "Curse",
             "Chance": 1.0
           }
         ]
