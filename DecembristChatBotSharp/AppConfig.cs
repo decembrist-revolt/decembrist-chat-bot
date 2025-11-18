@@ -26,6 +26,7 @@ public record AppConfig(
     RedditConfig RedditConfig,
     RestrictConfig RestrictConfig,
     CurseConfig CurseConfig,
+    MinaConfig MinaConfig,
     DislikeConfig DislikeConfig,
     CharmConfig CharmConfig,
     AmuletConfig AmuletConfig,
@@ -307,6 +308,19 @@ public record CurseConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ReceiverNotSetMessage,
     [property: Range(1, int.MaxValue)] int DurationMinutes
+);
+
+public record MinaConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string HelpMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string DuplicateMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ActivationMessage,
+    [property: Range(1, int.MaxValue)] int DurationMinutes,
+    [property: Range(1, int.MaxValue)] int TriggerMaxLength
 );
 
 public record DislikeConfig(

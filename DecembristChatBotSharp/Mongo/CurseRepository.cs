@@ -30,16 +30,18 @@ public class CurseRepository(
         return unit;
     }
 
-    public async Task<CurseResult> AddCurseMember(
-        ReactionSpamMember member, IMongoSession? session = null)
+    public async Task<CurseResult> AddCurseMember(ReactionSpamMember member, IMongoSession? session = null)
     {
         var collection = GetCollection();
         var isCursedResult = await IsUserCursed(member.Id, session);
         if (isCursedResult.IsLeft) return CurseResult.Failed;
         if (isCursedResult.IfLeftThrow()) return CurseResult.Duplicate;
 
-        return await collection
-            .InsertOneAsync(session, member, cancellationToken: cancelToken.Token)
+        var insertTask = session.IsNull()
+            ? collection.InsertOneAsync(member, cancellationToken: cancelToken.Token)
+            : collection.InsertOneAsync(session, member, cancellationToken: cancelToken.Token);
+
+        return await insertTask
             .ToTryAsync()
             .Match(
                 _ => CurseResult.Success,

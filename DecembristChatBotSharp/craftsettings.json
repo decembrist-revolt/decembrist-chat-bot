@@ -79,6 +79,20 @@
           "Quantity": 1
         }
       },
+      "Mina": {
+        "Reward": {
+          "Item": "RedDust",
+          "Range": {
+            "Min": 1,
+            "Max": 5
+          }
+        },
+        "PremiumReward": {
+          "Chance": 0.20,
+          "Item": "Box",
+          "Quantity": 1
+        }
+      },
       "RedDust": {
         "Reward": {
           "Item": "BlueDust",
@@ -203,7 +217,7 @@
         "Outputs": [
           {
             "Item": "FastReply",
-            "Chance": 0.90
+            "Chance": 0.85
           },
           {
             "Item": "Curse",
@@ -211,6 +225,10 @@
           },
           {
             "Item": "Charm",
+            "Chance": 0.05
+          },
+          {
+            "Item": "Mina",
             "Chance": 0.05
           }
         ]

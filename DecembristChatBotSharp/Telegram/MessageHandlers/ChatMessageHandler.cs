@@ -44,6 +44,7 @@ public class ChatMessageHandler(
     MessageAssistance messageAssistance,
     CharmHandler charmHandler,
     CurseHandler curseHandler,
+    MinaHandler minaHandler,
     WrongCommandHandler wrongCommandHandler
 )
 {
@@ -56,6 +57,7 @@ public class ChatMessageHandler(
         await filteredMessageHandler.Do(parameters);
 
         await curseHandler.Do(parameters);
+        if (await minaHandler.Do(parameters)) return unit;
         if (await restrictHandler.Do(parameters)) return unit;
         if (await charmHandler.Do(parameters)) return unit;
 

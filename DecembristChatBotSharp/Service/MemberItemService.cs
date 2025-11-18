@@ -17,6 +17,7 @@ public class MemberItemService(
     FastReplyRepository fastReplyRepository,
     CurseRepository curseRepository,
     CharmRepository charmRepository,
+    MinaRepository minaRepository,
     RedditService redditService,
     MessageAssistance messageAssistance,
     TelegramPostService telegramPostService,
@@ -183,6 +184,35 @@ public class MemberItemService(
         }
     }
 
+    public async Task<MinaResult> UseMina(
+        long chatId, long telegramId, MineTrigger trigger, bool isAdmin)
+    {
+        using var session = await db.OpenSession();
+        session.StartTransaction();
+
+        var hasItem = isAdmin || await memberItemRepository
+            .RemoveMemberItem(chatId, telegramId, MemberItemType.Mina, session);
+        var maybeResult = !hasItem ? MinaResult.NoItems : await HandleItem(session);
+
+        return maybeResult switch
+        {
+            MinaResult.Success => await HandleSuccessUsingItem(maybeResult, MinaResult.Failed,
+                session, chatId, telegramId),
+            MinaResult.Failed => await AbortSessionAndLog(MinaResult.Failed, chatId, telegramId,
+                reason: nameof(MinaResult.Failed), session),
+            MinaResult.NoItems or MinaResult.Duplicate => await AbortSessionAndLog(maybeResult, chatId, telegramId,
+                session),
+            _ => throw new ArgumentOutOfRangeException()
+        };
+
+        async Task<MinaResult> HandleItem(IMongoSession localSession)
+        {
+            await historyLogRepository.LogItem(
+                chatId, telegramId, MemberItemType.Mina, -1, MemberItemSourceType.Use, localSession);
+            return await minaRepository.AddMineTrigger(trigger, localSession);
+        }
+    }
+
     public async Task<CharmResult> UseCharm(
         long chatId, long telegramId, CharmMember member, bool isAdmin)
     {
@@ -323,6 +353,14 @@ public enum CurseResult
 {
     Success,
     Blocked,
+    NoItems,
+    Duplicate,
+    Failed
+}
+
+public enum MinaResult
+{
+    Success,
     NoItems,
     Duplicate,
     Failed

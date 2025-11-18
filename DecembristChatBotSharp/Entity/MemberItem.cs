@@ -1,4 +1,4 @@
-﻿namespace DecembristChatBotSharp.Entity;
+﻿﻿namespace DecembristChatBotSharp.Entity;
 
 public record MemberItem(
     MemberItem.CompositeId Id,
@@ -18,6 +18,7 @@ public enum MemberItemType
     // reaction spam
     Curse = 4,
     Charm = 5,
+    Mina = 11,
 
     // passive
     Amulet = 6,
