@@ -3,6 +3,7 @@ using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
+using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
@@ -14,6 +15,7 @@ public class TelegramMemeCommandHandler(
     MessageAssistance messageAssistance,
     BotClient botClient,
     ExpiredMessageRepository expiredMessageRepository,
+    IHttpClientFactory httpClientFactory,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public const string CommandKey = "/telegrammeme";
@@ -55,13 +57,40 @@ public class TelegramMemeCommandHandler(
         return maybeSend.ToAsync().IfSome(identity);
     }
 
-    private async Task<Unit> SendMeme(long chatId, TelegramRandomMeme meme) =>
-        await botClient.SendPhoto(
-                chatId, meme.PhotoLink, caption: "Украденный мем", cancellationToken: cancelToken.Token)
-            .ToTryAsync()
-            .Match(
-                _ => Log.Information("Sent random telegram meme to chat {0}", chatId),
-                ex => Log.Error(ex, "Failed to send random telegram meme {0} to chat {1}", meme.PhotoLink, chatId));
+    private async Task<Unit> SendMeme(long chatId, TelegramRandomMeme meme)
+    {
+        try
+        {
+            var httpClient = httpClientFactory.CreateClient();
+            using var response = await httpClient.GetAsync(meme.PhotoLink, cancelToken.Token);
+            response.EnsureSuccessStatusCode();
+            
+            using var stream = await response.Content.ReadAsStreamAsync(cancelToken.Token);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream, cancelToken.Token);
+            memoryStream.Position = 0;
+            
+            var fileName = Path.GetFileName(new Uri(meme.PhotoLink).LocalPath);
+            if (string.IsNullOrEmpty(fileName) || !fileName.Contains('.'))
+            {
+                fileName = "meme.jpg";
+            }
+            
+            await botClient.SendPhoto(
+                chatId, 
+                InputFile.FromStream(memoryStream, fileName), 
+                caption: "Украденный мем", 
+                cancellationToken: cancelToken.Token);
+            
+            Log.Information("Sent random telegram meme to chat {0}", chatId);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to send random telegram meme {0} to chat {1}", meme.PhotoLink, chatId);
+        }
+        
+        return unit;
+    }
 
     private async Task<Unit> SendTelegramErrorMessage(long chatId)
     {
