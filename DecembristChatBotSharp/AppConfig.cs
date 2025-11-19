@@ -381,8 +381,13 @@ public record AmuletConfig(
     [property: Required(AllowEmptyStrings = false)]
     int MessageExpirationMinutes);
 
+public record ItemDropConfig(
+    double Chance,
+    int Quantity = 1
+);
+
 public record ItemConfig(
-    Dictionary<MemberItemType, double> ItemChance,
+    Dictionary<MemberItemType, ItemDropConfig> ItemChance,
     [property: Required(AllowEmptyStrings = false)]
     string NoItemsMessage,
     [property: Required(AllowEmptyStrings = false)]

@@ -81,9 +81,13 @@ public class MessageAssistance(
     public async Task<Unit> SendGetItemMessage(long chatId, string username, MemberItemType item, int count = 1)
     {
         var message = string.Format(appConfig.ItemConfig.GetItemMessage, username, item);
-        if (count > 1) message += "\n\n" + string.Format(appConfig.ItemConfig.MultipleItemMessage, count);
-        if (count == 0 && item == MemberItemType.Amulet)
-            message += "\n\n" + string.Format(appConfig.ItemConfig.AmuletBrokenMessage);
+        message += count switch
+        {
+            > 1 => "\n\n" + string.Format(appConfig.ItemConfig.MultipleItemMessage, count),
+            0 when item == MemberItemType.Amulet => "\n\n" + string.Format(appConfig.ItemConfig.AmuletBrokenMessage),
+            _ => string.Empty
+        };
+
         return await botClient.SendMessageAndLog(chatId, message,
             message =>
             {

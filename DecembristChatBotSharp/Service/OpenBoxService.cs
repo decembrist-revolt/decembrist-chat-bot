@@ -16,7 +16,7 @@ public class OpenBoxService(
     CancellationTokenSource cancelToken,
     UniqueItemService uniqueItemService)
 {
-    public async Task<(Option<MemberItemType>, OpenBoxResult)> OpenBox(long chatId, long telegramId)
+    public async Task<OpenBoxResultData> OpenBox(long chatId, long telegramId)
     {
         using var session = await db.OpenSession();
         session.StartTransaction();
@@ -24,19 +24,19 @@ public class OpenBoxService(
         var hasBox = await memberItemRepository.RemoveMemberItem(chatId, telegramId, MemberItemType.Box, session);
         if (!hasBox) return await AbortWithResult(session, OpenBoxResult.NoItems);
 
-        var itemType = GetRandomItem();
+        var (itemType, quantity) = GetRandomItemWithQuantity();
         return itemType switch
         {
             MemberItemType.Stone => await HandleUniqueItem(chatId, telegramId, itemType, session),
             MemberItemType.Box =>
-                await HandleItemType(chatId, telegramId, itemType, 2, OpenBoxResult.SuccessX2, session),
+                await HandleItemType(chatId, telegramId, itemType, quantity, OpenBoxResult.SuccessX2, session),
             MemberItemType.Amulet when await memberItemService.HandleAmuletItem((telegramId, chatId), session) =>
                 await HandleItemType(chatId, telegramId, itemType, 0, OpenBoxResult.AmuletActivated, session),
-            _ => await HandleItemType(chatId, telegramId, itemType, 1, OpenBoxResult.Success, session)
+            _ => await HandleItemType(chatId, telegramId, itemType, quantity, OpenBoxResult.Success, session)
         };
     }
 
-    private async Task<(Option<MemberItemType>, OpenBoxResult)> HandleUniqueItem(
+    private async Task<OpenBoxResultData> HandleUniqueItem(
         long chatId, long telegramId, MemberItemType itemType, IMongoSession session)
     {
         var isHasUniqueItem = await memberItemRepository.IsUserHasItem(chatId, telegramId, itemType, session);
@@ -54,7 +54,7 @@ public class OpenBoxService(
             : await AbortWithResult(session);
     }
 
-    private async Task<(Option<MemberItemType>, OpenBoxResult)> HandleItemType(
+    private async Task<OpenBoxResultData> HandleItemType(
         long chatId, long telegramId, MemberItemType itemType, int numberItems, OpenBoxResult result,
         IMongoSession session)
     {
@@ -65,7 +65,7 @@ public class OpenBoxService(
             : await AbortWithResult(session);
     }
 
-    private async Task<(Option<MemberItemType>, OpenBoxResult)> LogInHistoryAndCommit(long chatId, long telegramId,
+    private async Task<OpenBoxResultData> LogInHistoryAndCommit(long chatId, long telegramId,
         OpenBoxResult result, MemberItemType itemType, IMongoSession session, int countItem)
     {
         var list = new List<ItemQuantity>
@@ -75,39 +75,40 @@ public class OpenBoxService(
         };
 
         await historyLogRepository.LogDifferentItems(chatId, telegramId, list, session, MemberItemSourceType.Box);
-        return await CommitWithResult(session, (itemType, result));
+        return await CommitWithResult(session, new OpenBoxResultData(itemType, countItem, result));
     }
 
-    private async Task<(Option<MemberItemType>, OpenBoxResult)> CommitWithResult(IMongoSession session,
-        (Option<MemberItemType>, OpenBoxResult) result) =>
+    private async Task<OpenBoxResultData> CommitWithResult(IMongoSession session,
+        OpenBoxResultData result) =>
         await session.TryCommit(cancelToken.Token)
             ? result
             : await AbortWithResult(session);
 
-    private async Task<(Option<MemberItemType>, OpenBoxResult)> AbortWithResult(
+    private async Task<OpenBoxResultData> AbortWithResult(
         IMongoSession session, OpenBoxResult result = OpenBoxResult.Failed)
     {
         await session.TryAbort(cancelToken.Token);
-        return (None, result);
+        return new OpenBoxResultData(None, 0, result);
     }
 
-    private MemberItemType GetRandomItem()
+    private (MemberItemType, int) GetRandomItemWithQuantity()
     {
         var itemChances = appConfig.ItemConfig.ItemChance;
-        var total = itemChances.Values.Sum();
+        var total = itemChances.Values.Sum(x => x.Chance);
         var roll = random.NextDouble() * total;
 
         var cumulative = 0.0;
 
         foreach (var pair in itemChances)
         {
-            cumulative += pair.Value;
+            cumulative += pair.Value.Chance;
             if (roll <= cumulative)
             {
-                return pair.Key;
+                return (pair.Key, pair.Value.Quantity);
             }
         }
 
-        return itemChances.Keys.First();
+        var first = itemChances.First();
+        return (first.Key, first.Value.Quantity);
     }
 }

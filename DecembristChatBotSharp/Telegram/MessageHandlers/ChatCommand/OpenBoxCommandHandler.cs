@@ -26,23 +26,23 @@ public class OpenBoxCommandHandler(
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload) return unit;
 
-        var (itemType, result) = await openBoxService.OpenBox(chatId, telegramId);
-        result.LogOpenBoxResult(itemType, telegramId, chatId);
+        var boxResult = await openBoxService.OpenBox(chatId, telegramId);
+        boxResult.Result.LogOpenBoxResult(boxResult.ItemType, telegramId, chatId);
 
-        var resultTask = result switch
+        var resultTask = boxResult.Result switch
         {
             OpenBoxResult.NoItems => messageAssistance.SendNoItems(chatId),
             OpenBoxResult.Failed => SendFailedToOpenBox(chatId, telegramId),
-            OpenBoxResult.Success or OpenBoxResult.SuccessUnique => SendBoxResult(itemType, chatId, telegramId),
-            OpenBoxResult.SuccessX2 => SendBoxResult(itemType, chatId, telegramId, 2),
-            OpenBoxResult.AmuletActivated => SendBoxResult(itemType, chatId, telegramId, 0),
+            OpenBoxResult.Success or OpenBoxResult.SuccessUnique => SendBoxResult(boxResult.ItemType, chatId, telegramId, boxResult.Quantity),
+            OpenBoxResult.SuccessX2 => SendBoxResult(boxResult.ItemType, chatId, telegramId, boxResult.Quantity),
+            OpenBoxResult.AmuletActivated => SendBoxResult(boxResult.ItemType, chatId, telegramId, 0),
             _ => throw new ArgumentOutOfRangeException()
         };
         return await Array(resultTask,
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
     }
 
-    private Task<Unit> SendBoxResult(Option<MemberItemType> itemType, long chatId, long telegramId, int count = 1)
+    private Task<Unit> SendBoxResult(Option<MemberItemType> itemType, long chatId, long telegramId, int count)
     {
         var maybeSend =
             from type in itemType.ToAsync()

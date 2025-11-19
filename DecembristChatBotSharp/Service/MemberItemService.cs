@@ -359,6 +359,12 @@ public class MemberItemService(
     }
 }
 
+public record OpenBoxResultData(
+    Option<MemberItemType> ItemType,
+    int Quantity,
+    OpenBoxResult Result
+);
+
 public enum OpenBoxResult
 {
     SuccessX2,
