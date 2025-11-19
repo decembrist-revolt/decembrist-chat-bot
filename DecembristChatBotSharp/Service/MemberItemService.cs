@@ -151,6 +151,35 @@ public class MemberItemService(
         });
     }
 
+    public async Task<SlotMachineResult> UseSlotMachine(long chatId, long telegramId, bool isAdmin)
+    {
+        using var session = await db.OpenSession();
+        session.StartTransaction();
+
+        var hasItem = isAdmin || await memberItemRepository
+            .RemoveMemberItem(chatId, telegramId, MemberItemType.SlotMachine, session);
+
+        if (!hasItem)
+        {
+            await session.TryAbort(cancelToken.Token);
+            Log.Information("{0} tried to use non-existent slot machine in chat {1}", telegramId, chatId);
+            return SlotMachineResult.NoItems;
+        }
+
+        await historyLogRepository.LogItem(
+            chatId, telegramId, MemberItemType.SlotMachine, -1, MemberItemSourceType.Use, session);
+
+        if (await session.TryCommit(cancelToken.Token))
+        {
+            Log.Information("{0} used slot machine in chat {1}", telegramId, chatId);
+            return SlotMachineResult.Success;
+        }
+
+        await session.TryAbort(cancelToken.Token);
+        Log.Error("Failed to commit use slot machine item for {0} in chat {1}", telegramId, chatId);
+        return SlotMachineResult.Failed;
+    }
+
 
     public async Task<CurseResult> UseCurse(
         long chatId, long telegramId, ReactionSpamMember member, bool isAdmin)
@@ -393,4 +422,11 @@ public record struct UseTelegramMemeResult(Option<TelegramRandomMeme> Meme, UseT
         NoItems,
         Failed
     }
+}
+
+public enum SlotMachineResult
+{
+    Success,
+    NoItems,
+    Failed
 }

@@ -14,6 +14,7 @@ public enum MemberItemType
     FastReply = 1,
     Box = 2,
     TelegramMeme = 3,
+    SlotMachine = 12,
 
     // reaction spam
     Curse = 4,
@@ -49,4 +50,5 @@ public enum MemberItemSourceType
     Dust = 5,
     Craft = 6,
     Give = 7,
+    SlotMachine = 8,
 }

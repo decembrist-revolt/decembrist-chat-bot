@@ -27,6 +27,7 @@ public record AppConfig(
     RestrictConfig RestrictConfig,
     CurseConfig CurseConfig,
     MinaConfig MinaConfig,
+    SlotMachineConfig SlotMachineConfig,
     DislikeConfig DislikeConfig,
     CharmConfig CharmConfig,
     AmuletConfig AmuletConfig,
@@ -321,6 +322,18 @@ public record MinaConfig(
     string ActivationMessage,
     [property: Range(1, int.MaxValue)] int DurationMinutes,
     [property: Range(1, int.MaxValue)] int TriggerMaxLength
+);
+
+public record SlotMachineConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string LaunchMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string WinMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string LoseMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ErrorMessage,
+    [property: Range(1, int.MaxValue)] int PremiumAttempts
 );
 
 public record DislikeConfig(
