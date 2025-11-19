@@ -38,7 +38,7 @@ public class SlotMachineCommandHandler(
         {
             result = await memberItemService.UseSlotMachine(chatId, telegramId, isAdmin);
         }
-        
+
         return result switch
         {
             SlotMachineResult.Failed => await SendSlotMachineErrorMessage(chatId),
@@ -54,7 +54,7 @@ public class SlotMachineCommandHandler(
     {
         var isPremium = await premiumMemberService.IsPremium(telegramId, chatId);
         var attempts = isPremium ? appConfig.SlotMachineConfig.PremiumAttempts : 1;
-        
+
         var num1 = 0;
         var num2 = 0;
         var num3 = 0;
@@ -65,7 +65,7 @@ public class SlotMachineCommandHandler(
         {
             (num1, num2, num3) = GenerateSlotNumbers(telegramId, chatId);
             isWin = num1 == num2 && num2 == num3;
-            
+
             if (isWin)
             {
                 Log.Information("User {0} won on attempt {1}/{2}", telegramId, i + 1, attempts);
@@ -81,21 +81,26 @@ public class SlotMachineCommandHandler(
         var emoji2 = GetNumberEmoji(num2);
         var emoji3 = GetNumberEmoji(num3);
 
-        var resultText = isWin 
+        var resultText = isWin
             ? string.Format(appConfig.SlotMachineConfig.WinMessage, num1)
             : string.Format(appConfig.SlotMachineConfig.LoseMessage, appConfig.SlotMachineConfig.PremiumAttempts);
 
-        var message = string.Format(appConfig.SlotMachineConfig.LaunchMessage, username, emoji1, emoji2, emoji3, resultText);
+        var message = string.Format(appConfig.SlotMachineConfig.LaunchMessage, username, emoji1, emoji2, emoji3,
+            resultText);
 
+        var is777 = num1 == 7 && num2 == 7 && num3 == 7;
         if (isWin)
         {
             using var session = await db.OpenSession();
             session.StartTransaction();
 
-            var telegramIds = new[] { telegramId }.ToArr();
-            for (var i = 0; i < num1; i++)
+            await memberItemRepository.AddMemberItem(chatId, telegramId, MemberItemType.Box, session, num1);
+            // Give premium days for 777
+            if (is777)
             {
-                await memberItemRepository.AddMemberItems(chatId, telegramIds, MemberItemType.Box, session);
+                await premiumMemberService.AddPremiumMember(
+                    chatId, telegramId, PremiumMemberOperationType.AddBySlotMachine,
+                    DateTime.UtcNow.AddDays(appConfig.SlotMachineConfig.PremiumDaysFor777), session: session);
             }
 
             await historyLogRepository.LogItem(
@@ -106,6 +111,12 @@ public class SlotMachineCommandHandler(
         }
 
         const string logTemplate = "Slot machine result {0} for {1} in chat {2}: [{3}, {4}, {5}]";
+        if (is777)
+        {
+            message += string.Format(
+                "\n\n" + appConfig.SlotMachineConfig.Premium777Message, appConfig.SlotMachineConfig.PremiumDaysFor777);
+        }
+
         await botClient.SendMessageAndLog(chatId, message,
             m =>
             {
@@ -142,16 +153,16 @@ public class SlotMachineCommandHandler(
         7 => "7️⃣",
         _ => number.ToString()
     };
-    
+
     private (int, int, int) GenerateSlotNumbers(long telegramId, long chatId)
     {
         var num1 = random.Next(1, 8); // 1 to 7 inclusive
         var num2 = random.Next(1, 8);
         var num3 = random.Next(1, 8);
-        
-        Log.Information("Generated slot numbers for user {0} in chat {1}: [{2}, {3}, {4}]", 
+
+        Log.Information("Generated slot numbers for user {0} in chat {1}: [{2}, {3}, {4}]",
             telegramId, chatId, num1, num2, num3);
-        
+
         return (num1, num2, num3);
     }
 }

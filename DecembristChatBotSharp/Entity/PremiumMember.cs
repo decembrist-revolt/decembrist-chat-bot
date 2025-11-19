@@ -22,4 +22,5 @@ public enum PremiumMemberOperationType
     AddByAdmin,
     RemoveByAdmin,
     Payment,
+    AddBySlotMachine,
 }

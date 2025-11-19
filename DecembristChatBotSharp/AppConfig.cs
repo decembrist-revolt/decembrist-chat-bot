@@ -333,7 +333,10 @@ public record SlotMachineConfig(
     string LoseMessage,
     [property: Required(AllowEmptyStrings = false)]
     string ErrorMessage,
-    [property: Range(1, int.MaxValue)] int PremiumAttempts
+    [property: Required(AllowEmptyStrings = false)]
+    string Premium777Message,
+    [property: Range(1, int.MaxValue)] int PremiumAttempts,
+    [property: Range(1, int.MaxValue)] int PremiumDaysFor777
 );
 
 public record DislikeConfig(
