@@ -16,7 +16,7 @@ public partial class RestrictCommandHandler(
 ) : ICommandHandler
 {
     public string Command => "/restrict";
-    public string Description => "Restrict user in reply";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Restrict user in reply");
     public CommandLevel CommandLevel => CommandLevel.Admin;
 
     [GeneratedRegex(@"\b(link)\b", RegexOptions.IgnoreCase)]

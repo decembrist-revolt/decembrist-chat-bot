@@ -8,13 +8,13 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public partial class LoreCommandHandler(
+    AppConfig appConfig,
     LoreService loreService,
     LoreRecordRepository loreRecordRepository,
-    AppConfig appConfig,
     MessageAssistance messageAssistance) : ICommandHandler
 {
     public string Command => "/lore";
-    public string Description => "Show a lore record from the lore chat";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Show a lore record from the lore chat");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     [GeneratedRegex(@"\s+")]

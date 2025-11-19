@@ -17,7 +17,7 @@ public class DislikeCommandHandler(
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public string Command => "/dislike";
-    public string Description => "Reply with this command to give the user a dislike";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Reply with this command to give the user a dislike");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

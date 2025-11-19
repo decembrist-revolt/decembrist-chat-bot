@@ -156,7 +156,8 @@ public record CommandConfig(
     [property: Required(AllowEmptyStrings = false)]
     string FastReplyExpiredMessage,
     [property: Required(AllowEmptyStrings = false)]
-    string FastReplyCheckExpireCronUtc
+    string FastReplyCheckExpireCronUtc,
+    Dictionary<string, string> CommandDescriptions
 );
 
 public record MenuConfig(

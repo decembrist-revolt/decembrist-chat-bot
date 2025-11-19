@@ -7,11 +7,12 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public class WhiteListCommandHandler(
+    AppConfig appConfig,
     MessageAssistance messageAssistance,
     WhiteListRepository whiteListRepository) : ICommandHandler
 {
     public string Command => "/whitelist";
-    public string Description => "Adding or removing from the white list";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Adding or removing from the white list");
     public CommandLevel CommandLevel => CommandLevel.Admin;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

@@ -31,8 +31,7 @@ public class MinaCommandHandler(
 
     private static readonly string EmojisString = string.Join(", ", Emojis);
     public string Command => CommandKey;
-
-    public string Description => "Set a mine that will curse anyone who writes the trigger phrase";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Set a mine that will curse anyone who writes the trigger phrase");
     public CommandLevel CommandLevel => CommandLevel.Item;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

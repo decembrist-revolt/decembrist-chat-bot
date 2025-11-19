@@ -21,7 +21,7 @@ public class TelegramMemeCommandHandler(
     public const string CommandKey = "/telegrammeme";
 
     public string Command => CommandKey;
-    public string Description => "Generate random telegram meme from random channel";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Generate random telegram meme from random channel");
     public CommandLevel CommandLevel => CommandLevel.Item;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

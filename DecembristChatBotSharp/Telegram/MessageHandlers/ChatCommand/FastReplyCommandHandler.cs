@@ -22,7 +22,7 @@ public class FastReplyCommandHandler(
     public const string ArgSeparator = "@";
 
     public string Command => CommandKey;
-    public string Description => "Creates new fast reply option '/fastreply' for help";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Creates new fast reply option '/fastreply' for help");
     public CommandLevel CommandLevel => CommandLevel.Item;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

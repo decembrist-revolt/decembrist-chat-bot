@@ -20,7 +20,7 @@ public partial class PremiumCommandHandler(
     public const string RemoveSubcommand = "clear";
 
     public string Command => "/premium";
-    public string Description => "Premium membership command";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Premium membership command");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     [GeneratedRegex(@"^days@(\d+)$", RegexOptions.Compiled)]

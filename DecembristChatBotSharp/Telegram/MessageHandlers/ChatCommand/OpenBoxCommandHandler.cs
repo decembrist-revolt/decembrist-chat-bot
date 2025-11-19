@@ -18,7 +18,7 @@ public class OpenBoxCommandHandler(
     public const string CommandKey = "/openbox";
 
     public string Command => CommandKey;
-    public string Description => "Open surprise box if you have one";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Open surprise box if you have one");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

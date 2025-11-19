@@ -7,13 +7,13 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public partial class CraftCommandHandler(
+    AppConfig appConfig,
     MemberItemService memberItemService,
     MessageAssistance messageAssistance,
-    AppConfig appConfig,
     CraftService craftService) : ICommandHandler
 {
     public string Command => "/craft";
-    public string Description => "Craft items";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Craft items");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     [GeneratedRegex(@"\s+")]

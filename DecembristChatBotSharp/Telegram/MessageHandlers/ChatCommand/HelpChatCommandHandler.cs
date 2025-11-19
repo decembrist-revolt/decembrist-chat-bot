@@ -9,14 +9,14 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public class HelpChatCommandHandler(
+    AppConfig appConfig,
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
-    AppConfig appConfig,
     Lazy<IList<ICommandHandler>> commandHandlers,
     Lazy<IList<IPassiveItem>> passiveItems) : ICommandHandler
 {
     public string Command => "/help";
-    public string Description => "Help";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Help");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     private Map<string, string>? _commandDescriptions;

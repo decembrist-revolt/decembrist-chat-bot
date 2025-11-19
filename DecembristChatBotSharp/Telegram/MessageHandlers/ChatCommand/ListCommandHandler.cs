@@ -25,7 +25,7 @@ public partial class ListCommandHandler(
 {
     public const string CommandKey = "/list";
     public string Command => CommandKey;
-    public string Description => "Shows a list of available content from the chat, options: " + _listOptions;
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Shows a list of available content from the chat, options: " + _listOptions);
     public CommandLevel CommandLevel => CommandLevel.User;
 
     private readonly string _listOptions = string.Join(", ", Enum.GetValues<ListType>().Map(type => type.ToString()));

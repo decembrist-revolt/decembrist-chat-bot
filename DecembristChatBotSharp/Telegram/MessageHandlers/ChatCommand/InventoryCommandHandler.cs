@@ -6,14 +6,14 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public class InventoryCommandHandler(
+    AppConfig appConfig,
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
-    AppConfig appConfig,
     BotClient botClient
 ) : ICommandHandler
 {
     public string Command => "/inventory";
-    public string Description => "Show users items";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Show users items");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

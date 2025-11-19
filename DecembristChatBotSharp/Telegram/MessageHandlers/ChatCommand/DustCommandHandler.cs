@@ -8,15 +8,15 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public partial class DustCommandHandler(
-    MessageAssistance messageAssistance,
     AppConfig appConfig,
+    MessageAssistance messageAssistance,
     DustService dustService) : ICommandHandler
 {
     public const string CommandKey = "/dust";
     public string Command => CommandKey;
 
     public string Description =>
-        "Dust an item, Dust and its varieties appear from other items, Used as crafting ingredients";
+        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Dust an item, Dust and its varieties appear from other items, Used as crafting ingredients");
 
     public CommandLevel CommandLevel => CommandLevel.User;
 

@@ -24,7 +24,7 @@ public class SlotMachineCommandHandler(
     public const string CommandKey = "/slotmachine";
 
     public string Command => CommandKey;
-    public string Description => "Play slot machine for a chance to win boxes";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Play slot machine for a chance to win boxes");
     public CommandLevel CommandLevel => CommandLevel.Item;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

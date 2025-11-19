@@ -19,7 +19,7 @@ public class LikeCommandHandler(
 ) : ICommandHandler
 {
     public string Command => "/like";
-    public string Description => "Reply with this command to give the user a like";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Reply with this command to give the user a like");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

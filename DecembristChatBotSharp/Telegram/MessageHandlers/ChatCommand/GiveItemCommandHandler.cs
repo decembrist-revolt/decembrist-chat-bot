@@ -18,7 +18,7 @@ public partial class GiveItemCommandHandler(
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public string Command => "/give";
-    public string Description => $"Give item to replied member, options: {_itemOptions}";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, $"Give item to replied member, options: {_itemOptions}");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     private readonly string _itemOptions =

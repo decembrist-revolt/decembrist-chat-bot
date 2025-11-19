@@ -18,7 +18,7 @@ public class ShowLikesCommandHandler(
 ) : ICommandHandler
 {
     public string Command => "/likes";
-    public string Description => "Show top like users";
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Show top like users");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
