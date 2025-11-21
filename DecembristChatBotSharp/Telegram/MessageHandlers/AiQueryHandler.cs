@@ -1,6 +1,5 @@
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
-using FastExpressionCompiler;
 using Lamar;
 using LanguageExt.UnsafeValueAccess;
 using Serilog;
@@ -30,8 +29,45 @@ public class AiQueryHandler(
         var (messageId, telegramId, chatId) = parameters;
 
         // Remove bot mention from text if present
-        var queryText = RemoveBotMention(text);
-        if (string.IsNullOrWhiteSpace(queryText)) return false;
+        var userQueryText = RemoveBotMention(text);
+        
+        // Build the final query text based on reply message and user text
+        string queryText;
+        
+        // Check if we should include reply message in context
+        // Don't include reply text if it's a reply to bot without bot mention
+        var shouldIncludeReplyText = parameters.ReplyToMessageText.IsSome && parameters is not
+        {
+            ReplyToBotMessage: true, 
+            BotMentioned: false
+        };
+        
+        if (shouldIncludeReplyText)
+        {
+            var replyText = parameters.ReplyToMessageText.ValueUnsafe();
+            
+            if (string.IsNullOrWhiteSpace(userQueryText))
+            {
+                // Only bot mention, no additional text - analyze the reply message
+                queryText = replyText;
+                Log.Information("Processing reply message for AI analysis in chat {ChatId}", chatId);
+            }
+            else
+            {
+                // Both reply and user text - combine them for context
+                queryText = $"Исходное сообщение: {replyText}\n\nВопрос/комментарий: {userQueryText}";
+                Log.Information("Processing reply message with user query for AI analysis in chat {ChatId}", chatId);
+            }
+        }
+        else
+        {
+            // No reply message or reply to bot without mention - use only user text
+            if (string.IsNullOrWhiteSpace(userQueryText))
+            {
+                return false;
+            }
+            queryText = userQueryText;
+        }
 
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
 

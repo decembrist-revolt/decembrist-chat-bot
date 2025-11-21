@@ -146,9 +146,10 @@ public class BotHandler(
         var messageText = message.Text ?? message.Caption ?? "";
         var botMentioned = CheckForBotMention(message.Entities, messageText);
         var replyToBotMessage = message.ReplyToMessage?.From?.Id == botUser.Id;
+        var replyToMessageText = Optional(message.ReplyToMessage?.Text ?? message.ReplyToMessage?.Caption);
         var parameters = new ChatMessageHandlerParams(
             payload, messageId, telegramId, chatId,
-            Optional(message.ReplyToMessage?.From?.Id), botMentioned, replyToBotMessage);
+            Optional(message.ReplyToMessage?.From?.Id), botMentioned, replyToBotMessage, replyToMessageText);
         return parameters;
     }
 

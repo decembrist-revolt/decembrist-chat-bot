@@ -9,7 +9,8 @@ public readonly record struct ChatMessageHandlerParams(
     long ChatId,
     Option<long> ReplyToTelegramId,
     bool BotMentioned,
-    bool ReplyToBotMessage
+    bool ReplyToBotMessage,
+    Option<string> ReplyToMessageText
 )
 {
     public void Deconstruct(out int messageId, out long telegramId, out long chatId)
