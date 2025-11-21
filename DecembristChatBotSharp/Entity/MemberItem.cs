@@ -52,4 +52,5 @@ public enum MemberItemSourceType
     Craft = 6,
     Give = 7,
     SlotMachine = 8,
+    Giveaway = 9,
 }

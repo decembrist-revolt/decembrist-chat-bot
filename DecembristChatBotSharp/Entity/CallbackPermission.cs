@@ -1,4 +1,4 @@
-﻿using MongoDB.Bson.Serialization.Attributes;
+﻿﻿using MongoDB.Bson.Serialization.Attributes;
 
 namespace DecembristChatBotSharp.Entity;
 
@@ -12,5 +12,6 @@ public record CallbackPermission(
 
 public enum CallbackType
 {
-    List
+    List,
+    Giveaway
 }

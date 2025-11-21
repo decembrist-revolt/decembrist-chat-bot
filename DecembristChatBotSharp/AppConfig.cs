@@ -34,6 +34,7 @@ public record AppConfig(
     ItemConfig ItemConfig,
     HelpConfig HelpConfig,
     GiveConfig GiveConfig,
+    GiveawayConfig GiveawayConfig,
     DustConfig DustConfig,
     CraftConfig CraftConfig,
     PollPaymentConfig? PollPaymentConfig,
@@ -601,3 +602,22 @@ public record PremiumReward(
     MemberItemType Item,
     double Chance,
     int Quantity);
+
+public record GiveawayConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string AnnouncementMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string PublicSuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string AlreadyReceivedMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ErrorMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string HelpMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ButtonText,
+    [property: Range(1, int.MaxValue)]
+    int DefaultDurationMinutes
+);
