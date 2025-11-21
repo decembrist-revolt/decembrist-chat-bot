@@ -37,3 +37,9 @@ public class Stone(AppConfig appConfig) : IPassiveItem
     public MemberItemType ItemType => MemberItemType.Stone;
     public string Description => appConfig.ItemConfig.StoneDescription;
 }
+
+public class AiToken(AppConfig appConfig) : IPassiveItem
+{
+    public MemberItemType ItemType => MemberItemType.AiToken;
+    public string Description => appConfig.DeepSeekConfig.AiTokenDescription;
+}

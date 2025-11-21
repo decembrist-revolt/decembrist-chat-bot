@@ -180,6 +180,35 @@ public class MemberItemService(
         return SlotMachineResult.Failed;
     }
 
+    public async Task<AiTokenResult> UseAiToken(long chatId, long telegramId, bool isAdmin)
+    {
+        using var session = await db.OpenSession();
+        session.StartTransaction();
+
+        var hasItem = isAdmin || await memberItemRepository
+            .RemoveMemberItem(chatId, telegramId, MemberItemType.AiToken, session);
+
+        if (!hasItem)
+        {
+            await session.TryAbort(cancelToken.Token);
+            Log.Information("{0} tried to use non-existent AI token in chat {1}", telegramId, chatId);
+            return AiTokenResult.NoItems;
+        }
+
+        await historyLogRepository.LogItem(
+            chatId, telegramId, MemberItemType.AiToken, -1, MemberItemSourceType.Use, session);
+
+        if (await session.TryCommit(cancelToken.Token))
+        {
+            Log.Information("{0} used AI token in chat {1}", telegramId, chatId);
+            return AiTokenResult.Success;
+        }
+
+        await session.TryAbort(cancelToken.Token);
+        Log.Error("Failed to commit use AI token item for {0} in chat {1}", telegramId, chatId);
+        return AiTokenResult.Failed;
+    }
+
 
     public async Task<CurseResult> UseCurse(
         long chatId, long telegramId, ReactionSpamMember member, bool isAdmin)
@@ -431,6 +460,13 @@ public record struct UseTelegramMemeResult(Option<TelegramRandomMeme> Meme, UseT
 }
 
 public enum SlotMachineResult
+{
+    Success,
+    NoItems,
+    Failed
+}
+
+public enum AiTokenResult
 {
     Success,
     NoItems,

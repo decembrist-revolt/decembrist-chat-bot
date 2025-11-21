@@ -51,6 +51,20 @@
           "Quantity": 1
         }
       },
+      "AiToken": {
+        "Reward": {
+          "Item": "BlueDust",
+          "Range": {
+            "Min": 1,
+            "Max": 3
+          }
+        },
+        "PremiumReward": {
+          "Chance": 0.07,
+          "Item": "Box",
+          "Quantity": 1
+        }
+      },
       "Charm": {
         "Reward": {
           "Item": "RedDust",
@@ -217,7 +231,12 @@
         "Outputs": [
           {
             "Item": "FastReply",
-            "Chance": 0.85
+            "Chance": 0.6
+          },
+          {
+            "Item": "AiToken",
+            "Chance": 0.25,
+            "Quantity": 2
           },
           {
             "Item": "Curse",
@@ -237,6 +256,21 @@
         "Inputs": [
           {
             "Item": "BlueDust",
+            "Quantity": 12
+          }
+        ],
+        "Outputs": [
+          {
+            "Item": "AiToken",
+            "Chance": 1,
+            "Quantity": 3
+          }
+        ]
+      },
+      {
+        "Inputs": [
+          {
+            "Item": "BlueDust",
             "Quantity": 6
           },
           {
@@ -247,7 +281,12 @@
         "Outputs": [
           {
             "Item": "FastReply",
-            "Chance": 0.85
+            "Chance": 0.65
+          },
+          {
+            "Item": "AiToken",
+            "Chance": 0.2,
+            "Quantity": 2
           },
           {
             "Item": "Box",

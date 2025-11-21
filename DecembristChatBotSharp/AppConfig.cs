@@ -521,7 +521,17 @@ public record DeepSeekConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ApiUrl,
     [property: Required(AllowEmptyStrings = false)]
-    string BotUsername
+    string BearerToken,
+    [property: Required(AllowEmptyStrings = false)]
+    string ThinkingMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string NoTokensMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FailedToUseTokenMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string AiErrorMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string AiTokenDescription
 );
 
 public record CraftConfig(

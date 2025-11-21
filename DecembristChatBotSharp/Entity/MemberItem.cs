@@ -1,4 +1,4 @@
-﻿﻿namespace DecembristChatBotSharp.Entity;
+﻿namespace DecembristChatBotSharp.Entity;
 
 public record MemberItem(
     MemberItem.CompositeId Id,
@@ -15,6 +15,7 @@ public enum MemberItemType
     Box = 2,
     TelegramMeme = 3,
     SlotMachine = 12,
+    AiToken = 13,
 
     // reaction spam
     Curse = 4,

@@ -20,10 +20,13 @@ public class ListService(
     {
         var input = $"• `{string.Join(" ", x.Inputs.Select(iq => $"{iq.Item}@{iq.Quantity}")).EscapeMarkdown()}`";
         var output = x.Outputs.Count == 1
-            ? x.Outputs[0].Item.ToString()
-            : string.Join(", ", x.Outputs.Select(i => $"{i.Item} - {i.Chance:P}"));
+            ? x.Outputs[0].Item + QuantityString(x.Outputs[0])
+            : string.Join(", ", x.Outputs.Select(o => $"{o.Item}{QuantityString(o)} - {o.Chance:P}"));
         return input + (" ⇒ " + output).EscapeMarkdown();
     }).ToImmutableList();
+
+    private static string QuantityString(OutputItem output) =>
+        output.Quantity > 1 ? $"({output.Quantity})" : string.Empty;
 
     public async Task<Option<(string, int)>> GetListBody(long chatId, ListType listType, int currentOffset = 0) =>
         listType switch

@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -38,6 +39,8 @@ public class DeepSeekService(
 
             var request = new HttpRequestMessage(HttpMethod.Post, appConfig.DeepSeekConfig.ApiUrl);
             request.Content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+            request.Headers.Authorization = 
+                new AuthenticationHeaderValue("Bearer", appConfig.DeepSeekConfig.BearerToken);
 
             using var response = await httpClient.SendAsync(request);
             

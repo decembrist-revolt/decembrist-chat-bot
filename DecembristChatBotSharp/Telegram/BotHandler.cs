@@ -143,8 +143,12 @@ public class BotHandler(
         var messageId = message.MessageId;
         var telegramId = message.From!.Id;
         var chatId = message.Chat.Id;
+        var messageText = message.Text ?? message.Caption ?? "";
+        var botMentioned = CheckForBotMention(message.Entities, messageText);
+        var replyToBotMessage = message.ReplyToMessage?.From?.Id == botUser.Id;
         var parameters = new ChatMessageHandlerParams(
-            payload, messageId, telegramId, chatId, Optional(message.ReplyToMessage?.From?.Id));
+            payload, messageId, telegramId, chatId,
+            Optional(message.ReplyToMessage?.From?.Id), botMentioned, replyToBotMessage);
         return parameters;
     }
 
@@ -182,6 +186,18 @@ public class BotHandler(
 
     private bool CheckForLinkEntity(MessageEntity[]? entities) =>
         entities != null && entities.Any(e => e.Type is MessageEntityType.Url or MessageEntityType.TextLink);
+
+    private bool CheckForBotMention(MessageEntity[]? entities, string messageText)
+    {
+        if (entities == null || string.IsNullOrEmpty(botUser.Username))
+            return false;
+
+        var botMention = $"@{botUser.Username}";
+
+        // Check if any mention or text mention entity exists and the bot username is in the message
+        return entities.Any(e => e.Type is MessageEntityType.Mention or MessageEntityType.TextMention)
+               && messageText.Contains(botMention, StringComparison.OrdinalIgnoreCase);
+    }
 
     public async Task RegisterTipsCommand() => await tipsRegistrationService.RegisterTipsCommand();
 

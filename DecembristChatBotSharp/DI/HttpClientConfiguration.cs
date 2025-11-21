@@ -1,4 +1,4 @@
-﻿using Lamar;
+﻿﻿using Lamar;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DecembristChatBotSharp.DI;
@@ -17,7 +17,7 @@ public static class HttpClientConfiguration
         
         registry.AddHttpClient(DeepSeekClient, client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(30);
+            client.Timeout = TimeSpan.FromMinutes(3);
         });
     }
 }

@@ -47,7 +47,8 @@ public class ChatMessageHandler(
     CharmHandler charmHandler,
     CurseHandler curseHandler,
     MinaHandler minaHandler,
-    WrongCommandHandler wrongCommandHandler
+    WrongCommandHandler wrongCommandHandler,
+    AiQueryHandler aiQueryHandler
 )
 {
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
@@ -73,12 +74,14 @@ public class ChatMessageHandler(
                 return unit;
             }
         }
-
+        
         // Try fast reply first
         if (await fastReplyHandler.Do(parameters))
         {
             return unit;
         }
+
+        aiQueryHandler.Do(parameters);
 
         return unit;
     }
