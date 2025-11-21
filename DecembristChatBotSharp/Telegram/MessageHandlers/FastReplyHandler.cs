@@ -17,10 +17,10 @@ public class FastReplyHandler(
     public const string DollarPrefix = "$";
     public const string StickerPrefix = $"{DollarPrefix}sticker_";
 
-    public async Task<Unit> Do(ChatMessageHandlerParams parameters)
+    public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
-        if (await memberItemRepository.IsUserHasItem(chatId, telegramId, MemberItemType.Stone)) return unit;
+        if (await memberItemRepository.IsUserHasItem(chatId, telegramId, MemberItemType.Stone)) return false;
 
         var maybeReply = parameters.Payload switch
         {
@@ -29,14 +29,18 @@ public class FastReplyHandler(
             _ => None
         };
 
+        if (maybeReply.IsNone) return false;
+
         var trySend =
             from reply in maybeReply.ToTryOptionAsync()
             from message in SendReply(reply, chatId, messageId).ToTryOption()
             select fun(() =>
                 Log.Information("Sent fast reply to {0} payload {1} in chat {2}", telegramId, reply.Reply, chatId));
 
-        return await trySend.IfFail(ex =>
+        await trySend.IfFail(ex =>
             Log.Error(ex, "Failed to send fast reply to {0} payload {1} in chat {2}", telegramId, maybeReply, chatId));
+
+        return maybeReply.IsSome;
     }
 
     private Task<Message> SendReply(FastReply reply, long chatId, int messageId) =>

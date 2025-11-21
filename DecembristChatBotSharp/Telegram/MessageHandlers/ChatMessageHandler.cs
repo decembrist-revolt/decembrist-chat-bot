@@ -7,7 +7,9 @@ public readonly record struct ChatMessageHandlerParams(
     int MessageId,
     long TelegramId,
     long ChatId,
-    Option<long> ReplyToTelegramId
+    Option<long> ReplyToTelegramId,
+    bool BotMentioned,
+    bool ReplyToBotMessage
 )
 {
     public void Deconstruct(out int messageId, out long telegramId, out long chatId)
@@ -72,7 +74,13 @@ public class ChatMessageHandler(
             }
         }
 
-        return await fastReplyHandler.Do(parameters);
+        // Try fast reply first
+        if (await fastReplyHandler.Do(parameters))
+        {
+            return unit;
+        }
+
+        return unit;
     }
 
     private async Task<Unit> HandleCommandResult(

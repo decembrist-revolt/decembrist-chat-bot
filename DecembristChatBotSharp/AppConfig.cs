@@ -37,6 +37,7 @@ public record AppConfig(
     DustConfig DustConfig,
     CraftConfig CraftConfig,
     PollPaymentConfig? PollPaymentConfig,
+    DeepSeekConfig? DeepSeekConfig = null,
     KeycloakConfig? KeycloakConfig = null,
     DateTime? DeployTime = null,
     List<long>? WhiteListIds = null)
@@ -513,6 +514,14 @@ public record KeycloakConfig(
     string ClientId,
     [property: Required(AllowEmptyStrings = false)]
     string ClientSecret
+);
+
+public record DeepSeekConfig(
+    bool Enabled,
+    [property: Required(AllowEmptyStrings = false)]
+    string ApiUrl,
+    [property: Required(AllowEmptyStrings = false)]
+    string BotUsername
 );
 
 public record CraftConfig(
