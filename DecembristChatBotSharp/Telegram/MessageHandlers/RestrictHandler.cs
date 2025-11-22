@@ -3,6 +3,8 @@ using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
 using Serilog;
+using Telegram.Bot;
+using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
@@ -34,8 +36,72 @@ public class RestrictHandler(
 
         return await db.GetRestrictMember(new(telegramId, chatId))
             .MatchAsync(
-                member => CheckRestrictions(chatId, telegramId, parameters.Payload, messageId, member.RestrictType),
-                () => false);
+                async member =>
+                {
+                    // First, apply timeout restriction if it exists
+                    var timeoutApplied = await ApplyTimeoutIfNeeded(telegramId, chatId, member);
+                    
+                    // Then check if message should be deleted (e.g., for link restriction)
+                    var messageDeleted = await CheckRestrictions(chatId, telegramId, parameters.Payload, messageId, member.RestrictType);
+                    
+                    // Return true if either timeout was applied OR message was deleted
+                    return timeoutApplied || messageDeleted;
+                },
+                () => Task.FromResult(false));
+    }
+
+    private async Task<bool> ApplyTimeoutIfNeeded(long telegramId, long chatId, RestrictMember member)
+    {
+        if ((member.RestrictType & RestrictType.Timeout) != RestrictType.Timeout)
+            return false;
+
+        if (member.TimeoutMinutes <= 0)
+        {
+            Log.Warning("Timeout restriction for user {0} in chat {1} has invalid timeout minutes: {2}",
+                telegramId, chatId, member.TimeoutMinutes);
+            return false;
+        }
+
+        return await ApplyTimeoutRestriction(telegramId, chatId, member.TimeoutMinutes);
+    }
+
+    private async Task<bool> ApplyTimeoutRestriction(long telegramId, long chatId, int minutes)
+    {
+        var permissions = new ChatPermissions
+        {
+            CanSendMessages = false,
+            CanSendAudios = false,
+            CanSendDocuments = false,
+            CanSendPhotos = false,
+            CanSendVideos = false,
+            CanSendVideoNotes = false,
+            CanSendVoiceNotes = false,
+            CanSendOtherMessages = false,
+            CanAddWebPagePreviews = false,
+        };
+
+        var untilDate = DateTime.UtcNow.AddMinutes(minutes);
+
+        return await botClient.RestrictChatMember(
+                chatId: chatId,
+                userId: telegramId,
+                permissions: permissions,
+                untilDate: untilDate,
+                cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .Match(
+                _ =>
+                {
+                    Log.Information("Applied timeout restriction for user {0} in chat {1} for {2} minutes (until {3})",
+                        telegramId, chatId, minutes, untilDate);
+                    return true;
+                },
+                ex =>
+                {
+                    Log.Error(ex, "Failed to apply timeout restriction for user {0} in chat {1}",
+                        telegramId, chatId);
+                    return false;
+                });
     }
 
     /// <returns>True if message was deleted due to restriction</returns>

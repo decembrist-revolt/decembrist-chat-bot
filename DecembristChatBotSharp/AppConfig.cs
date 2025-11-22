@@ -297,9 +297,17 @@ public record BanConfig(
 
 public record RestrictConfig(
     [property: Required(AllowEmptyStrings = false)]
-    string RestrictMessage,
+    string RestrictClearMessage,
     [property: Required(AllowEmptyStrings = false)]
-    string RestrictClearMessage
+    string LinkRestrictMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string TimeoutRestrictMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string CombinedRestrictMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string LinkShortName,
+    [property: Required(AllowEmptyStrings = false)]
+    string TimeoutShortName
 );
 
 public record CurseConfig(

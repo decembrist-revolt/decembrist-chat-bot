@@ -17,7 +17,8 @@ public class RestrictRepository(
         var collection = GetCollection();
 
         var update = Builders<RestrictMember>.Update
-            .Set(x => x.RestrictType, member.RestrictType);
+            .Set(x => x.RestrictType, member.RestrictType)
+            .Set(x => x.TimeoutMinutes, member.TimeoutMinutes);
         var options = new UpdateOptions { IsUpsert = true };
 
         var filter = Builders<RestrictMember>.Filter.Eq(x => x.Id, member.Id);

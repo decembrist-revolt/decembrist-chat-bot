@@ -3,6 +3,8 @@ using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
 using Serilog;
+using Telegram.Bot;
+using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
@@ -19,7 +21,7 @@ public partial class RestrictCommandHandler(
     public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Restrict user in reply");
     public CommandLevel CommandLevel => CommandLevel.Admin;
 
-    [GeneratedRegex(@"\b(link)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(link|timeout)\b(?:\s+(\d+))?", RegexOptions.IgnoreCase)]
     private static partial Regex ArgsRegex();
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
@@ -48,33 +50,139 @@ public partial class RestrictCommandHandler(
         }
 
         var compositeId = new CompositeId(receiverId, chatId);
-        var isDelete = text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase);
-        return isDelete
-            ? await DeleteRestrictAndLog(compositeId, telegramId)
-            : await ParseRestrictType(text).Match(
-                async restrictType =>
-                    await AddRestrictAndLog(new RestrictMember(compositeId, restrictType), telegramId),
-                () =>
-                {
-                    Log.Warning("Command parameters are missing for {0} in chat {1}", Command, chatId);
-                    return Task.FromResult(unit);
-                });
+        var isClear = text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase);
+        
+        if (isClear)
+        {
+            // Check if specific restriction type is mentioned after 'clear'
+            var clearRestriction = ParseRestrictType(text);
+            if (clearRestriction.IsSome)
+            {
+                var (restrictTypeToRemove, _) = clearRestriction.Match(r => r, () => (RestrictType.None, 0));
+                return await RemoveSpecificRestrict(compositeId, telegramId, restrictTypeToRemove);
+            }
+            
+            // No specific type - clear all restrictions
+            return await DeleteRestrictAndLog(compositeId, telegramId);
+        }
+
+        return await ParseRestrictType(text).Match(
+            async restrictInfo =>
+            {
+                var (newRestrictType, newTimeoutMinutes) = restrictInfo;
+                
+                // Get existing restrictions to merge with new ones
+                var existingMember = await restrictRepository.GetRestrictMember(compositeId);
+                var finalRestrictType = existingMember.Match(
+                    existing => existing.RestrictType | newRestrictType, // Merge flags
+                    () => newRestrictType);
+                
+                // For timeout minutes, use the new value if specified, otherwise keep existing
+                var finalTimeoutMinutes = newTimeoutMinutes > 0 
+                    ? newTimeoutMinutes 
+                    : existingMember.Match(existing => existing.TimeoutMinutes, () => 0);
+                
+                return await AddRestrictAndLog(
+                    new RestrictMember(compositeId, finalRestrictType, finalTimeoutMinutes), telegramId);
+            },
+            () =>
+            {
+                Log.Warning("Command parameters are missing for {0} in chat {1}", Command, chatId);
+                return Task.FromResult(unit);
+            });
     }
 
-    private Option<RestrictType> ParseRestrictType(string input)
+    private async Task<Unit> RemoveSpecificRestrict(CompositeId id, long adminId, RestrictType restrictTypeToRemove)
+    {
+        var (telegramId, chatId) = id;
+        var username = await botClient.GetUsername(chatId, telegramId, cancelToken.Token)
+            .ToAsync()
+            .IfNone(telegramId.ToString);
+
+        var existingMember = await restrictRepository.GetRestrictMember(id);
+        
+        return await existingMember.MatchAsync(
+            async existing =>
+            {
+                // Remove the specific restriction flag(s)
+                var newRestrictType = existing.RestrictType & ~restrictTypeToRemove;
+                
+                if (newRestrictType == RestrictType.None)
+                {
+                    // No restrictions left, delete the record
+                    await restrictRepository.DeleteRestrictMember(id);
+                    await RestoreUserPermissions(telegramId, chatId);
+                    Log.Information("Removed all restrictions for {0} in chat {1} by {2}", telegramId, chatId, adminId);
+                    return await SendRestrictClearMessage(chatId, username);
+                }
+                
+                // Update with remaining restrictions
+                var timeoutMinutes = (newRestrictType & RestrictType.Timeout) == RestrictType.Timeout 
+                    ? existing.TimeoutMinutes 
+                    : 0;
+                
+                await restrictRepository.AddRestrict(new RestrictMember(id, newRestrictType, timeoutMinutes));
+                
+                // If timeout was removed, restore permissions immediately
+                if ((restrictTypeToRemove & RestrictType.Timeout) == RestrictType.Timeout)
+                {
+                    await RestoreUserPermissions(telegramId, chatId);
+                }
+                
+                Log.Information("Removed restriction {0} for {1} in chat {2} by {3}", 
+                    restrictTypeToRemove, telegramId, chatId, adminId);
+                
+                var message = string.Format("✅ Ограничение {0} с пользователя {1} снято", 
+                    GetRestrictionDescription(restrictTypeToRemove, existing.TimeoutMinutes), username);
+                return await botClient.SendMessageAndLog(chatId, message,
+                    _ => Log.Information("Sent partial restrict clear message to chat {0}", chatId),
+                    ex => Log.Error(ex, "Failed to send message to chat {0}", chatId), 
+                    cancelToken.Token);
+            },
+            () =>
+            {
+                Log.Warning("No restrictions found for {0} in chat {1}", telegramId, chatId);
+                return Task.FromResult(unit);
+            });
+    }
+
+    private string GetRestrictionDescription(RestrictType restrictType, int timeoutMinutes)
+    {
+        var restrictions = new List<string>();
+        if ((restrictType & RestrictType.Link) == RestrictType.Link)
+            restrictions.Add(appConfig.RestrictConfig.LinkShortName);
+        if ((restrictType & RestrictType.Timeout) == RestrictType.Timeout)
+            restrictions.Add(string.Format(appConfig.RestrictConfig.TimeoutShortName, timeoutMinutes));
+        
+        return string.Join(", ", restrictions);
+    }
+
+    private Option<(RestrictType, int)> ParseRestrictType(string input)
     {
         var result = RestrictType.None;
+        var timeoutMinutes = 0;
         var matches = ArgsRegex().Matches(input);
+        
         foreach (Match match in matches)
         {
-            if (!Enum.TryParse(match.Value, true, out RestrictType restrictType)) continue;
+            if (!Enum.TryParse(match.Groups[1].Value, true, out RestrictType restrictType)) continue;
             if (restrictType == RestrictType.None) continue;
+            
             result |= restrictType;
+            
+            // If it's a timeout restriction, try to parse the minutes
+            if (restrictType == RestrictType.Timeout && match.Groups.Count > 2 && match.Groups[2].Success)
+            {
+                if (int.TryParse(match.Groups[2].Value, out var minutes) && minutes > 0)
+                {
+                    timeoutMinutes = minutes;
+                }
+            }
         }
 
         return result == RestrictType.None
             ? None
-            : result;
+            : (result, timeoutMinutes);
     }
 
     private async Task<Unit> DeleteRestrictAndLog(CompositeId id, long adminId)
@@ -86,8 +194,40 @@ public partial class RestrictCommandHandler(
 
         var isDelete = await restrictRepository.DeleteRestrictMember(id);
         LogAssistant.LogDeleteResult(isDelete, adminId, chatId, telegramId, Command);
+        
+        // Restore permissions immediately
+        await RestoreUserPermissions(telegramId, chatId);
+        
         if (isDelete) return await SendRestrictClearMessage(chatId, username);
         return unit;
+    }
+
+    private async Task<Unit> RestoreUserPermissions(long telegramId, long chatId)
+    {
+        var permissions = new ChatPermissions
+        {
+            CanSendMessages = true,
+            CanSendAudios = true,
+            CanSendDocuments = true,
+            CanSendPhotos = true,
+            CanSendVideos = true,
+            CanSendVideoNotes = true,
+            CanSendVoiceNotes = true,
+            CanSendOtherMessages = true,
+            CanAddWebPagePreviews = true,
+            CanInviteUsers = true,
+        };
+
+        return await botClient.RestrictChatMember(
+                chatId: chatId,
+                userId: telegramId,
+                permissions: permissions,
+                cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .Match(
+                _ => Log.Information("Restored permissions for user {0} in chat {1}", telegramId, chatId),
+                ex => Log.Error(ex, "Failed to restore permissions for user {0} in chat {1}", telegramId, chatId)
+            );
     }
 
     private async Task<Unit> AddRestrictAndLog(RestrictMember member, long adminId)
@@ -103,7 +243,7 @@ public partial class RestrictCommandHandler(
             Log.Information(
                 "Added restrict for {0} in chat {1} by {2} with type {3}", telegramId, chatId, adminId,
                 member.RestrictType);
-            return await SendRestrictMessage(chatId, telegramId, username, member.RestrictType);
+            return await SendRestrictMessage(chatId, telegramId, username, member.RestrictType, member.TimeoutMinutes);
         }
 
         Log.Error("Restrict not added for {0} in chat {1} by {2}", telegramId, chatId, adminId);
@@ -119,14 +259,49 @@ public partial class RestrictCommandHandler(
     }
 
     private async Task<Unit> SendRestrictMessage(
-        long chatId, long telegramId, string username, RestrictType restrictType)
+        long chatId, long telegramId, string username, RestrictType restrictType, int timeoutMinutes)
     {
-        var message = string.Format(appConfig.RestrictConfig.RestrictMessage, username, restrictType);
+        var message = GetRestrictMessage(username, restrictType, timeoutMinutes);
         return await botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("{0}-message sent from {1} in chat {2} with type {3}",
                 Command, telegramId, chatId, restrictType),
             ex => Log.Error(ex, "Failed to send {0} message from {1} in chat {2} with type {3}",
                 Command, telegramId, chatId, restrictType),
             cancelToken.Token);
+    }
+
+    private string GetRestrictMessage(string username, RestrictType restrictType, int timeoutMinutes)
+    {
+        // Check if multiple flags are set
+        var flagCount = 0;
+        if ((restrictType & RestrictType.Link) == RestrictType.Link) flagCount++;
+        if ((restrictType & RestrictType.Timeout) == RestrictType.Timeout) flagCount++;
+
+        if (flagCount > 1)
+        {
+            // Multiple restrictions
+            var restrictions = new List<string>();
+            if ((restrictType & RestrictType.Link) == RestrictType.Link)
+                restrictions.Add(appConfig.RestrictConfig.LinkShortName);
+            if ((restrictType & RestrictType.Timeout) == RestrictType.Timeout)
+                restrictions.Add(string.Format(appConfig.RestrictConfig.TimeoutShortName, timeoutMinutes));
+            
+            return string.Format(appConfig.RestrictConfig.CombinedRestrictMessage, 
+                username, string.Join(", ", restrictions));
+        }
+
+        // Single restriction
+        if ((restrictType & RestrictType.Link) == RestrictType.Link)
+        {
+            return string.Format(appConfig.RestrictConfig.LinkRestrictMessage, username);
+        }
+        
+        if ((restrictType & RestrictType.Timeout) == RestrictType.Timeout)
+        {
+            return string.Format(appConfig.RestrictConfig.TimeoutRestrictMessage, username, timeoutMinutes);
+        }
+
+        // Fallback
+        return string.Format(appConfig.RestrictConfig.CombinedRestrictMessage, username, restrictType);
     }
 }
