@@ -76,7 +76,7 @@ public class AiQueryHandler(
 
         return result switch
         {
-            AiTokenResult.NoItems => await SendNoItemsMessage(chatId, messageId),
+            AiTokenResult.NoItems => await HandleNoItems(chatId, messageId, parameters),
             AiTokenResult.Success => await ProcessAiQuery(chatId, telegramId, messageId, queryText),
             AiTokenResult.Failed => await SendFailedMessage(chatId, messageId),
             _ => false
@@ -178,6 +178,18 @@ public class AiQueryHandler(
             ex => Log.Error(ex, "Failed to send no AI tokens message to chat {ChatId}", chatId),
             cancelToken.Token);
         return true;
+    }
+
+    private async Task<bool> HandleNoItems(long chatId, int messageId, ChatMessageHandlerParams parameters)
+    {
+        // If it's a reply to bot without mention, silently ignore
+        if (parameters is { ReplyToBotMessage: true, BotMentioned: false })
+        {
+            return false;
+        }
+        
+        // Otherwise, send no tokens message
+        return await SendNoItemsMessage(chatId, messageId);
     }
 
     private async Task<bool> SendFailedMessage(long chatId, int messageId)
