@@ -38,6 +38,7 @@ public record AppConfig(
     DustConfig DustConfig,
     CraftConfig CraftConfig,
     PollPaymentConfig? PollPaymentConfig,
+    QuizConfig? QuizConfig = null,
     DeepSeekConfig? DeepSeekConfig = null,
     KeycloakConfig? KeycloakConfig = null,
     DateTime? DeployTime = null,
@@ -628,4 +629,29 @@ public record GiveawayConfig(
     string ButtonText,
     [property: Range(1, int.MaxValue)]
     int DefaultDurationMinutes
+);
+
+public record QuizConfig(
+    bool Enabled,
+    [property: Required(AllowEmptyStrings = false)]
+    string QuestionGenerationCronUtc,
+    IReadOnlyList<string> Topics,
+    [property: Required(AllowEmptyStrings = false)]
+    string QuestionGenerationPrompt,
+    [property: Required(AllowEmptyStrings = false)]
+    string AnswerValidationPrompt,
+    [property: Required(AllowEmptyStrings = false)]
+    string BatchAnswerValidationPrompt,
+    [property: Required(AllowEmptyStrings = false)]
+    string QuestionMessageTemplate,
+    [property: Required(AllowEmptyStrings = false)]
+    string WinnerMessageTemplate,
+    [property: Required(AllowEmptyStrings = false)]
+    string QuizCompletedTemplate,
+    [property: Required(AllowEmptyStrings = false)]
+    string QuizUnansweredTemplate,
+    [property: Required(AllowEmptyStrings = false)]
+    string SubtopicAvoidancePrompt,
+    [property: Range(1, int.MaxValue)] int AutoCloseUnansweredMinutes = 240,
+    [property: Range(1, int.MaxValue)] int SubtopicHistoryLimit = 25
 );

@@ -8,6 +8,7 @@ public readonly record struct ChatMessageHandlerParams(
     long TelegramId,
     long ChatId,
     Option<long> ReplyToTelegramId,
+    Option<int> ReplyToMessageId,
     bool BotMentioned,
     bool ReplyToBotMessage,
     Option<string> ReplyToMessageText
@@ -49,6 +50,7 @@ public class ChatMessageHandler(
     CurseHandler curseHandler,
     MinaHandler minaHandler,
     WrongCommandHandler wrongCommandHandler,
+    QuizAnswerHandler quizAnswerHandler,
     AiQueryHandler aiQueryHandler
 )
 {
@@ -77,10 +79,10 @@ public class ChatMessageHandler(
         }
         
         // Try fast reply first
-        if (await fastReplyHandler.Do(parameters))
-        {
-            return unit;
-        }
+        if (await fastReplyHandler.Do(parameters)) return unit;
+
+        // Check for quiz answers
+        if (await quizAnswerHandler.Do(parameters)) return unit;
 
         aiQueryHandler.Do(parameters);
 
