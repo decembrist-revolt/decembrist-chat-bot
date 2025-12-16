@@ -68,22 +68,27 @@ public class QuizService(
     {
         if (string.IsNullOrWhiteSpace(text)) return text;
 
-        // Remove ```json and ``` markers
         var cleaned = text.Trim();
 
+        // Check if text contains markdown code block
+        if (!cleaned.StartsWith("```")) return cleaned.Trim();
+        
+        // Find the start of JSON content
+        var startIndex = 0;
         if (cleaned.StartsWith("```json"))
         {
-            cleaned = cleaned["```json".Length..];
+            startIndex = "```json".Length;
         }
         else if (cleaned.StartsWith("```"))
         {
-            cleaned = cleaned["```".Length..];
+            startIndex = "```".Length;
         }
 
-        if (cleaned.EndsWith("```"))
-        {
-            cleaned = cleaned[..^3];
-        }
+        // Find the closing ``` marker
+        var endIndex = cleaned.IndexOf("```", startIndex, StringComparison.Ordinal);
+        // Extract only the content between markers
+        cleaned = 
+            endIndex > startIndex ? cleaned.Substring(startIndex, endIndex - startIndex) : cleaned[startIndex..];
 
         return cleaned.Trim();
     }
@@ -297,7 +302,12 @@ public class QuizService(
         var response = await deepSeekService.GetChatResponse(prompt, 0, 0);
 
         return response.ToTryOption()
-            .Map(ExtractJsonFromMarkdown)
+            .Map(rawResponse =>
+            {
+                var extracted = ExtractJsonFromMarkdown(rawResponse);
+                Log.Information("Extracted JSON from DeepSeek response: {Json}", extracted);
+                return extracted;
+            })
             .Map(jsonText => JsonSerializer.Deserialize<BatchValidationResponse>(jsonText))
             .Match(batchResponse =>
                 {

@@ -14,6 +14,7 @@ public class AiQueryHandler(
     DeepSeekService deepSeekService,
     MemberItemService memberItemService,
     AdminUserRepository adminUserRepository,
+    QuizRepository quizRepository,
     BotClient botClient,
     AppConfig appConfig,
     CancellationTokenSource cancelToken)
@@ -70,6 +71,23 @@ public class AiQueryHandler(
         }
 
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
+
+        if (!isAdmin)
+        {
+            // Check if there's an active quiz
+            var activeQuiz = await quizRepository.GetActiveQuestion(chatId);
+            if (activeQuiz.IsSome)
+            {
+                await botClient.SendMessageAndLog(
+                    chatId,
+                    appConfig.DeepSeekConfig!.ActiveQuizMessage,
+                    replyMessageId: messageId,
+                    _ => Log.Information("Sent active quiz message to user {UserId} in chat {ChatId}", telegramId, chatId),
+                    ex => Log.Error(ex, "Failed to send active quiz message to chat {ChatId}", chatId),
+                    cancelToken.Token);
+                return true;
+            }
+        }
 
         // Try to use AI token
         var result = await memberItemService.UseAiToken(chatId, telegramId, isAdmin);

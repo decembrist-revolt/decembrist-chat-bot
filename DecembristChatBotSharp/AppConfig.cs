@@ -541,7 +541,9 @@ public record DeepSeekConfig(
     [property: Required(AllowEmptyStrings = false)]
     string AiErrorMessage,
     [property: Required(AllowEmptyStrings = false)]
-    string AiTokenDescription
+    string AiTokenDescription,
+    [property: Required(AllowEmptyStrings = false)]
+    string ActiveQuizMessage
 );
 
 public record CraftConfig(
