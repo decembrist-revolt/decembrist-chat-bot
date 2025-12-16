@@ -53,4 +53,5 @@ public enum MemberItemSourceType
     Give = 7,
     SlotMachine = 8,
     Giveaway = 9,
+    Quiz = 10
 }

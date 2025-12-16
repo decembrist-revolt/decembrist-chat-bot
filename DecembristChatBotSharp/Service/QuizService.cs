@@ -437,7 +437,7 @@ public class QuizService(
         {
             // Log to history
             await historyLogRepository.LogItem(
-                chatId, telegramId, MemberItemType.Box, 1, MemberItemSourceType.Admin, session);
+                chatId, telegramId, MemberItemType.Box, 1, MemberItemSourceType.Quiz, session);
 
             // Get winner username
             var userName = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
