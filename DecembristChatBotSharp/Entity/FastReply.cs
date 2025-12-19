@@ -4,6 +4,7 @@ namespace DecembristChatBotSharp.Entity;
 
 public record FastReply(
     [property: BsonId] FastReply.CompositeId Id,
+    long TelegramId,
     string Reply,
     DateTime ExpireAt,
     FastReplyType MessageType,

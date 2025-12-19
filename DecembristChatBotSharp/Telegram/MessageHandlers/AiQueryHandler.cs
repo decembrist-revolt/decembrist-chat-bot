@@ -11,6 +11,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 [Singleton]
 public class AiQueryHandler(
     User botUser,
+    MessageAssistance messageAssistance,
     DeepSeekService deepSeekService,
     MemberItemService memberItemService,
     AdminUserRepository adminUserRepository,
@@ -163,17 +164,12 @@ public class AiQueryHandler(
                 }
             );
 
-    private async Task EditMessageWithAiResponse(long chatId, int messageId, string response)
-    {
-        await botClient.EditMessageAndLog(
+    private async Task<Unit> EditMessageWithAiResponse(long chatId, int messageId, string response) =>
+        await messageAssistance.TryEditMarkdownMessage(
             chatId,
             messageId,
             response,
-            _ => Log.Information("Edited message {MessageId} with AI response in chat {ChatId}", messageId, chatId),
-            ex => Log.Error(ex, "Failed to edit message {MessageId} with AI response in chat {ChatId}", messageId,
-                chatId),
-            cancelToken.Token);
-    }
+            nameof(AiQueryHandler));
 
     private async Task EditMessageWithError(long chatId, int messageId)
     {

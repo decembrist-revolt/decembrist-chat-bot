@@ -59,7 +59,7 @@ public class QuizAnswerHandler(
                         Log.Error(ex, "Failed to set reaction on quiz answer message {MessageId}", messageId));
                 }
 
-                return true;
+                return recorded;
             }, () => Task.FromResult(false));
     }
 }

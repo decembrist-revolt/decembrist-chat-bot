@@ -76,7 +76,8 @@ public class FastReplyExpiredJob(
         };
         var fastReplyCommand =
             FastReplyCommandHandler.CommandKey + separator + reply.Id.Message.EscapeMarkdown() + separator + replyText.EscapeMarkdown();
-        var message = string.Format(appConfig.CommandConfig.FastReplyExpiredMessage, reply.Id.Message,
+        var username = await botClient.GetUsernameOrId(reply.TelegramId, reply.Id.ChatId, cancelToken.Token);
+        var message = string.Format(appConfig.CommandConfig.FastReplyExpiredMessage, reply.Id.Message, username,
             fastReplyCommand);
         var chatId = reply.Id.ChatId;
         await botClient.SendMessageAndLog(chatId, message, parseMode: ParseMode.MarkdownV2,

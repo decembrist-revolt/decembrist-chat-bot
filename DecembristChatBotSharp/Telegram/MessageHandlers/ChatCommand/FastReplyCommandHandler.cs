@@ -46,7 +46,7 @@ public class FastReplyCommandHandler(
             return await DeleteFastReply(chatId, reply, messageId);
         }
 
-        var maybeFastReply = await CreateFastReply(chatId, message, reply, messageId);
+        var maybeFastReply = await CreateFastReply(chatId, telegramId, message, reply, messageId);
 
         return await maybeFastReply.MapAsync(async fastReply =>
         {
@@ -79,7 +79,8 @@ public class FastReplyCommandHandler(
         return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
     }
 
-    private async Task<Option<FastReply>> CreateFastReply(long chatId, string message, string reply, int messageId)
+    private async Task<Option<FastReply>> CreateFastReply(
+        long chatId, long telegramId, string message, string reply, int messageId)
     {
         var messageType = FastReplyType.Text;
         if (message.StartsWith(FastReplyHandler.StickerPrefix))
@@ -104,7 +105,7 @@ public class FastReplyCommandHandler(
 
         var expireAt = DateTime.UtcNow.AddDays(appConfig.CommandConfig.FastReplyDaysDuration);
 
-        return new FastReply((chatId, message), reply, expireAt, messageType, replyType);
+        return new FastReply((chatId, message), telegramId, reply, expireAt, messageType, replyType);
     }
 
     private async Task<bool> CheckSticker(long chatId, string fileId, int messageId)

@@ -142,6 +142,35 @@ public class MessageAssistance(
                 commandName, callerName, chatId),
             cancelToken.Token, replyMarkup);
 
+    public Task<Unit> TryEditMarkdownMessage(
+        long chatId,
+        int messageId,
+        string message,
+        string commandName,
+        InlineKeyboardMarkup? replyMarkup = null,
+        [CallerMemberName] string callerName = "UnknownCaller") =>
+        botClient.EditMessageText(chatId, messageId, message,
+                parseMode: ParseMode.Markdown,
+                cancellationToken: cancelToken.Token,
+                replyMarkup: replyMarkup
+            )
+            .ToTryAsync()
+            .Match(_ =>
+                {
+                    Log.Information("Edited markdown message to command {0}: from: {1}, message: {2}, chat:{3}",
+                        commandName, callerName, messageId, chatId);
+                    return Task.FromResult(unit);
+                },
+                async ex =>
+                {
+                    Log.Error(
+                        "Failed to edit markdown message to command {0}: from {1}, message:{2} to chat {3}, \n\r Exception: {4}",
+                        commandName, callerName, messageId, chatId, ex);
+                    Log.Information("Trying to edit message without markdown");
+                    return await EditMessageAndLog(chatId, messageId, message, commandName, replyMarkup);
+                }
+            );
+
     public async Task<Unit> EditMessageAndLog(
         long chatId,
         int messageId,
