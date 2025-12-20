@@ -385,6 +385,7 @@ public class QuizService(
     {
         if (question.Answers.Count == 0)
         {
+            await DeleteExpiredQuestion(question);
             return;
         }
 
@@ -397,6 +398,7 @@ public class QuizService(
         if (validationResults.Count == 0)
         {
             Log.Warning("Batch validation failed for question {QuestionId}, will retry later", question.Id.QuestionId);
+            await DeleteExpiredQuestion(question);
             return;
         }
 
@@ -421,9 +423,8 @@ public class QuizService(
             // Delete entire question (with all answers)
             await quizRepository.DeleteQuestion(question.Id);
         }
-        else
+        else if (!await DeleteExpiredQuestion(question))
         {
-            if (await DeleteExpiredQuestion(question)) return;
             // No correct answers, remove all wrong answers by messageId
             foreach (var answer in sortedAnswers)
             {
