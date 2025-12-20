@@ -423,6 +423,7 @@ public class QuizService(
         }
         else
         {
+            if (await DeleteExpiredQuestion(question)) return;
             // No correct answers, remove all wrong answers by messageId
             foreach (var answer in sortedAnswers)
             {
@@ -433,6 +434,17 @@ public class QuizService(
                 }
             }
         }
+    }
+
+    private async Task<bool> DeleteExpiredQuestion(QuizQuestion question)
+    {
+        var autoCloseMinutes = appConfig.QuizConfig!.AutoCloseUnansweredMinutes;
+        var age = DateTime.UtcNow - question.CreatedAtUtc;
+        if (age <= TimeSpan.FromMinutes(autoCloseMinutes)) return false;
+
+        await CloseUnansweredQuestion(question);
+        await quizRepository.DeleteQuestion(question.Id);
+        return true;
     }
 
     private async Task RewardWinner(long chatId, long telegramId, QuizQuestion question, QuizAnswerData answer)
