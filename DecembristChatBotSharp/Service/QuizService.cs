@@ -185,11 +185,11 @@ public class QuizService(
     /// Record user answer for later validation (only if it's a reply to the question message)
     /// Rate limit: 1 answer per minute per user
     /// </summary>
-    public async Task<bool> RecordAnswer(
+    public async Task<AnswerResult> RecordAnswer(
         long chatId, long telegramId, int messageId, string answerText, Option<int> replyToMessageId)
     {
         // Answer must be a reply to the question message
-        if (replyToMessageId.IsNone) return false;
+        if (replyToMessageId.IsNone) return AnswerResult.AnswerNotRecorded;
 
         var activeQuestion = await quizRepository.GetActiveQuestion(chatId);
 
@@ -198,7 +198,7 @@ public class QuizService(
                 var replyId = replyToMessageId.IfNone(0);
 
                 // Check if reply is to the quiz question message
-                if (replyId != question.MessageId) return false;
+                if (replyId != question.MessageId) return AnswerResult.AnswerNotRecorded;
 
                 // Rate limiting: check if user already answered in the last minute
                 var oneMinuteAgo = DateTime.UtcNow.AddMinutes(-1);
@@ -208,13 +208,15 @@ public class QuizService(
                 if (recentAnswerFromUser)
                 {
                     Log.Debug("User {UserId} tried to answer too quickly (rate limit: 1/min)", telegramId);
-                    return false;
+                    return AnswerResult.AnswerNotRecorded;
                 }
 
                 var answerData = new QuizAnswerData(messageId, telegramId, answerText, DateTime.UtcNow);
-                return await quizRepository.AddAnswer(chatId, answerData);
+                return await quizRepository.AddAnswer(chatId, answerData)
+                    ? AnswerResult.AnswerRecorded
+                    : AnswerResult.AnswerNotRecorded;
             },
-            () => Task.FromResult(false)
+            () => Task.FromResult(AnswerResult.QuestionNonExist)
         );
     }
 
@@ -532,4 +534,11 @@ public class QuizService(
         Log.Error("Failed to add Box to quiz winner {UserId} in chat {ChatId}", telegramId, chatId);
         await session.TryAbort(cancelToken.Token);
     }
+}
+
+public enum AnswerResult
+{
+    QuestionNonExist,
+    AnswerRecorded,
+    AnswerNotRecorded
 }
