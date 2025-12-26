@@ -8,7 +8,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
 public class QuizAnswerHandler(
-    AppConfig appConfig, 
+    AppConfig appConfig,
     QuizService quizService,
     BotClient botClient,
     CancellationTokenSource cancelToken)
@@ -38,28 +38,31 @@ public class QuizAnswerHandler(
         var chatId = parameters.ChatId;
         var telegramId = parameters.TelegramId;
         var messageId = parameters.MessageId;
-        
+
         return await parameters.ReplyToMessageId
             .MapAsync(replyMessageId => quizService.RecordAnswer(chatId, telegramId, messageId, text, replyMessageId))
             .MatchAsync(async recorded =>
             {
-                if (recorded)
+                if (recorded == AnswerResult.AnswerRecorded)
                 {
                     Log.Debug("Recorded quiz answer from user {UserId} in chat {ChatId}: {Answer}",
                         telegramId, chatId, text);
-                    
+
                     // Set eyes reaction to indicate answer is recorded
                     await botClient.SetMessageReaction(
-                        chatId, 
-                        messageId, 
-                        [new ReactionTypeEmoji { Emoji = EyesReaction }],
-                        cancellationToken: cancelToken.Token
-                    ).ToTryAsync()
-                    .IfFail(ex => 
-                        Log.Error(ex, "Failed to set reaction on quiz answer message {MessageId}", messageId));
+                            chatId,
+                            messageId,
+                            [new ReactionTypeEmoji { Emoji = EyesReaction }],
+                            cancellationToken: cancelToken.Token
+                        ).ToTryAsync()
+                        .IfFail(ex =>
+                            Log.Error(ex, "Failed to set reaction on quiz answer message {MessageId}", messageId));
+                    return true;
                 }
 
-                return recorded;
+                if (recorded == AnswerResult.AnswerNotRecorded) return true;
+
+                return recorded != AnswerResult.QuestionNonExist;
             }, () => Task.FromResult(false));
     }
 }

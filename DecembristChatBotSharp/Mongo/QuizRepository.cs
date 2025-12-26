@@ -79,7 +79,7 @@ public class QuizRepository(MongoDatabase db, CancellationTokenSource cancelToke
                 result => result.IsAcknowledged && result.ModifiedCount > 0,
                 ex =>
                 {
-                    Log.Error(ex, "Failed to add answer for user {UserId} in chat {ChatId}", 
+                    Log.Error(ex, "Failed to add answer for user {UserId} in chat {ChatId}",
                         answer.TelegramId, chatId);
                     return false;
                 });
@@ -92,7 +92,7 @@ public class QuizRepository(MongoDatabase db, CancellationTokenSource cancelToke
     {
         var collection = GetQuestionCollection();
         var filter = Builders<QuizQuestion>.Filter.SizeGt(q => q.Answers, 0);
-        
+
         return await collection
             .Find(filter)
             .ToListAsync(cancelToken.Token)
@@ -106,6 +106,19 @@ public class QuizRepository(MongoDatabase db, CancellationTokenSource cancelToke
                 });
     }
 
+    public async Task<Arr<QuizQuestion>> GetAllQuestions() =>
+        await GetQuestionCollection()
+            .Find(_ => true)
+            .ToListAsync(cancelToken.Token)
+            .ToTryAsync()
+            .Match(
+                list => list.ToArr(),
+                ex =>
+                {
+                    Log.Error(ex, "Failed to get questions");
+                    return Arr<QuizQuestion>.Empty;
+                });
+
     /// <summary>
     /// Remove specific answer from question after validation (by messageId)
     /// </summary>
@@ -114,7 +127,7 @@ public class QuizRepository(MongoDatabase db, CancellationTokenSource cancelToke
         var collection = GetQuestionCollection();
         var filter = Builders<QuizQuestion>.Filter.Eq(q => q.Id.ChatId, chatId);
         var update = Builders<QuizQuestion>.Update.PullFilter(
-            q => q.Answers, 
+            q => q.Answers,
             a => a.MessageId == messageId);
 
         return await collection.UpdateOneAsync(filter, update, cancellationToken: cancelToken.Token)
@@ -123,10 +136,9 @@ public class QuizRepository(MongoDatabase db, CancellationTokenSource cancelToke
                 result => result.IsAcknowledged && result.ModifiedCount > 0,
                 ex =>
                 {
-                    Log.Error(ex, "Failed to remove answer with messageId {MessageId} in chat {ChatId}", 
+                    Log.Error(ex, "Failed to remove answer with messageId {MessageId} in chat {ChatId}",
                         messageId, chatId);
                     return false;
                 });
     }
 }
-
