@@ -72,7 +72,7 @@ public class QuizService(
 
         // Check if text contains markdown code block
         if (!cleaned.StartsWith("```")) return cleaned.Trim();
-        
+
         // Find the start of JSON content
         var startIndex = 0;
         if (cleaned.StartsWith("```json"))
@@ -87,7 +87,7 @@ public class QuizService(
         // Find the closing ``` marker
         var endIndex = cleaned.IndexOf("```", startIndex, StringComparison.Ordinal);
         // Extract only the content between markers
-        cleaned = 
+        cleaned =
             endIndex > startIndex ? cleaned.Substring(startIndex, endIndex - startIndex) : cleaned[startIndex..];
 
         return cleaned.Trim();
@@ -185,11 +185,11 @@ public class QuizService(
     /// Record user answer for later validation (only if it's a reply to the question message)
     /// Rate limit: 1 answer per minute per user
     /// </summary>
-    public async Task<bool> RecordAnswer(
+    public async Task<AnswerResult> RecordAnswer(
         long chatId, long telegramId, int messageId, string answerText, Option<int> replyToMessageId)
     {
         // Answer must be a reply to the question message
-        if (replyToMessageId.IsNone) return false;
+        if (replyToMessageId.IsNone) return AnswerResult.AnswerNotRecorded;
 
         var activeQuestion = await quizRepository.GetActiveQuestion(chatId);
 
@@ -198,7 +198,7 @@ public class QuizService(
                 var replyId = replyToMessageId.IfNone(0);
 
                 // Check if reply is to the quiz question message
-                if (replyId != question.MessageId) return false;
+                if (replyId != question.MessageId) return AnswerResult.AnswerNotRecorded;
 
                 // Rate limiting: check if user already answered in the last minute
                 var oneMinuteAgo = DateTime.UtcNow.AddMinutes(-1);
@@ -208,13 +208,15 @@ public class QuizService(
                 if (recentAnswerFromUser)
                 {
                     Log.Debug("User {UserId} tried to answer too quickly (rate limit: 1/min)", telegramId);
-                    return false;
+                    return AnswerResult.AnswerNotRecorded;
                 }
 
                 var answerData = new QuizAnswerData(messageId, telegramId, answerText, DateTime.UtcNow);
-                return await quizRepository.AddAnswer(chatId, answerData);
+                return await quizRepository.AddAnswer(chatId, answerData)
+                    ? AnswerResult.AnswerRecorded
+                    : AnswerResult.AnswerNotRecorded;
             },
-            () => Task.FromResult(false)
+            () => Task.FromResult(AnswerResult.QuestionNonExist)
         );
     }
 
@@ -343,7 +345,7 @@ public class QuizService(
     /// </summary>
     public async Task ProcessPendingAnswers()
     {
-        var questionsWithAnswers = await quizRepository.GetQuestionsWithPendingAnswers();
+        var questionsWithAnswers = await quizRepository.GetAllQuestions();
         if (questionsWithAnswers.IsEmpty)
         {
             return;
@@ -351,7 +353,8 @@ public class QuizService(
 
         foreach (var question in questionsWithAnswers)
         {
-            await ProcessAnswersForQuestion(question);
+            var isRemove = await ProcessAnswersForQuestion(question);
+            if (!isRemove) await DeleteExpiredQuestion(question);
         }
     }
 
@@ -381,12 +384,12 @@ public class QuizService(
             question.Id.ChatId, DateTime.UtcNow - question.CreatedAtUtc);
     }
 
-    private async Task ProcessAnswersForQuestion(QuizQuestion question)
+    private async Task<bool> ProcessAnswersForQuestion(QuizQuestion question)
     {
         if (question.Answers.Count == 0)
         {
-            await DeleteExpiredQuestion(question);
-            return;
+            Log.Information("Question has no answers, Id {questionId}", question.Id);
+            return false;
         }
 
         // Sort answers by time (first answer wins if correct)
@@ -398,8 +401,7 @@ public class QuizService(
         if (validationResults.Count == 0)
         {
             Log.Warning("Batch validation failed for question {QuestionId}, will retry later", question.Id.QuestionId);
-            await DeleteExpiredQuestion(question);
-            return;
+            return false;
         }
 
         // Find first correct answer by checking each answer in time order
@@ -422,30 +424,39 @@ public class QuizService(
             await RewardWinner(question.Id.ChatId, firstCorrectAnswer.TelegramId, question, firstCorrectAnswer);
             // Delete entire question (with all answers)
             await quizRepository.DeleteQuestion(question.Id);
+            Log.Information("The winner is determined, the question is deleted, Id: {questionId}", question.Id);
+            return true;
         }
-        else if (!await DeleteExpiredQuestion(question))
+
+        if (QuestionIsExpired(question)) return false;
+        // No correct answers, remove all wrong answers by messageId
+        foreach (var answer in sortedAnswers)
         {
-            // No correct answers, remove all wrong answers by messageId
-            foreach (var answer in sortedAnswers)
+            var isCorrect = validationResults.TryGetValue(answer.TelegramId, out var correct) && correct;
+            if (!isCorrect)
             {
-                var isCorrect = validationResults.TryGetValue(answer.TelegramId, out var correct) && correct;
-                if (!isCorrect)
-                {
-                    await quizRepository.RemoveAnswer(question.Id.ChatId, answer.MessageId);
-                }
+                await quizRepository.RemoveAnswer(question.Id.ChatId, answer.MessageId);
             }
         }
+
+        return false;
     }
 
     private async Task<bool> DeleteExpiredQuestion(QuizQuestion question)
     {
-        var autoCloseMinutes = appConfig.QuizConfig!.AutoCloseUnansweredMinutes;
-        var age = DateTime.UtcNow - question.CreatedAtUtc;
-        if (age <= TimeSpan.FromMinutes(autoCloseMinutes)) return false;
-
+        Log.Information("Checking whether the question has expired, Id: {questionId}", question.Id);
+        if (!QuestionIsExpired(question)) return false;
         await CloseUnansweredQuestion(question);
         await quizRepository.DeleteQuestion(question.Id);
+        Log.Information("Question delete, Id: {questionId}", question.Id);
         return true;
+    }
+
+    private bool QuestionIsExpired(QuizQuestion question)
+    {
+        var autoCloseMinutes = appConfig.QuizConfig!.AutoCloseUnansweredMinutes;
+        var age = DateTime.UtcNow - question.CreatedAtUtc;
+        return age > TimeSpan.FromMinutes(autoCloseMinutes);
     }
 
     private async Task RewardWinner(long chatId, long telegramId, QuizQuestion question, QuizAnswerData answer)
@@ -523,4 +534,11 @@ public class QuizService(
         Log.Error("Failed to add Box to quiz winner {UserId} in chat {ChatId}", telegramId, chatId);
         await session.TryAbort(cancelToken.Token);
     }
+}
+
+public enum AnswerResult
+{
+    QuestionNonExist,
+    AnswerRecorded,
+    AnswerNotRecorded
 }
