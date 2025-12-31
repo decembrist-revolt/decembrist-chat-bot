@@ -43,10 +43,11 @@ public record MazeGamePlayer(
 public record MazePlayerInventory(
     int Swords,
     int Shields, 
-    int Shovels
+    int Shovels,
+    int ViewExpanders // Увеличивает радиус видимости на 1
 )
 {
-    public static MazePlayerInventory Empty => new(0, 0, 0);
+    public static MazePlayerInventory Empty => new(0, 0, 0, 0);
 }
 
 /// <summary>
@@ -56,7 +57,8 @@ public enum MazeItemType
 {
     Sword = 0,
     Shield = 1,
-    Shovel = 2
+    Shovel = 2,
+    ViewExpander = 3 // Увеличивает область видимости на 1
 }
 
 /// <summary>

@@ -37,6 +37,7 @@ public record AppConfig(
     GiveawayConfig GiveawayConfig,
     DustConfig DustConfig,
     CraftConfig CraftConfig,
+    MazeConfig MazeConfig,
     PollPaymentConfig? PollPaymentConfig,
     QuizConfig? QuizConfig = null,
     DeepSeekConfig? DeepSeekConfig = null,
@@ -657,3 +658,9 @@ public record QuizConfig(
     [property: Range(1, int.MaxValue)] int AutoCloseUnansweredMinutes = 240,
     [property: Range(1, int.MaxValue)] int SubtopicHistoryLimit = 25
 );
+
+public record MazeConfig(
+    [property: Range(1, int.MaxValue)] int ChestFrequency = 50,
+    [property: Range(1, 10)] int DefaultViewRadius = 3
+);
+

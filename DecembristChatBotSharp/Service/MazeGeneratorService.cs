@@ -3,7 +3,7 @@
 namespace DecembristChatBotSharp.Service;
 
 [Singleton]
-public class MazeGeneratorService(Random random)
+public class MazeGeneratorService(Random random, AppConfig appConfig)
 {
     private const int MazeSize = 128;
 
@@ -11,7 +11,7 @@ public class MazeGeneratorService(Random random)
     /// Generates a 128x128 maze where 0 is empty space, 1 is a wall, 2 is a path, 3 is the exit, and 4 is a chest.
     /// Classic maze with one solution path from edge to exit.
     /// Exit is placed randomly (not at center, not at edge) with guaranteed long path.
-    /// Chests are placed randomly throughout the maze (1 per ~10 cells) without blocking paths.
+    /// Chests are placed randomly throughout the maze (frequency configurable via MazeConfig.ChestFrequency) without blocking paths.
     /// Outer edge is clear for starting area.
     /// </summary>
     public int[,] GenerateMaze()
@@ -48,7 +48,7 @@ public class MazeGeneratorService(Random random)
         // Step 6: Fill all accessible paths with value 2 (will preserve 3 for exit)
         FloodFillPaths(maze);
         
-        // Step 7: Place chests randomly (1 per ~10 cells, value 4)
+        // Step 7: Place chests randomly (1 per ~50 cells, value 4)
         PlaceChestsInMaze(maze);
 
         return maze;
@@ -95,7 +95,7 @@ public class MazeGeneratorService(Random random)
 
     /// <summary>
     /// Places chests randomly in the maze (value 4)
-    /// Approximately 1 chest per 100 path cells (very rare)
+    /// Frequency is configurable via MazeConfig.ChestFrequency (default: 1 chest per 50 path cells)
     /// Chests are placed on paths but don't block them
     /// </summary>
     private void PlaceChestsInMaze(int[,] maze)
@@ -111,8 +111,19 @@ public class MazeGeneratorService(Random random)
             }
         }
         
-        // Calculate number of chests (1 per 100 path cells - very rare)
-        var chestCount = pathCellCount / 100;
+        // Calculate number of chests based on config (ChestFrequency from appsettings.json)
+        var chestCount = pathCellCount / appConfig.MazeConfig.ChestFrequency;
+        
+        // Calculate dynamic minimum distance based on chest density
+        // More chests = smaller distance, fewer chests = larger distance
+        var minDistance = chestCount switch
+        {
+            < 100 => 15,    // Очень мало сундуков - большое расстояние
+            < 300 => 10,    // Мало сундуков - среднее расстояние
+            < 600 => 7,     // Среднее количество - небольшое расстояние
+            < 1000 => 5,    // Много сундуков - маленькое расстояние
+            _ => 3          // Очень много сундуков - минимальное расстояние
+        };
         
         // Collect all valid path positions
         var validPathPositions = new List<(int row, int col)>();
@@ -142,21 +153,21 @@ public class MazeGeneratorService(Random random)
             if (placedChests >= chestCount)
                 break;
             
-            // Ensure chests are not too close to each other (at least 15 cells apart)
+            // Ensure chests are not too close to each other (dynamic distance)
             var tooClose = false;
-            for (var dr = -15; dr <= 15; dr++)
+            
+            // Use Manhattan distance for efficiency instead of square check
+            for (var i = 0; i < shuffledPositions.Count && !tooClose; i++)
             {
-                for (var dc = -15; dc <= 15; dc++)
+                var (otherRow, otherCol) = shuffledPositions[i];
+                if (maze[otherRow, otherCol] == 4) // Already has chest
                 {
-                    var checkRow = row + dr;
-                    var checkCol = col + dc;
-                    if (checkRow is >= 0 and < MazeSize && checkCol is >= 0 and < MazeSize && maze[checkRow, checkCol] == 4)
+                    var manhattanDist = Math.Abs(row - otherRow) + Math.Abs(col - otherCol);
+                    if (manhattanDist < minDistance)
                     {
                         tooClose = true;
-                        break;
                     }
                 }
-                if (tooClose) break;
             }
             
             if (!tooClose)
@@ -2132,7 +2143,7 @@ public class MazeGeneratorService(Random random)
             else
             {
                 // Move horizontally toward center
-                dCol = currentCol < centerCol ? 1 : -1;
+                dCol = currentCol < centerRow ? 1 : -1;
                 
                 // Sometimes move vertically for winding
                 if (random.Next(4) == 0 && Math.Abs(currentRow - centerRow) > 5)

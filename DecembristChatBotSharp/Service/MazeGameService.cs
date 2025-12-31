@@ -10,10 +10,10 @@ namespace DecembristChatBotSharp.Service;
 public class MazeGameService(
     MazeGeneratorService mazeGenerator,
     MazeGameRepository mazeGameRepository,
+    AppConfig appConfig,
     Random random)
 {
     private const int MazeSize = 128;
-    private const int DefaultViewRadius = 2;
     private const int CellSize = 10;
 
     private static readonly string[] PlayerColors = new[]
@@ -75,7 +75,7 @@ public class MazeGameService(
                     spawnPosition,
                     spawnPosition,
                     availableColor,
-                    DefaultViewRadius,
+                    appConfig.MazeConfig.DefaultViewRadius,
                     DateTime.UtcNow,
                     DateTime.UtcNow,
                     true,
@@ -167,12 +167,13 @@ public class MazeGameService(
                     // Handle chest pickup
                     if (cellType == 4) // Chest
                     {
-                        var itemType = (MazeItemType)random.Next(3);
+                        var itemType = (MazeItemType)random.Next(4); // Теперь 4 типа предметов
                         var newInventory = itemType switch
                         {
                             MazeItemType.Sword => player.Inventory with { Swords = player.Inventory.Swords + 1 },
                             MazeItemType.Shield => player.Inventory with { Shields = player.Inventory.Shields + 1 },
                             MazeItemType.Shovel => player.Inventory with { Shovels = player.Inventory.Shovels + 1 },
+                            MazeItemType.ViewExpander => player.Inventory with { ViewExpanders = player.Inventory.ViewExpanders + 1 },
                             _ => player.Inventory
                         };
 
@@ -216,7 +217,8 @@ public class MazeGameService(
     private byte[]? RenderPlayerViewInternal(MazeGame game, MazeGamePlayer currentPlayer, List<MazeGamePlayer> allPlayers)
     {
         var (playerRow, playerCol) = currentPlayer.Position;
-        var radius = currentPlayer.ViewRadius;
+        // Базовый радиус + бонус от ViewExpanders (каждый добавляет +1)
+        var radius = currentPlayer.ViewRadius + currentPlayer.Inventory.ViewExpanders;
         var viewSize = radius * 2 + 1;
 
         var imageWidth = viewSize * CellSize;

@@ -83,7 +83,8 @@ public class MazeGameViewService(
                     var inventoryText = "🎒 Инвентарь: " +
                                       "🗡️ " + player.Inventory.Swords + " " +
                                       "🛡️ " + player.Inventory.Shields + " " +
-                                      "⛏️ " + player.Inventory.Shovels;
+                                      "⛏️ " + player.Inventory.Shovels + " " +
+                                      "🔭 " + player.Inventory.ViewExpanders;
 
                     // Создаём inline клавиатуру
                     var upCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Up}");
