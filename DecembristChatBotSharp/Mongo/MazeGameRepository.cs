@@ -286,6 +286,23 @@ public class MazeGameRepository(
             });
     }
 
+    public async Task<Option<MazeGame>> GetActiveGameForChat(long chatId)
+    {
+        var collection = GetGameCollection();
+        return await collection
+            .Find(game => game.Id.ChatId == chatId && !game.IsFinished)
+            .SortByDescending(game => game.CreatedAt)
+            .FirstOrDefaultAsync(cancelToken.Token)
+            .ToTryAsync()
+            .Match(
+                Optional,
+                ex =>
+                {
+                    Log.Error(ex, "Failed to get active game for chat {0}", chatId);
+                    return None;
+                });
+    }
+
     private IMongoCollection<MazeGame> GetGameCollection() =>
         db.GetCollection<MazeGame>(nameof(MazeGame));
 
