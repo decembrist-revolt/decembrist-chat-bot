@@ -111,6 +111,31 @@ public static class UtilsExtensions
         botClient.SetMessageReaction(chatId, messageId, emojis, cancellationToken: cancelToken).ToTryAsync()
             .Match(onSent, onError);
 
+    public static Task<Unit> SendPhotoAndLog(
+        this BotClient botClient,
+        long chatId,
+        Stream photo,
+        string caption,
+        Action<Message> onSent,
+        Action<Exception> onError,
+        CancellationToken cancelToken) =>
+        botClient.SendPhoto(chatId, photo, caption: caption, cancellationToken: cancelToken)
+            .ToTryAsync()
+            .Match(onSent, onError);
+
+    public static Task<Unit> SendPhotoAndLog(
+        this BotClient botClient,
+        long chatId,
+        Stream photo,
+        string caption,
+        Action<Message> onSent,
+        Action<Exception> onError,
+        CancellationToken cancelToken,
+        ReplyMarkup? replyMarkup) =>
+        botClient.SendPhoto(chatId, photo, caption: caption, replyMarkup: replyMarkup, cancellationToken: cancelToken)
+            .ToTryAsync()
+            .Match(onSent, onError);
+
     public static Task<Unit> BanChatMemberAndLog(this BotClient botClient,
         long chatId,
         long telegramId,
