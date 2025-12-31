@@ -95,7 +95,7 @@ public class MazeGameViewHandler(
 
         using var wallPaint = new SKPaint { Color = SKColors.Black, Style = SKPaintStyle.Fill };
         using var pathPaint = new SKPaint { Color = new SKColor(200, 200, 200), Style = SKPaintStyle.Fill };
-        using var exitPaint = new SKPaint { Color = SKColors.Green, Style = SKPaintStyle.Fill };
+        using var exitPaint = new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Fill };
         using var chestPaint = new SKPaint { Color = new SKColor(255, 215, 0), Style = SKPaintStyle.Fill };
 
         // Рисуем весь лабиринт

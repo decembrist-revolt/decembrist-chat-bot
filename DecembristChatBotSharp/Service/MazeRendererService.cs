@@ -46,7 +46,7 @@ public class MazeRendererService(MazeGeneratorService mazeGenerator)
         // Create paints
         using (var wallPaint = new SKPaint { Color = SKColors.Black, Style = SKPaintStyle.Fill })
         using (var pathPaint = new SKPaint { Color = new SKColor(200, 200, 200), Style = SKPaintStyle.Fill }) // Light gray for paths
-        using (var exitPaint = new SKPaint { Color = SKColors.Green, Style = SKPaintStyle.Fill })
+        using (var exitPaint = new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Fill })
         using (var chestPaint = new SKPaint { Color = new SKColor(255, 215, 0), Style = SKPaintStyle.Fill }) // Gold color for chests
         using (var solutionPaint = new SKPaint { Color = new SKColor(255, 0, 0, 180), Style = SKPaintStyle.Fill })
         {

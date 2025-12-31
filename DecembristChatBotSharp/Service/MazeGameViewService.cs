@@ -93,17 +93,16 @@ public class MazeGameViewService(
                     var rightCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Right}");
                     var exitCallback = GetCallback<string>("MazeExit", $"{chatId}_{messageId}");
 
-                    var keyboard = new InlineKeyboardMarkup(new[]
-                    {
-                        new[] { InlineKeyboardButton.WithCallbackData("⬆️", upCallback) },
-                        new[]
-                        {
+                    var keyboard = new InlineKeyboardMarkup([
+                        [InlineKeyboardButton.WithCallbackData("⬆️", upCallback)],
+                        [
                             InlineKeyboardButton.WithCallbackData("⬅️", leftCallback),
-                            InlineKeyboardButton.WithCallbackData("⬇️", downCallback),
                             InlineKeyboardButton.WithCallbackData("➡️", rightCallback)
-                        },
-                        new[] { InlineKeyboardButton.WithCallbackData("🚪 Выйти", exitCallback) }
-                    });
+                        ],
+                        [InlineKeyboardButton.WithCallbackData("⬇️", downCallback)],
+                        [InlineKeyboardButton.WithCallbackData(" ")],
+                        [InlineKeyboardButton.WithCallbackData("🚪 Выйти", exitCallback)]
+                    ]);
 
                     await botClient.SendPhotoAndLog(
                         telegramId,

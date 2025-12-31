@@ -137,28 +137,40 @@ public class MazeGameService(
                         // Another player is here
                         if (player.Inventory.Swords > 0)
                         {
-                            // Attack with sword
-                            if (targetPlayer.Inventory.Shields > 0)
+                            // Attack with all swords vs all shields
+                            var attackerSwords = player.Inventory.Swords;
+                            var defenderShields = targetPlayer.Inventory.Shields;
+                            
+                            // Обменять все мечи на все щиты
+                            var swordsUsed = Math.Min(attackerSwords, defenderShields);
+                            var remainingSwords = attackerSwords - swordsUsed;
+                            var remainingShields = defenderShields - swordsUsed;
+                            
+                            if (remainingSwords > 0)
                             {
-                                // Target has shield - both items destroyed, attacker doesn't move
-                                var attackerInventory = player.Inventory with { Swords = player.Inventory.Swords - 1 };
-                                var defenderInventory = targetPlayer.Inventory with { Shields = targetPlayer.Inventory.Shields - 1 };
-                                
-                                await mazeGameRepository.UpdatePlayerInventory(playerId, attackerInventory);
-                                await mazeGameRepository.UpdatePlayerInventory(targetPlayer.Id, defenderInventory);
-                                return true; // Move registered but position unchanged
-                            }
-                            else
-                            {
-                                // Kill target player, send to spawn
+                                // У атакующего остались мечи - защитник погибает
                                 await mazeGameRepository.KillPlayer(targetPlayer.Id);
                                 await Task.Delay(100); // Small delay before respawn
                                 await mazeGameRepository.RevivePlayer(targetPlayer.Id);
                                 
-                                var attackerInventory = player.Inventory with { Swords = player.Inventory.Swords - 1 };
+                                // У атакующего сгорают ВСЕ мечи (использовал все для атаки)
+                                var attackerInventory = player.Inventory with { Swords = 0 };
+                                var defenderInventory = targetPlayer.Inventory with { Shields = 0 };
+                                
                                 await mazeGameRepository.UpdatePlayerInventory(playerId, attackerInventory);
+                                await mazeGameRepository.UpdatePlayerInventory(targetPlayer.Id, defenderInventory);
                                 await mazeGameRepository.UpdatePlayerPosition(playerId, (newRow, newCol));
                                 return true;
+                            }
+                            else
+                            {
+                                // Щитов было >= мечей - атака отражена, атакующий не двигается
+                                var attackerInventory = player.Inventory with { Swords = 0 };
+                                var defenderInventory = targetPlayer.Inventory with { Shields = remainingShields };
+                                
+                                await mazeGameRepository.UpdatePlayerInventory(playerId, attackerInventory);
+                                await mazeGameRepository.UpdatePlayerInventory(targetPlayer.Id, defenderInventory);
+                                return true; // Move registered but position unchanged
                             }
                         }
                         return false; // Can't move to occupied cell without sword
@@ -230,7 +242,7 @@ public class MazeGameService(
 
         using var wallPaint = new SKPaint { Color = SKColors.Black, Style = SKPaintStyle.Fill };
         using var pathPaint = new SKPaint { Color = new SKColor(200, 200, 200), Style = SKPaintStyle.Fill };
-        using var exitPaint = new SKPaint { Color = SKColors.Green, Style = SKPaintStyle.Fill };
+        using var exitPaint = new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Fill };
         using var chestPaint = new SKPaint { Color = new SKColor(255, 215, 0), Style = SKPaintStyle.Fill };
 
         // Draw visible area
