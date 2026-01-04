@@ -53,21 +53,13 @@ public class MazeGameViewService(
             // Удаляем предыдущее фото если есть
             if (player.LastPhotoMessageId.HasValue)
             {
-                try
-                {
-                    await botClient.DeleteMessageAndLog(
-                        telegramId,
-                        player.LastPhotoMessageId.Value,
-                        () => Log.Information("Deleted previous maze photo for player {0}", telegramId),
-                        ex => Log.Warning(ex, "Failed to delete previous photo message for player {0}", telegramId),
-                        cancelToken.Token
-                    );
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "Failed to delete previous photo message {0} for player {1}",
-                        player.LastPhotoMessageId.Value, telegramId);
-                }
+                await botClient.DeleteMessageAndLog(
+                    telegramId,
+                    player.LastPhotoMessageId.Value,
+                    () => Log.Information("Deleted previous maze photo for player {0}", telegramId),
+                    ex => Log.Warning(ex, "Failed to delete previous photo message for player {0}", telegramId),
+                    cancelToken.Token
+                );
             }
 
             // Отправляем новое фото с клавиатурой
