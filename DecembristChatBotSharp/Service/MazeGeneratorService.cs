@@ -5,7 +5,7 @@ namespace DecembristChatBotSharp.Service;
 [Singleton]
 public class MazeGeneratorService(Random random, AppConfig appConfig)
 {
-    private const int MazeSize = 128;
+    private readonly int _mazeSize = appConfig.MazeConfig.MazeSize;
 
     /// <summary>
     /// Generates a 128x128 maze where 0 is empty space, 1 is a wall, 2 is a path, 3 is the exit, and 4 is a chest.
@@ -16,19 +16,19 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
     /// </summary>
     public int[,] GenerateMaze()
     {
-        var maze = new int[MazeSize, MazeSize];
+        var maze = new int[_mazeSize, _mazeSize];
         
         // Initialize all cells as walls (1)
-        for (var i = 0; i < MazeSize; i++)
+        for (var i = 0; i < _mazeSize; i++)
         {
-            for (var j = 0; j < MazeSize; j++)
+            for (var j = 0; j < _mazeSize; j++)
             {
                 maze[i, j] = 1;
             }
         }
 
-        var centerRow = MazeSize / 2;
-        var centerCol = MazeSize / 2;
+        var centerRow = _mazeSize / 2;
+        var centerCol = _mazeSize / 2;
         
         // Step 1: Clear the outer edge (starting area)
         ClearOuterEdge(maze);
@@ -78,14 +78,14 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
                 break;
             case 1: // Top-right quadrant
                 exitRow = random.Next(minDistanceFromEdge, centerRow - 20);
-                exitCol = random.Next(centerCol + 20, MazeSize - minDistanceFromEdge);
+                exitCol = random.Next(centerCol + 20, _mazeSize - minDistanceFromEdge);
                 break;
             case 2: // Bottom-right quadrant
-                exitRow = random.Next(centerRow + 20, MazeSize - minDistanceFromEdge);
-                exitCol = random.Next(centerCol + 20, MazeSize - minDistanceFromEdge);
+                exitRow = random.Next(centerRow + 20, _mazeSize - minDistanceFromEdge);
+                exitCol = random.Next(centerCol + 20, _mazeSize - minDistanceFromEdge);
                 break;
             default: // Bottom-left quadrant
-                exitRow = random.Next(centerRow + 20, MazeSize - minDistanceFromEdge);
+                exitRow = random.Next(centerRow + 20, _mazeSize - minDistanceFromEdge);
                 exitCol = random.Next(minDistanceFromEdge, centerCol - 20);
                 break;
         }
@@ -102,9 +102,9 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
     {
         // Count total path cells (value 2)
         var pathCellCount = 0;
-        for (var i = 0; i < MazeSize; i++)
+        for (var i = 0; i < _mazeSize; i++)
         {
-            for (var j = 0; j < MazeSize; j++)
+            for (var j = 0; j < _mazeSize; j++)
             {
                 if (maze[i, j] == 2)
                     pathCellCount++;
@@ -127,9 +127,9 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
         
         // Collect all valid path positions
         var validPathPositions = new List<(int row, int col)>();
-        for (var i = 0; i < MazeSize; i++)
+        for (var i = 0; i < _mazeSize; i++)
         {
-            for (var j = 0; j < MazeSize; j++)
+            for (var j = 0; j < _mazeSize; j++)
             {
                 if (maze[i, j] == 2)
                 {
@@ -191,7 +191,7 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
             var newRow = row + dr;
             var newCol = col + dc;
             
-            if (newRow is >= 0 and < MazeSize && newCol is >= 0 and < MazeSize &&
+            if (newRow >= 0 && newRow < _mazeSize && newCol >= 0 && newCol < _mazeSize &&
                 maze[newRow, newCol] == 2)
             {
                 count++;
@@ -226,7 +226,7 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
             {
                 var r = exitRow + dr;
                 var c = exitCol + dc;
-                if (r is >= 3 and < MazeSize - 3 && c is >= 3 and < MazeSize - 3)
+                if (r >= 3 && r < _mazeSize - 3 && c >= 3 && c < _mazeSize - 3)
                 {
                     maze[r, c] = 0;
                 }
@@ -248,31 +248,31 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
     /// </summary>
     private int GetPathLengthFromEdge(int[,] maze, int targetRow, int targetCol)
     {
-        var visited = new bool[MazeSize, MazeSize];
+        var visited = new bool[_mazeSize, _mazeSize];
         var queue = new Queue<(int row, int col, int distance)>();
         
         // Start BFS from all outer edge cells that are paths (0)
-        for (var i = 0; i < MazeSize; i++)
+        for (var i = 0; i < _mazeSize; i++)
         {
             if (maze[0, i] == 0)
             {
                 queue.Enqueue((0, i, 0));
                 visited[0, i] = true;
             }
-            if (maze[MazeSize - 1, i] == 0)
+            if (maze[_mazeSize - 1, i] == 0)
             {
-                queue.Enqueue((MazeSize - 1, i, 0));
-                visited[MazeSize - 1, i] = true;
+                queue.Enqueue((_mazeSize - 1, i, 0));
+                visited[_mazeSize - 1, i] = true;
             }
             if (maze[i, 0] == 0)
             {
                 queue.Enqueue((i, 0, 0));
                 visited[i, 0] = true;
             }
-            if (maze[i, MazeSize - 1] == 0)
+            if (maze[i, _mazeSize - 1] == 0)
             {
-                queue.Enqueue((i, MazeSize - 1, 0));
-                visited[i, MazeSize - 1] = true;
+                queue.Enqueue((i, _mazeSize - 1, 0));
+                visited[i, _mazeSize - 1] = true;
             }
         }
         
@@ -292,8 +292,8 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
                 var newRow = row + dRow;
                 var newCol = col + dCol;
                 
-                if (newRow is >= 0 and < MazeSize 
-                    && newCol is >= 0 and < MazeSize 
+                if (newRow >= 0 && newRow < _mazeSize 
+                    && newCol >= 0 && newCol < _mazeSize 
                     && !visited[newRow, newCol] 
                     && maze[newRow, newCol] == 0)
                 {
@@ -337,9 +337,9 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
         var minDistance = int.MaxValue;
         (int row, int col)? nearest = null;
         
-        for (var row = Math.Max(3, targetRow - searchRadius); row < Math.Min(MazeSize - 3, targetRow + searchRadius); row++)
+        for (var row = Math.Max(3, targetRow - searchRadius); row < Math.Min(_mazeSize - 3, targetRow + searchRadius); row++)
         {
-            for (var col = Math.Max(3, targetCol - searchRadius); col < Math.Min(MazeSize - 3, targetCol + searchRadius); col++)
+            for (var col = Math.Max(3, targetCol - searchRadius); col < Math.Min(_mazeSize - 3, targetCol + searchRadius); col++)
             {
                 if (maze[row, col] == 0)
                 {
@@ -362,17 +362,17 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
     private (int row, int col) FindNearestEdgePoint(int exitRow, int exitCol)
     {
         // Determine which edge is closest
-        var distToBottom = MazeSize - 1 - exitRow;
-        var distToRight = MazeSize - 1 - exitCol;
+        var distToBottom = _mazeSize - 1 - exitRow;
+        var distToRight = _mazeSize - 1 - exitCol;
         
         var minDist = Math.Min(Math.Min(exitRow, distToBottom), Math.Min(exitCol, distToRight));
         
         if (minDist == exitRow)
             return (3, exitCol);
         if (minDist == distToBottom)
-            return (MazeSize - 4, exitCol);
+            return (_mazeSize - 4, exitCol);
         
-        return minDist == exitCol ? (exitRow, 3) : (exitRow, MazeSize - 4);
+        return minDist == exitCol ? (exitRow, 3) : (exitRow, _mazeSize - 4);
     }
 
     /// <summary>
@@ -390,7 +390,7 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
         {
             stepCount++;
             
-            if (currentRow is >= 1 and < MazeSize - 1 && currentCol is >= 1 and < MazeSize - 1)
+            if (currentRow >= 1 && currentRow < _mazeSize - 1 && currentCol >= 1 && currentCol < _mazeSize - 1)
             {
                 maze[currentRow, currentCol] = 0;
             }
@@ -424,8 +424,8 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
                 currentCol += dc;
             }
             
-            currentRow = Math.Max(1, Math.Min(MazeSize - 2, currentRow));
-            currentCol = Math.Max(1, Math.Min(MazeSize - 2, currentCol));
+            currentRow = Math.Max(1, Math.Min(_mazeSize - 2, currentRow));
+            currentCol = Math.Max(1, Math.Min(_mazeSize - 2, currentCol));
             
             // If we hit an existing path, we're done
             if (maze[currentRow, currentCol] == 0 && (currentRow != startRow || currentCol != startCol))
@@ -444,1066 +444,6 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
     }
 
     /// <summary>
-    /// Generates maze using small reusable chunks (mini-mazes)
-    /// </summary>
-    private void GenerateMazeFromChunks(int[,] maze, int centerRow, int centerCol)
-    {
-        const int chunkSize = 8; // Size of each chunk
-        const int chunksPerRow = MazeSize / chunkSize;
-        
-        // Generate chunks across the entire maze
-        for (var chunkRow = 0; chunkRow < chunksPerRow; chunkRow++)
-        {
-            for (var chunkCol = 0; chunkCol < chunksPerRow; chunkCol++)
-            {
-                var startRow = chunkRow * chunkSize;
-                var startCol = chunkCol * chunkSize;
-                
-                // Skip edge chunks (already cleared)
-                if (startRow < 3 || startRow >= MazeSize - 3 - chunkSize ||
-                    startCol < 3 || startCol >= MazeSize - 3 - chunkSize)
-                {
-                    continue;
-                }
-                
-                // Generate a random chunk pattern
-                GenerateRandomChunk(maze, startRow, startCol, chunkSize);
-            }
-        }
-        
-        // Connect chunks together
-        ConnectChunks(maze, chunkSize);
-    }
-
-    /// <summary>
-    /// Generates a random mini-maze chunk at the specified position
-    /// </summary>
-    private void GenerateRandomChunk(int[,] maze, int startRow, int startCol, int chunkSize)
-    {
-        // Pick a random chunk pattern type
-        var patternType = random.Next(8);
-        
-        switch (patternType)
-        {
-            case 0:
-                GenerateSpiralChunk(maze, startRow, startCol, chunkSize);
-                break;
-            case 1:
-                GenerateCrossChunk(maze, startRow, startCol, chunkSize);
-                break;
-            case 2:
-                GenerateZigzagChunk(maze, startRow, startCol, chunkSize);
-                break;
-            case 3:
-                GenerateBranchingChunk(maze, startRow, startCol, chunkSize);
-                break;
-            case 4:
-                GenerateRoomsChunk(maze, startRow, startCol, chunkSize);
-                break;
-            case 5:
-                GenerateMazeRecursiveChunk(maze, startRow, startCol, chunkSize);
-                break;
-            case 6:
-                GenerateCorridorChunk(maze, startRow, startCol, chunkSize);
-                break;
-            default:
-                GenerateDenseChunk(maze, startRow, startCol, chunkSize);
-                break;
-        }
-    }
-
-    /// <summary>
-    /// Spiral pattern chunk
-    /// </summary>
-    private void GenerateSpiralChunk(int[,] maze, int startRow, int startCol, int size)
-    {
-        var layer = 0;
-        while (layer < size / 2)
-        {
-            // Top
-            for (var col = layer; col < size - layer; col++)
-            {
-                if (startRow + layer < MazeSize && startCol + col < MazeSize)
-                    maze[startRow + layer, startCol + col] = 0;
-            }
-            // Right
-            for (var row = layer + 1; row < size - layer; row++)
-            {
-                if (startRow + row < MazeSize && startCol + size - layer - 1 < MazeSize)
-                    maze[startRow + row, startCol + size - layer - 1] = 0;
-            }
-            // Bottom
-            if (size - layer - 1 > layer)
-            {
-                for (var col = size - layer - 2; col >= layer; col--)
-                {
-                    if (startRow + size - layer - 1 < MazeSize && startCol + col < MazeSize)
-                        maze[startRow + size - layer - 1, startCol + col] = 0;
-                }
-            }
-            // Left
-            if (size - layer - 1 > layer + 1)
-            {
-                for (var row = size - layer - 2; row > layer; row--)
-                {
-                    if (startRow + row < MazeSize && startCol + layer < MazeSize)
-                        maze[startRow + row, startCol + layer] = 0;
-                }
-            }
-            layer++;
-        }
-    }
-
-    /// <summary>
-    /// Cross pattern chunk
-    /// </summary>
-    private void GenerateCrossChunk(int[,] maze, int startRow, int startCol, int size)
-    {
-        var mid = size / 2;
-        // Horizontal line
-        for (var col = 0; col < size; col++)
-        {
-            if (startRow + mid < MazeSize && startCol + col < MazeSize)
-                maze[startRow + mid, startCol + col] = 0;
-        }
-        // Vertical line
-        for (var row = 0; row < size; row++)
-        {
-            if (startRow + row < MazeSize && startCol + mid < MazeSize)
-                maze[startRow + row, startCol + mid] = 0;
-        }
-    }
-
-    /// <summary>
-    /// Zigzag pattern chunk
-    /// </summary>
-    private void GenerateZigzagChunk(int[,] maze, int startRow, int startCol, int size)
-    {
-        var direction = random.Next(2); // 0 = horizontal zigzag, 1 = vertical zigzag
-        
-        if (direction == 0)
-        {
-            for (var row = 0; row < size; row++)
-            {
-                var colStart = (row % 2 == 0) ? 0 : size - 1;
-                var colEnd = (row % 2 == 0) ? size : -1;
-                var colStep = (row % 2 == 0) ? 1 : -1;
-                
-                for (var col = colStart; col != colEnd; col += colStep)
-                {
-                    if (startRow + row < MazeSize && startCol + col < MazeSize)
-                        maze[startRow + row, startCol + col] = 0;
-                }
-            }
-        }
-        else
-        {
-            for (var col = 0; col < size; col++)
-            {
-                var rowStart = (col % 2 == 0) ? 0 : size - 1;
-                var rowEnd = (col % 2 == 0) ? size : -1;
-                var rowStep = (col % 2 == 0) ? 1 : -1;
-                
-                for (var row = rowStart; row != rowEnd; row += rowStep)
-                {
-                    if (startRow + row < MazeSize && startCol + col < MazeSize)
-                        maze[startRow + row, startCol + col] = 0;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Branching pattern chunk (tree-like)
-    /// </summary>
-    private void GenerateBranchingChunk(int[,] maze, int startRow, int startCol, int size)
-    {
-        var mid = size / 2;
-        // Main trunk
-        for (var row = 0; row < size; row++)
-        {
-            if (startRow + row < MazeSize && startCol + mid < MazeSize)
-                maze[startRow + row, startCol + mid] = 0;
-        }
-        // Branches
-        for (var i = 1; i < size; i += 2)
-        {
-            for (var j = 0; j <= mid; j++)
-            {
-                if (startRow + i < MazeSize && startCol + mid - j < MazeSize)
-                    maze[startRow + i, startCol + mid - j] = 0;
-                if (startRow + i < MazeSize && startCol + mid + j < MazeSize)
-                    maze[startRow + i, startCol + mid + j] = 0;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Rooms pattern chunk (2x2 rooms connected)
-    /// </summary>
-    private void GenerateRoomsChunk(int[,] maze, int startRow, int startCol, int size)
-    {
-        var roomSize = size / 2;
-        
-        // Create 4 small rooms
-        for (var bigRow = 0; bigRow < 2; bigRow++)
-        {
-            for (var bigCol = 0; bigCol < 2; bigCol++)
-            {
-                var roomStartRow = bigRow * roomSize;
-                var roomStartCol = bigCol * roomSize;
-                
-                // Fill room
-                for (var r = roomStartRow; r < roomStartRow + roomSize; r++)
-                {
-                    for (var c = roomStartCol; c < roomStartCol + roomSize; c++)
-                    {
-                        if (startRow + r < MazeSize && startCol + c < MazeSize)
-                            maze[startRow + r, startCol + c] = 0;
-                    }
-                }
-            }
-        }
-        
-        // Add walls between rooms
-        for (var i = 1; i < size - 1; i++)
-        {
-            if (i != roomSize && random.Next(2) == 0)
-            {
-                if (startRow + roomSize < MazeSize && startCol + i < MazeSize)
-                    maze[startRow + roomSize, startCol + i] = 1; // Horizontal wall
-            }
-            if (i != roomSize && random.Next(2) == 0)
-            {
-                if (startRow + i < MazeSize && startCol + roomSize < MazeSize)
-                    maze[startRow + i, startCol + roomSize] = 1; // Vertical wall
-            }
-        }
-    }
-
-    /// <summary>
-    /// Recursive backtracking mini-maze chunk
-    /// </summary>
-    private void GenerateMazeRecursiveChunk(int[,] maze, int startRow, int startCol, int size)
-    {
-        // Create a mini recursive maze within the chunk
-        var visited = new bool[size, size];
-        CarveChunkPath(maze, startRow, startCol, size / 2, size / 2, visited, size);
-    }
-
-    private void CarveChunkPath(int[,] maze, int startRow, int startCol, int row, int col, bool[,] visited, int size)
-    {
-        if (row < 0 || row >= size || col < 0 || col >= size || visited[row, col])
-            return;
-        
-        visited[row, col] = true;
-        if (startRow + row < MazeSize && startCol + col < MazeSize)
-            maze[startRow + row, startCol + col] = 0;
-        
-        var directions = new[] { (0, 1), (1, 0), (0, -1), (-1, 0) };
-        // Shuffle
-        for (var i = directions.Length - 1; i > 0; i--)
-        {
-            var j = random.Next(i + 1);
-            (directions[i], directions[j]) = (directions[j], directions[i]);
-        }
-        
-        foreach (var (dr, dc) in directions)
-        {
-            if (random.Next(100) < 70) // 70% chance to continue
-            {
-                CarveChunkPath(maze, startRow, startCol, row + dr, col + dc, visited, size);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Corridor pattern chunk (straight corridors)
-    /// </summary>
-    private void GenerateCorridorChunk(int[,] maze, int startRow, int startCol, int size)
-    {
-        var isHorizontal = random.Next(2) == 0;
-        var numCorridors = random.Next(2, 4);
-        
-        for (var i = 0; i < numCorridors; i++)
-        {
-            var pos = (i + 1) * size / (numCorridors + 1);
-            
-            if (isHorizontal)
-            {
-                for (var col = 0; col < size; col++)
-                {
-                    if (startRow + pos < MazeSize && startCol + col < MazeSize)
-                        maze[startRow + pos, startCol + col] = 0;
-                }
-            }
-            else
-            {
-                for (var row = 0; row < size; row++)
-                {
-                    if (startRow + row < MazeSize && startCol + pos < MazeSize)
-                        maze[startRow + row, startCol + pos] = 0;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Dense maze pattern chunk
-    /// </summary>
-    private void GenerateDenseChunk(int[,] maze, int startRow, int startCol, int size)
-    {
-        // Create a dense grid pattern
-        for (var row = 0; row < size; row++)
-        {
-            for (var col = 0; col < size; col++)
-            {
-                if ((row % 2 == 0 || col % 2 == 0) && random.Next(100) < 60)
-                {
-                    if (startRow + row < MazeSize && startCol + col < MazeSize)
-                        maze[startRow + row, startCol + col] = 0;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Connects chunks together by ensuring paths between them
-    /// </summary>
-    private void ConnectChunks(int[,] maze, int chunkSize)
-    {
-        // For each chunk boundary, create random connections
-        for (var row = chunkSize; row < MazeSize - chunkSize; row += chunkSize)
-        {
-            for (var col = 3; col < MazeSize - 3; col++)
-            {
-                // Create horizontal connections (between vertically adjacent chunks)
-                if (random.Next(100) < 40) // 40% chance
-                {
-                    maze[row, col] = 0;
-                    if (row > 0) maze[row - 1, col] = 0;
-                    if (row < MazeSize - 1) maze[row + 1, col] = 0;
-                }
-            }
-        }
-        
-        for (var col = chunkSize; col < MazeSize - chunkSize; col += chunkSize)
-        {
-            for (var row = 3; row < MazeSize - 3; row++)
-            {
-                // Create vertical connections (between horizontally adjacent chunks)
-                if (random.Next(100) < 40) // 40% chance
-                {
-                    maze[row, col] = 0;
-                    if (col > 0) maze[row, col - 1] = 0;
-                    if (col < MazeSize - 1) maze[row, col + 1] = 0;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Builds multi-path maze with chunks - uses existing chunk structure to create correct/incorrect paths
-    /// </summary>
-    private void BuildMultiPathMazeWithChunks(int[,] maze, int centerRow, int centerCol, 
-        (int distance, int wallThickness, int totalOpenings, int correctOpenings)[] rings)
-    {
-        // PHASE 1: Build ring walls preserving chunk paths
-        for (var i = rings.Length - 1; i >= 0; i--)
-        {
-            var ring = rings[i];
-            CreateSquareRingPreservingPaths(maze, centerRow, centerCol, ring.distance, ring.wallThickness);
-        }
-        
-        // PHASE 2: Create all openings in all rings
-        var allRingOpenings = new List<(int row, int col, int side)>[rings.Length];
-        for (var ringIndex = 0; ringIndex < rings.Length; ringIndex++)
-        {
-            var ring = rings[ringIndex];
-            allRingOpenings[ringIndex] = CreateRingOpeningsWithTracking(maze, centerRow, centerCol, 
-                ring.distance, ring.wallThickness, ring.totalOpenings);
-        }
-        
-        // PHASE 3: Build correct paths using chunk-aware pathfinding
-        var correctOpeningsPerRing = new List<int>[rings.Length];
-        
-        // For innermost ring, select which openings lead to center
-        var innerRing = rings[0];
-        var innerCorrectIndices = Enumerable.Range(0, allRingOpenings[0].Count).ToList();
-        Shuffle(innerCorrectIndices);
-        correctOpeningsPerRing[0] = innerCorrectIndices.Take(innerRing.correctOpenings).ToList();
-        
-        // Connect innermost correct openings to center using existing paths
-        foreach (var openingIdx in correctOpeningsPerRing[0])
-        {
-            var opening = allRingOpenings[0][openingIdx];
-            CarveChunkAwarePath(maze, opening.row, opening.col, centerRow, centerCol);
-        }
-        
-        // For each outer ring, connect to inner ring using chunk-aware pathfinding
-        for (var ringIndex = 1; ringIndex < rings.Length; ringIndex++)
-        {
-            var ring = rings[ringIndex];
-            var innerRingIndex = ringIndex - 1;
-            
-            // Select which openings in this ring are "correct"
-            var availableIndices = Enumerable.Range(0, allRingOpenings[ringIndex].Count).ToList();
-            Shuffle(availableIndices);
-            correctOpeningsPerRing[ringIndex] = availableIndices.Take(ring.correctOpenings).ToList();
-            
-            // Connect each correct opening to a random correct opening in the inner ring
-            foreach (var outerOpeningIdx in correctOpeningsPerRing[ringIndex])
-            {
-                var outerOpening = allRingOpenings[ringIndex][outerOpeningIdx];
-                
-                // Pick a random correct opening from inner ring
-                var innerCorrectOpenings = correctOpeningsPerRing[innerRingIndex];
-                if (innerCorrectOpenings.Count == 0) continue;
-                
-                var targetInnerIdx = innerCorrectOpenings[random.Next(innerCorrectOpenings.Count)];
-                var innerOpening = allRingOpenings[innerRingIndex][targetInnerIdx];
-                
-                // Carve path using existing chunk structure
-                CarveChunkAwarePath(maze, outerOpening.row, outerOpening.col, innerOpening.row, innerOpening.col);
-            }
-        }
-        
-        // PHASE 4: Create dead-end paths for incorrect openings
-        for (var ringIndex = 0; ringIndex < rings.Length; ringIndex++)
-        {
-            var ring = rings[ringIndex];
-            var correctIndices = new System.Collections.Generic.HashSet<int>(correctOpeningsPerRing[ringIndex]);
-            
-            for (var openingIdx = 0; openingIdx < allRingOpenings[ringIndex].Count; openingIdx++)
-            {
-                if (correctIndices.Contains(openingIdx)) continue;
-                
-                var opening = allRingOpenings[ringIndex][openingIdx];
-                var innerDistance = ringIndex > 0 ? rings[ringIndex - 1].distance : 0;
-                CarveDeadEndPath(maze, opening.row, opening.col, centerRow, centerCol, ring.distance, innerDistance);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Carves path between two points using existing chunk structure (preferring existing paths)
-    /// </summary>
-    private void CarveChunkAwarePath(int[,] maze, int startRow, int startCol, int endRow, int endCol)
-    {
-        // Use A* pathfinding that prefers existing empty cells
-        var path = FindPathPreferringExisting(maze, startRow, startCol, endRow, endCol);
-        
-        if (path is { Count: > 0 })
-        {
-            // Carve the path
-            foreach (var (row, col) in path)
-            {
-                if (row is >= 0 and < MazeSize && col is >= 0 and < MazeSize && maze[row, col] != 3)
-                {
-                    maze[row, col] = 0;
-                }
-            }
-        }
-        else
-        {
-            // Fallback: carve direct path if no path found
-            CarveDirectPath(maze, startRow, startCol, endRow, endCol);
-        }
-    }
-
-    /// <summary>
-    /// Finds path preferring existing empty cells (chunk paths)
-    /// </summary>
-    private List<(int row, int col)> FindPathPreferringExisting(int[,] maze, int startRow, int startCol, int endRow, int endCol)
-    {
-        var openSet = new PriorityQueue<(int row, int col, int gCost, int fCost, List<(int row, int col)> path)>();
-        var visited = new System.Collections.Generic.HashSet<(int row, int col)>();
-        
-        openSet.Enqueue((startRow, startCol, 0, 0, new List<(int row, int col)> { (startRow, startCol) }), 0);
-        
-        var directions = new[] { (0, 1), (1, 0), (0, -1), (-1, 0) };
-        const int maxSteps = 500;
-        var stepCount = 0;
-        
-        while (openSet.Count > 0 && stepCount < maxSteps)
-        {
-            stepCount++;
-            var (row, col, gCost, _, path) = openSet.Dequeue();
-            
-            if (row == endRow && col == endCol)
-            {
-                return path;
-            }
-            
-            if (!visited.Add((row, col))) continue;
-
-            foreach (var (dr, dc) in directions)
-            {
-                var newRow = row + dr;
-                var newCol = col + dc;
-                
-                if (newRow < 0 || newRow >= MazeSize || newCol < 0 || newCol >= MazeSize)
-                    continue;
-                
-                if (visited.Contains((newRow, newCol)))
-                    continue;
-                
-                // Cost calculation: prefer existing empty cells
-                var moveCost = maze[newRow, newCol] == 0 ? 1 : 10; // Existing path is cheaper
-                var newGCost = gCost + moveCost;
-                var hCost = Math.Abs(endRow - newRow) + Math.Abs(endCol - newCol);
-                var newFCost = newGCost + hCost;
-                
-                var newPath = new List<(int row, int col)>(path) { (newRow, newCol) };
-                openSet.Enqueue((newRow, newCol, newGCost, newFCost, newPath), newFCost);
-            }
-        }
-        
-        return []; // No path found
-    }
-
-    /// <summary>
-    /// Simple priority queue implementation
-    /// </summary>
-    private class PriorityQueue<T> where T : notnull
-    {
-        private readonly List<(T item, int priority)> items = new List<(T, int)>();
-        
-        public int Count => items.Count;
-        
-        public void Enqueue(T item, int priority)
-        {
-            items.Add((item, priority));
-        }
-        
-        public T Dequeue()
-        {
-            var minIndex = 0;
-            for (var i = 1; i < items.Count; i++)
-            {
-                if (items[i].priority < items[minIndex].priority)
-                    minIndex = i;
-            }
-            
-            var item = items[minIndex].item;
-            items.RemoveAt(minIndex);
-            return item;
-        }
-    }
-
-    /// <summary>
-    /// Carves a direct path as fallback
-    /// </summary>
-    private void CarveDirectPath(int[,] maze, int startRow, int startCol, int endRow, int endCol)
-    {
-        var currentRow = startRow;
-        var currentCol = startCol;
-        
-        while (currentRow != endRow || currentCol != endCol)
-        {
-            if (currentRow is >= 0 and < MazeSize && currentCol is >= 0 and < MazeSize && maze[currentRow, currentCol] != 3)
-            {
-                maze[currentRow, currentCol] = 0;
-            }
-            
-            if (currentRow != endRow)
-                currentRow += Math.Sign(endRow - currentRow);
-            else if (currentCol != endCol)
-                currentCol += Math.Sign(endCol - currentCol);
-        }
-        
-        if (endRow is >= 0 and < MazeSize && endCol is >= 0 and < MazeSize && maze[endRow, endCol] != 3)
-        {
-            maze[endRow, endCol] = 0;
-        }
-    }
-
-    /// <summary>
-    /// Creates ring openings and returns their positions
-    /// </summary>
-    private List<(int row, int col, int side)> CreateRingOpeningsWithTracking(int[,] maze, int centerRow, int centerCol, 
-        int distance, int thickness, int openingCount)
-    {
-        var openings = new List<(int row, int col, int side)>();
-        
-        // Sides: 0=top, 1=right, 2=bottom, 3=left
-        var attempts = 0;
-        var maxAttempts = openingCount * 50;
-        
-        while (openings.Count < openingCount && attempts < maxAttempts)
-        {
-            attempts++;
-            
-            var side = random.Next(4);
-            var offset = random.Next(-distance + thickness * 2, distance - thickness * 2 + 1);
-            
-            int row, col;
-            switch (side)
-            {
-                case 0: // Top
-                    row = centerRow - distance;
-                    col = centerCol + offset;
-                    break;
-                case 1: // Right
-                    row = centerRow + offset;
-                    col = centerCol + distance;
-                    break;
-                case 2: // Bottom
-                    row = centerRow + distance;
-                    col = centerCol + offset;
-                    break;
-                default: // Left
-                    row = centerRow + offset;
-                    col = centerCol - distance;
-                    break;
-            }
-            
-            // Check bounds
-            if (row < 0 || row >= MazeSize || col < 0 || col >= MazeSize)
-                continue;
-            
-            // Check if too close to another opening
-            var tooClose = false;
-            foreach (var (oRow, oCol, _) in openings)
-            {
-                if (Math.Abs(oRow - row) + Math.Abs(oCol - col) < thickness * 4)
-                {
-                    tooClose = true;
-                    break;
-                }
-            }
-            
-            if (!tooClose)
-            {
-                openings.Add((row, col, side));
-                
-                // Carve the opening through the wall
-                for (var t = 0; t < thickness; t++)
-                {
-                    int carveRow = row, carveCol = col;
-                    
-                    switch (side)
-                    {
-                        case 0: // Top - carve downward
-                            carveRow = centerRow - distance + t;
-                            break;
-                        case 1: // Right - carve leftward  
-                            carveCol = centerCol + distance - t;
-                            break;
-                        case 2: // Bottom - carve upward
-                            carveRow = centerRow + distance - t;
-                            break;
-                        case 3: // Left - carve rightward
-                            carveCol = centerCol - distance + t;
-                            break;
-                    }
-                    
-                    if (carveRow is >= 0 and < MazeSize && carveCol is >= 0 and < MazeSize)
-                    {
-                        maze[carveRow, carveCol] = 0;
-                    }
-                }
-            }
-        }
-        
-        return openings;
-    }
-
-
-    /// <summary>
-    /// Creates a square ring that preserves existing paths (doesn't overwrite value 0)
-    /// </summary>
-    private void CreateSquareRingPreservingPaths(int[,] maze, int centerRow, int centerCol, int distance, int thickness)
-    {
-        for (var t = 0; t < thickness; t++)
-        {
-            var currentDist = distance + t;
-            
-            for (var offset = -currentDist; offset <= currentDist; offset++)
-            {
-                // Top edge
-                if (centerRow - currentDist >= 0 && centerCol + offset >= 0 && centerCol + offset < MazeSize)
-                {
-                    if (maze[centerRow - currentDist, centerCol + offset] != 0)
-                        maze[centerRow - currentDist, centerCol + offset] = 1;
-                }
-                
-                // Bottom edge
-                if (centerRow + currentDist < MazeSize && centerCol + offset >= 0 && centerCol + offset < MazeSize)
-                {
-                    if (maze[centerRow + currentDist, centerCol + offset] != 0)
-                        maze[centerRow + currentDist, centerCol + offset] = 1;
-                }
-                
-                // Left edge
-                if (centerCol - currentDist >= 0 && centerRow + offset >= 0 && centerRow + offset < MazeSize)
-                {
-                    if (maze[centerRow + offset, centerCol - currentDist] != 0)
-                        maze[centerRow + offset, centerCol - currentDist] = 1;
-                }
-                
-                // Right edge
-                if (centerCol + currentDist < MazeSize && centerRow + offset >= 0 && centerRow + offset < MazeSize)
-                {
-                    if (maze[centerRow + offset, centerCol + currentDist] != 0)
-                        maze[centerRow + offset, centerCol + currentDist] = 1;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Shuffles a list in place
-    /// </summary>
-    private void Shuffle<T>(List<T> list)
-    {
-        for (var i = list.Count - 1; i > 0; i--)
-        {
-            var j = random.Next(i + 1);
-            (list[i], list[j]) = (list[j], list[i]);
-        }
-    }
-
-    /// <summary>
-    /// Carves a winding path from opening to center
-    /// </summary>
-    private void CarveWindingPathToCenter(int[,] maze, int startRow, int startCol, int centerRow, int centerCol, int ringDistance)
-    {
-        var currentRow = startRow;
-        var currentCol = startCol;
-        
-        // Move inward from ring opening
-        for (var i = 0; i < 3; i++)
-        {
-            maze[currentRow, currentCol] = 0;
-            var dRow = Math.Sign(centerRow - currentRow);
-            var dCol = Math.Sign(centerCol - currentCol);
-            
-            if (Math.Abs(dRow) > 0) currentRow += dRow;
-            else if (Math.Abs(dCol) > 0) currentCol += dCol;
-            
-            currentRow = Math.Max(0, Math.Min(MazeSize - 1, currentRow));
-            currentCol = Math.Max(0, Math.Min(MazeSize - 1, currentCol));
-        }
-        
-        // Now create a winding path to center using random walk with bias toward center
-        var stepCount = 0;
-        const int maxSteps = 1000;
-        
-        while ((currentRow != centerRow || currentCol != centerCol) && stepCount < maxSteps)
-        {
-            stepCount++;
-            maze[currentRow, currentCol] = 0;
-            
-            var distToCenterRow = Math.Abs(centerRow - currentRow);
-            var distToCenterCol = Math.Abs(centerCol - currentCol);
-            
-            // 60% move toward center, 40% move perpendicular for winding
-            if (random.Next(100) < 60)
-            {
-                // Move toward center
-                if (distToCenterRow > distToCenterCol && distToCenterRow > 0)
-                {
-                    currentRow += Math.Sign(centerRow - currentRow);
-                }
-                else if (distToCenterCol > 0)
-                {
-                    currentCol += Math.Sign(centerCol - currentCol);
-                }
-            }
-            else
-            {
-                // Move perpendicular for winding effect
-                if (distToCenterRow >= distToCenterCol)
-                {
-                    // Move horizontally
-                    currentCol += random.Next(2) == 0 ? -1 : 1;
-                }
-                else
-                {
-                    // Move vertically
-                    currentRow += random.Next(2) == 0 ? -1 : 1;
-                }
-            }
-            
-            currentRow = Math.Max(0, Math.Min(MazeSize - 1, currentRow));
-            currentCol = Math.Max(0, Math.Min(MazeSize - 1, currentCol));
-        }
-        
-        maze[centerRow, centerCol] = 0;
-    }
-
-    /// <summary>
-    /// Carves a winding path between two ring openings
-    /// </summary>
-    private void CarveWindingPathBetweenRings(int[,] maze, int startRow, int startCol, int endRow, int endCol, 
-        int centerRow, int centerCol, int outerDistance, int innerDistance)
-    {
-        var currentRow = startRow;
-        var currentCol = startCol;
-        
-        // Move inward from outer ring opening
-        for (var i = 0; i < 3; i++)
-        {
-            maze[currentRow, currentCol] = 0;
-            var dRow = Math.Sign(centerRow - currentRow);
-            var dCol = Math.Sign(centerCol - currentCol);
-            
-            if (Math.Abs(dRow) > 0) currentRow += dRow;
-            else if (Math.Abs(dCol) > 0) currentCol += dCol;
-            
-            currentRow = Math.Max(0, Math.Min(MazeSize - 1, currentRow));
-            currentCol = Math.Max(0, Math.Min(MazeSize - 1, currentCol));
-        }
-        
-        // Create winding path toward inner ring opening
-        var stepCount = 0;
-        const int maxSteps = 1000;
-        
-        while (stepCount < maxSteps)
-        {
-            stepCount++;
-            maze[currentRow, currentCol] = 0;
-            
-            var distToEnd = Math.Abs(currentRow - endRow) + Math.Abs(currentCol - endCol);
-            var distToCenter = Math.Max(Math.Abs(currentRow - centerRow), Math.Abs(currentCol - centerCol));
-            
-            // If we're within 3 cells of target or passed the inner ring, connect directly
-            if (distToEnd <= 3 || distToCenter <= innerDistance + 3)
-            {
-                // Connect directly to target
-                while (currentRow != endRow || currentCol != endCol)
-                {
-                    maze[currentRow, currentCol] = 0;
-                    if (currentRow != endRow)
-                        currentRow += Math.Sign(endRow - currentRow);
-                    else if (currentCol != endCol)
-                        currentCol += Math.Sign(endCol - currentCol);
-                    
-                    currentRow = Math.Max(0, Math.Min(MazeSize - 1, currentRow));
-                    currentCol = Math.Max(0, Math.Min(MazeSize - 1, currentCol));
-                }
-                break;
-            }
-            
-            // 50% move toward target, 50% move in a random direction for winding
-            if (random.Next(100) < 50)
-            {
-                // Move toward target
-                var dRow = Math.Sign(endRow - currentRow);
-                var dCol = Math.Sign(endCol - currentCol);
-                
-                if (Math.Abs(dRow) > Math.Abs(dCol) && dRow != 0)
-                {
-                    currentRow += dRow;
-                }
-                else if (dCol != 0)
-                {
-                    currentCol += dCol;
-                }
-            }
-            else
-            {
-                // Random direction for winding
-                var directions = new[] { (-1, 0), (1, 0), (0, -1), (0, 1) };
-                var (dRow, dCol) = directions[random.Next(directions.Length)];
-                currentRow += dRow;
-                currentCol += dCol;
-            }
-            
-            currentRow = Math.Max(0, Math.Min(MazeSize - 1, currentRow));
-            currentCol = Math.Max(0, Math.Min(MazeSize - 1, currentCol));
-        }
-        
-        maze[endRow, endCol] = 0;
-        
-        // Clear small area around end point
-        for (var dr = -1; dr <= 1; dr++)
-        {
-            for (var dc = -1; dc <= 1; dc++)
-            {
-                var r = endRow + dr;
-                var c = endCol + dc;
-                if (r >= 0 && r < MazeSize && c >= 0 && c < MazeSize && maze[r, c] != 3)
-                {
-                    maze[r, c] = 0;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Carves a dead-end path that doesn't reach the inner ring (for incorrect openings)
-    /// </summary>
-    private void CarveDeadEndPath(int[,] maze, int startRow, int startCol, int centerRow, int centerCol, int currentDistance, int innerDistance)
-    {
-        var currentRow = startRow;
-        var currentCol = startCol;
-        
-        // Path length: go partway toward inner ring but stop before reaching it
-        // Scale based on distance between rings
-        var distanceBetweenRings = currentDistance - innerDistance;
-        var maxSteps = Math.Max(5, Math.Min(15, distanceBetweenRings / 2));
-        var minDistance = innerDistance > 0 ? innerDistance + 8 : 5; // Don't get too close to inner ring
-        
-        for (var step = 0; step < maxSteps; step++)
-        {
-            maze[currentRow, currentCol] = 0;
-            
-            var distFromCenter = Math.Max(Math.Abs(currentRow - centerRow), Math.Abs(currentCol - centerCol));
-            
-            // If we're getting too close to inner ring, stop or move tangentially
-            if (distFromCenter <= minDistance)
-            {
-                // Move tangentially (perpendicular to center direction) for a few more steps
-                for (var i = 0; i < 3; i++)
-                {
-                    var perpendicular = GetPerpendicularDirection(currentRow, currentCol, centerRow, centerCol);
-                    currentRow = Math.Max(1, Math.Min(MazeSize - 2, currentRow + perpendicular.dRow));
-                    currentCol = Math.Max(1, Math.Min(MazeSize - 2, currentCol + perpendicular.dCol));
-                    if (maze[currentRow, currentCol] == 1)
-                        maze[currentRow, currentCol] = 0;
-                }
-                break;
-            }
-            
-            // Move generally toward center with randomness
-            var dRow = random.Next(3) - 1; // -1, 0, or 1
-            var dCol = random.Next(3) - 1;
-            
-            if (dRow == 0 && dCol == 0)
-            {
-                dRow = random.Next(2) == 0 ? -1 : 1;
-            }
-            
-            currentRow = Math.Max(1, Math.Min(MazeSize - 2, currentRow + dRow));
-            currentCol = Math.Max(1, Math.Min(MazeSize - 2, currentCol + dCol));
-        }
-    }
-
-    /// <summary>
-    /// Gets a direction perpendicular to the direction toward center
-    /// </summary>
-    private (int dRow, int dCol) GetPerpendicularDirection(int row, int col, int centerRow, int centerCol)
-    {
-        var towardCenterRow = centerRow - row;
-        var towardCenterCol = centerCol - col;
-        
-        // If moving toward center vertically, move horizontally
-        if (Math.Abs(towardCenterRow) > Math.Abs(towardCenterCol))
-        {
-            return (0, random.Next(2) == 0 ? -1 : 1);
-        }
-        else
-        {
-            return (random.Next(2) == 0 ? -1 : 1, 0);
-        }
-    }
-
-    /// <summary>
-    /// Creates a 3-cell wide opening at the specified position
-    /// </summary>
-    private void CreateWideOpening(int[,] maze, int row, int col, int side, int centerRow, int centerCol)
-    {
-        // Create opening at main position
-        if (row is >= 0 and < MazeSize && col is >= 0 and < MazeSize)
-        {
-            maze[row, col] = 0;
-        }
-        
-        // Make it wider based on side
-        switch (side)
-        {
-            case 0: // Top - widen horizontally
-            case 2: // Bottom - widen horizontally
-                if (col > 0) maze[row, col - 1] = 0;
-                if (col < MazeSize - 1) maze[row, col + 1] = 0;
-                break;
-            case 1: // Right - widen vertically
-            case 3: // Left - widen vertically
-                if (row > 0) maze[row - 1, col] = 0;
-                if (row < MazeSize - 1) maze[row + 1, col] = 0;
-                break;
-        }
-    }
-
-    /// <summary>
-    /// Adds dead ends to make the maze more challenging
-    /// Dead ends are short corridors that lead nowhere
-    /// </summary>
-    private void AddDeadEnds(int[,] maze, int centerRow, int centerCol, (int distance, int wallThickness, int openings)[] rings)
-    {
-        const int deadEndCount = 150; // Number of dead ends to add
-        var attempts = 0;
-        var maxAttempts = deadEndCount * 10;
-        var addedDeadEnds = 0;
-        
-        while (addedDeadEnds < deadEndCount && attempts < maxAttempts)
-        {
-            attempts++;
-            
-            // Pick a random position
-            var row = random.Next(MazeSize);
-            var col = random.Next(MazeSize);
-            
-            // Check if it's a path (2) with at least one adjacent wall
-            if (maze[row, col] != 2) continue;
-            
-            // Find adjacent walls where we can carve a dead end
-            var directions = new[] { (-1, 0), (1, 0), (0, -1), (0, 1) };
-            var possibleDirections = new List<(int dRow, int dCol)>();
-            
-            foreach (var (dRow, dCol) in directions)
-            {
-                var wallRow = row + dRow;
-                var wallCol = col + dCol;
-                
-                if (wallRow >= 0 && wallRow < MazeSize && wallCol >= 0 && wallCol < MazeSize &&
-                    maze[wallRow, wallCol] == 1)
-                {
-                    // Check if we can carve 2-4 cells in this direction
-                    var canCarve = true;
-                    var deadEndLength = random.Next(2, 5); // Random length 2-4
-                    
-                    for (var step = 1; step <= deadEndLength; step++)
-                    {
-                        var checkRow = row + dRow * step;
-                        var checkCol = col + dCol * step;
-                        
-                        if (checkRow < 0 || checkRow >= MazeSize || checkCol < 0 || checkCol >= MazeSize ||
-                            maze[checkRow, checkCol] != 1)
-                        {
-                            canCarve = false;
-                            break;
-                        }
-                    }
-                    
-                    if (canCarve)
-                    {
-                        possibleDirections.Add((dRow, dCol));
-                    }
-                }
-            }
-            
-            if (possibleDirections.Count > 0)
-            {
-                // Pick a random direction and carve the dead end
-                var (dRow, dCol) = possibleDirections[random.Next(possibleDirections.Count)];
-                var deadEndLength = random.Next(2, 5);
-                
-                for (var step = 1; step <= deadEndLength; step++)
-                {
-                    var carveRow = row + dRow * step;
-                    var carveCol = col + dCol * step;
-                    maze[carveRow, carveCol] = 0;
-                }
-                
-                addedDeadEnds++;
-            }
-        }
-    }
-
-    /// <summary>
     /// Flood fills all accessible paths with value 2, starting from outer edge
     /// </summary>
     private void FloodFillPaths(int[,] maze)
@@ -1513,32 +453,32 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
         
         // Start from all edges that are empty (0)
         // Top and bottom edges
-        for (var col = 0; col < MazeSize; col++)
+        for (var col = 0; col < _mazeSize; col++)
         {
             if (maze[0, col] == 0)
             {
                 queue.Enqueue((0, col));
                 visited.Add((0, col));
             }
-            if (maze[MazeSize - 1, col] == 0)
+            if (maze[_mazeSize - 1, col] == 0)
             {
-                queue.Enqueue((MazeSize - 1, col));
-                visited.Add((MazeSize - 1, col));
+                queue.Enqueue((_mazeSize - 1, col));
+                visited.Add((_mazeSize - 1, col));
             }
         }
         
         // Left and right edges
-        for (var row = 1; row < MazeSize - 1; row++)
+        for (var row = 1; row < _mazeSize - 1; row++)
         {
             if (maze[row, 0] == 0)
             {
                 queue.Enqueue((row, 0));
                 visited.Add((row, 0));
             }
-            if (maze[row, MazeSize - 1] == 0)
+            if (maze[row, _mazeSize - 1] == 0)
             {
-                queue.Enqueue((row, MazeSize - 1));
-                visited.Add((row, MazeSize - 1));
+                queue.Enqueue((row, _mazeSize - 1));
+                visited.Add((row, _mazeSize - 1));
             }
         }
         
@@ -1561,8 +501,8 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
                 var newCol = col + dCol;
                 var pos = (newRow, newCol);
                 
-                if (newRow >= 0 && newRow < MazeSize && 
-                    newCol >= 0 && newCol < MazeSize &&
+                if (newRow >= 0 && newRow < _mazeSize && 
+                    newCol >= 0 && newCol < _mazeSize &&
                     !visited.Contains(pos) &&
                     (maze[newRow, newCol] == 0 || maze[newRow, newCol] == 3))
                 {
@@ -1571,29 +511,6 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
                 }
             }
         }
-    }
-
-    /// <summary>
-    /// Generates a maze and returns it as a string representation.
-    /// </summary>
-    public string GenerateMazeAsString()
-    {
-        var maze = GenerateMaze();
-        var result = new System.Text.StringBuilder();
-
-        for (var i = 0; i < MazeSize; i++)
-        {
-            for (var j = 0; j < MazeSize; j++)
-            {
-                result.Append(maze[i, j]);
-            }
-            if (i < MazeSize - 1)
-            {
-                result.AppendLine();
-            }
-        }
-
-        return result.ToString();
     }
 
     /// <summary>
@@ -1620,9 +537,9 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
     /// </summary>
     private (int row, int col)? FindExitPosition(int[,] maze)
     {
-        for (var row = 0; row < MazeSize; row++)
+        for (var row = 0; row < _mazeSize; row++)
         {
-            for (var col = 0; col < MazeSize; col++)
+            for (var col = 0; col < _mazeSize; col++)
             {
                 if (maze[row, col] == 3)
                 {
@@ -1642,17 +559,17 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
         
         // Collect all valid path positions (value 2) on outer edges
         // Top and bottom edges
-        for (var col = 0; col < MazeSize; col++)
+        for (var col = 0; col < _mazeSize; col++)
         {
             if (maze[0, col] == 2) validPositions.Add((0, col));
-            if (maze[MazeSize - 1, col] == 2) validPositions.Add((MazeSize - 1, col));
+            if (maze[_mazeSize - 1, col] == 2) validPositions.Add((_mazeSize - 1, col));
         }
         
         // Left and right edges
-        for (var row = 1; row < MazeSize - 1; row++)
+        for (var row = 1; row < _mazeSize - 1; row++)
         {
             if (maze[row, 0] == 2) validPositions.Add((row, 0));
-            if (maze[row, MazeSize - 1] == 2) validPositions.Add((row, MazeSize - 1));
+            if (maze[row, _mazeSize - 1] == 2) validPositions.Add((row, _mazeSize - 1));
         }
         
         // Return random position from valid ones
@@ -1665,7 +582,7 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
     /// Finds a path from start to end using BFS algorithm.
     /// Works with new maze values: 0=empty, 1=wall, 2=path, 3=exit
     /// </summary>
-    private static List<(int row, int col)> FindPath(int[,] maze, (int row, int col) start, (int row, int col) end)
+    private List<(int row, int col)> FindPath(int[,] maze, (int row, int col) start, (int row, int col) end)
     {
         var queue = new Queue<(int row, int col, List<(int row, int col)> path)>();
         var visited = new System.Collections.Generic.HashSet<(int row, int col)>();
@@ -1690,8 +607,9 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
                 var newCol = col + dCol;
                 var newPos = (newRow, newCol);
 
-                if (newRow is >= 0 and < MazeSize 
-                    && newCol is >= 0 and < MazeSize 
+                if (newRow >= 0 && newRow < _mazeSize 
+                    && newCol >= 0 
+                    && newCol < _mazeSize 
                     && !visited.Contains(newPos) 
                     && (maze[newRow, newCol] == 2 || maze[newRow, newCol] == 3 || maze[newRow, newCol] == 4)) // Can walk on paths (2), exit (3), and chests (4)
                 {
@@ -1703,23 +621,6 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
         }
 
         return [];
-    }
-
-    /// <summary>
-    /// Generates a classic maze using recursive backtracking algorithm
-    /// This creates long connected walls instead of scattered blocks
-    /// </summary>
-    private void GenerateClassicMaze(int[,] maze)
-    {
-        // Start from center and work outward
-        const int startRow = MazeSize / 2;
-        const int startCol = MazeSize / 2;
-        
-        // Carve the starting cell
-        maze[startRow, startCol] = 0;
-        
-        // Use recursive backtracking to create maze
-        CarvePassagesFrom(maze, startRow, startCol);
     }
 
     /// <summary>
@@ -1744,7 +645,7 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
             var newCol = col + dCol * 2;
             
             // Check bounds
-            if (newRow < 1 || newRow >= MazeSize - 1 || newCol < 1 || newCol >= MazeSize - 1)
+            if (newRow < 1 || newRow >= _mazeSize - 1 || newCol < 1 || newCol >= _mazeSize - 1)
                 continue;
             
             // If the target cell is a wall, carve a path to it
@@ -1768,155 +669,15 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
     {
         const int edgeWidth = 3;
 
-        for (var row = 0; row < MazeSize; row++)
+        for (var row = 0; row < _mazeSize; row++)
         {
-            for (var col = 0; col < MazeSize; col++)
+            for (var col = 0; col < _mazeSize; col++)
             {
                 // Check if cell is within edge distance from any border
-                if (row < edgeWidth || row >= MazeSize - edgeWidth ||
-                    col < edgeWidth || col >= MazeSize - edgeWidth)
+                if (row < edgeWidth || row >= _mazeSize - edgeWidth ||
+                    col < edgeWidth || col >= _mazeSize - edgeWidth)
                 {
                     maze[row, col] = 0;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Adds concentric square rings with specified number of openings
-    /// Inner rings have fewer openings, creating a funnel effect
-    /// </summary>
-    private void AddConcentricRingsWithOpenings(int[,] maze, int centerRow, int centerCol, 
-        (int distance, int wallThickness, int openings)[] rings)
-    {
-        foreach (var (distance, wallThickness, openings) in rings)
-        {
-            // Create the ring wall
-            CreateSquareRing(maze, centerRow, centerCol, distance, wallThickness);
-            
-            // Create openings in the ring
-            CreateRingOpenings(maze, centerRow, centerCol, distance, wallThickness, openings);
-        }
-    }
-
-    /// <summary>
-    /// Creates a square ring wall at the specified distance from center
-    /// </summary>
-    private void CreateSquareRing(int[,] maze, int centerRow, int centerCol, int distance, int thickness)
-    {
-        for (var t = 0; t < thickness; t++)
-        {
-            var currentDist = distance + t;
-            
-            for (var offset = -currentDist; offset <= currentDist; offset++)
-            {
-                // Top edge
-                if (centerRow - currentDist >= 0)
-                    maze[centerRow - currentDist, centerCol + offset] = 1;
-                
-                // Bottom edge
-                if (centerRow + currentDist < MazeSize)
-                    maze[centerRow + currentDist, centerCol + offset] = 1;
-                
-                // Left edge
-                if (centerCol - currentDist >= 0)
-                    maze[centerRow + offset, centerCol - currentDist] = 1;
-                
-                // Right edge
-                if (centerCol + currentDist < MazeSize)
-                    maze[centerRow + offset, centerCol + currentDist] = 1;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Creates openings in a ring wall
-    /// </summary>
-    private void CreateRingOpenings(int[,] maze, int centerRow, int centerCol, int distance, int thickness, int openingCount)
-    {
-        var openings = new List<(int row, int col, int side)>();
-        
-        // Sides: 0=top, 1=right, 2=bottom, 3=left
-        for (var i = 0; i < openingCount; i++)
-        {
-            const int maxAttempts = 100;
-            var attempts = 0;
-
-            while (attempts < maxAttempts)
-            {
-                attempts++;
-                
-                var side = random.Next(4);
-                var offset = random.Next(-distance + thickness * 2, distance - thickness * 2);
-                
-                int row, col;
-                switch (side)
-                {
-                    case 0: // Top
-                        row = centerRow - distance;
-                        col = centerCol + offset;
-                        break;
-                    case 1: // Right
-                        row = centerRow + offset;
-                        col = centerCol + distance;
-                        break;
-                    case 2: // Bottom
-                        row = centerRow + distance;
-                        col = centerCol + offset;
-                        break;
-                    default: // Left
-                        row = centerRow + offset;
-                        col = centerCol - distance;
-                        break;
-                }
-                
-                // Check bounds
-                if (row < 0 || row >= MazeSize || col < 0 || col >= MazeSize) continue;
-                
-                // Check if too close to another opening
-                var tooClose = false;
-                foreach (var (oRow, oCol, _) in openings)
-                {
-                    if (Math.Abs(oRow - row) + Math.Abs(oCol - col) < thickness * 3)
-                    {
-                        tooClose = true;
-                        break;
-                    }
-                }
-                
-                if (!tooClose)
-                {
-                    openings.Add((row, col, side));
-                    
-                    // Carve the opening through all layers of the wall
-                    for (var t = 0; t < thickness; t++)
-                    {
-                        int carveRow = row, carveCol = col;
-                        
-                        switch (side)
-                        {
-                            case 0: // Top - carve downward
-                                carveRow = centerRow - distance + t;
-                                break;
-                            case 1: // Right - carve leftward
-                                carveCol = centerCol + distance - t;
-                                break;
-                            case 2: // Bottom - carve upward
-                                carveRow = centerRow + distance - t;
-                                break;
-                            case 3: // Left - carve rightward
-                                carveCol = centerCol - distance + t;
-                                break;
-                        }
-                        
-                        if (carveRow is >= 0 and < MazeSize 
-                            && carveCol is >= 0 and < MazeSize)
-                        {
-                            maze[carveRow, carveCol] = 0;
-                        }
-                    }
-                    
-                    break;
                 }
             }
         }

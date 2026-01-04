@@ -662,7 +662,8 @@ public record QuizConfig(
 
 public record MazeConfig(
     [property: Range(1, int.MaxValue)] int ChestFrequency = 50,
-    [property: Range(1, 10)] int DefaultViewRadius = 3
+    [property: Range(1, 10)] int DefaultViewRadius = 3,
+    [property: Range(16, 512)] int MazeSize = 128
 );
 
 public record MazeGameConfig(
