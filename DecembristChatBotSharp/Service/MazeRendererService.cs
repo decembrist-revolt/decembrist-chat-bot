@@ -164,5 +164,66 @@ public class MazeRendererService(MazeGeneratorService mazeGenerator)
         
         return (filePathWithoutSolution, filePathWithSolution);
     }
+
+    /// <summary>
+    /// Renders full maze with all players' positions marked by their colors.
+    /// </summary>
+    public byte[] RenderMazeWithPlayers(int[,] maze, List<((int row, int col) position, string color)> players)
+    {
+        var imageWidth = MazeSize * CellSize;
+        var imageHeight = MazeSize * CellSize;
+
+        using var surface = SKSurface.Create(new SKImageInfo(imageWidth, imageHeight));
+        var canvas = surface.Canvas;
+        canvas.Clear(SKColors.White);
+
+        using (var wallPaint = new SKPaint { Color = SKColors.Black, Style = SKPaintStyle.Fill })
+        using (var pathPaint = new SKPaint { Color = new SKColor(200, 200, 200), Style = SKPaintStyle.Fill })
+        using (var exitPaint = new SKPaint { Color = new SKColor(0, 255, 0), Style = SKPaintStyle.Fill }) // Green exit
+        using (var chestPaint = new SKPaint { Color = new SKColor(255, 215, 0), Style = SKPaintStyle.Fill })
+        {
+            // Draw maze
+            for (var row = 0; row < MazeSize; row++)
+            {
+                for (var col = 0; col < MazeSize; col++)
+                {
+                    var x = col * CellSize;
+                    var y = row * CellSize;
+
+                    switch (maze[row, col])
+                    {
+                        case 1: // Wall
+                            canvas.DrawRect(x, y, CellSize, CellSize, wallPaint);
+                            break;
+                        case 2: // Path
+                            canvas.DrawRect(x, y, CellSize, CellSize, pathPaint);
+                            break;
+                        case 3: // Exit
+                            canvas.DrawRect(x, y, CellSize, CellSize, exitPaint);
+                            break;
+                        case 4: // Chest
+                            canvas.DrawRect(x, y, CellSize, CellSize, chestPaint);
+                            break;
+                    }
+                }
+            }
+
+            // Draw all players with their colors
+            foreach (var (position, colorHex) in players)
+            {
+                var (row, col) = position;
+                var x = col * CellSize;
+                var y = row * CellSize;
+
+                var color = SKColor.Parse(colorHex);
+                using var playerPaint = new SKPaint { Color = color, Style = SKPaintStyle.Fill };
+                canvas.DrawRect(x, y, CellSize, CellSize, playerPaint);
+            }
+        }
+
+        using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
+    }
 }
 

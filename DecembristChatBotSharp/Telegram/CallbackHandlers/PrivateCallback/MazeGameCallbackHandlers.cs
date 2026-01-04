@@ -51,7 +51,7 @@ public class MazeGameMoveCallbackHandler(
                 if (game.IsFinished && game.WinnerId == telegramId)
                 {
                     // Player won!
-                    _ = await HandleWinner(chatId, telegramId, privateChatId);
+                    _ = await HandleWinner(chatId, telegramId, privateChatId, messageId);
                 }
                 else
                 {
@@ -65,7 +65,7 @@ public class MazeGameMoveCallbackHandler(
         return unit;
     }
 
-    private async Task<Unit> HandleWinner(long chatId, long telegramId, long privateChatId)
+    private async Task<Unit> HandleWinner(long chatId, long telegramId, long privateChatId, int messageId)
     {
         Log.Information("Player {0} won maze game in chat {1}", telegramId, chatId);
 
@@ -81,15 +81,34 @@ public class MazeGameMoveCallbackHandler(
             cancelToken.Token
         );
 
-        // Announce in chat
-        var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
-        await botClient.SendMessageAndLog(
-            chatId,
-            $"🎉 {username} первым нашел выход из лабиринта и получил 5 коробок!",
-            _ => Log.Information("Announced maze winner in chat {0}", chatId),
-            ex => Log.Error(ex, "Failed to announce maze winner in chat {0}", chatId),
-            cancelToken.Token
-        );
+        // Render and send full maze to chat
+        var fullMazeImage = await mazeGameService.RenderFullMaze(chatId, messageId);
+        if (fullMazeImage != null)
+        {
+            using var stream = new MemoryStream(fullMazeImage, false);
+            var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
+            
+            await botClient.SendPhotoAndLog(
+                chatId,
+                stream,
+                $"🎉 {username} первым нашел выход из лабиринта и получил 5 коробок!\n\nФинальная карта лабиринта с позициями всех участников:",
+                _ => Log.Information("Sent final maze image to chat {0}", chatId),
+                ex => Log.Error(ex, "Failed to send final maze image to chat {0}", chatId),
+                cancelToken.Token
+            );
+        }
+        else
+        {
+            // Fallback to text message if maze rendering fails
+            var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
+            await botClient.SendMessageAndLog(
+                chatId,
+                $"🎉 {username} первым нашел выход из лабиринта и получил 5 коробок!",
+                _ => Log.Information("Announced maze winner in chat {0}", chatId),
+                ex => Log.Error(ex, "Failed to announce maze winner in chat {0}", chatId),
+                cancelToken.Token
+            );
+        }
 
         return unit;
     }

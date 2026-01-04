@@ -10,6 +10,7 @@ namespace DecembristChatBotSharp.Service;
 public class MazeGameService(
     MazeGeneratorService mazeGenerator,
     MazeGameRepository mazeGameRepository,
+    MazeRendererService mazeRenderer,
     AppConfig appConfig,
     Random random)
 {
@@ -491,6 +492,25 @@ public class MazeGameService(
             MazeDirection.Right => (row, col + 1),
             _ => (row, col)
         };
+    }
+
+    public async Task<byte[]?> RenderFullMaze(long chatId, int messageId)
+    {
+        var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId, messageId));
+
+        return await gameOpt.MatchAsync(
+            async game =>
+            {
+                var allPlayers = await mazeGameRepository.GetAllPlayersInGame(chatId, messageId);
+                
+                // Convert players to the format expected by MazeRendererService
+                var playersWithColors = allPlayers
+                    .Select(p => (p.Position, p.Color))
+                    .ToList();
+                
+                return mazeRenderer.RenderMazeWithPlayers(game.Maze, playersWithColors);
+            },
+            () => Task.FromResult<byte[]?>(null)!);
     }
 }
 
