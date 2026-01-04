@@ -29,7 +29,7 @@ public class MazeGameViewService(
 
         // Создаём новый таймер на 3 секунды
         var timer = new Timer(
-             _ => SendViewUpdate(chatId, messageId, telegramId),
+            _ => SendViewUpdate(chatId, messageId, telegramId),
             null,
             TimeSpan.FromSeconds(DelaySeconds),
             Timeout.InfiniteTimeSpan
@@ -41,68 +41,63 @@ public class MazeGameViewService(
     private async Task SendViewUpdate(long chatId, int messageId, long telegramId)
     {
         var key = (chatId, messageId, telegramId);
-        
+
         // Удаляем таймер из словаря
-        if (_pendingUpdates.TryRemove(key, out var timer))
+        if (_pendingUpdates.TryRemove(key, out var timer)) await timer.DisposeAsync();
+
+        var playerOpt =
+            await mazeGameRepository.GetPlayer(new MazeGamePlayer.CompositeId(chatId, messageId, telegramId));
+
+        await playerOpt.MatchAsync(async player =>
         {
-            timer.Dispose();
-        }
-
-        var playerOpt = await mazeGameRepository.GetPlayer(new MazeGamePlayer.CompositeId(chatId, messageId, telegramId));
-
-        await playerOpt.MatchAsync(
-            async player =>
+            // Удаляем предыдущее фото если есть
+            if (player.LastPhotoMessageId.HasValue)
             {
-                // Удаляем предыдущее фото если есть
-                if (player.LastPhotoMessageId.HasValue)
+                try
                 {
-                    try
-                    {
-                        await botClient.DeleteMessageAndLog(
-                            telegramId,
-                            player.LastPhotoMessageId.Value,
-                            () => Log.Information("Deleted previous maze photo for player {0}", telegramId),
-                            ex => Log.Warning(ex, "Failed to delete previous photo message for player {0}", telegramId),
-                            cancelToken.Token
-                        );
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Warning(ex, "Failed to delete previous photo message {0} for player {1}", 
-                            player.LastPhotoMessageId.Value, telegramId);
-                    }
-                }
-
-                // Отправляем новое фото с клавиатурой
-                var viewImage = await mazeGameService.RenderPlayerView(chatId, messageId, telegramId);
-                if (viewImage != null)
-                {
-                    using var stream = new MemoryStream(viewImage, false);
-                    
-                    var inventoryText = mazeGameUiService.FormatInventoryText(player.Inventory);
-                    var keyboard = mazeGameUiService.CreateMazeKeyboard(chatId, messageId);
-
-                    await botClient.SendPhotoAndLog(
+                    await botClient.DeleteMessageAndLog(
                         telegramId,
-                        stream,
-                        inventoryText,
-                        async msg =>
-                        {
-                            await mazeGameRepository.UpdatePlayerLastPhotoMessageId(
-                                new MazeGamePlayer.CompositeId(chatId, messageId, telegramId),
-                                msg.MessageId
-                            );
-                            Log.Information("Sent updated maze view to player {0}", telegramId);
-                        },
-                        ex => Log.Error(ex, "Failed to send maze view to player {0}", telegramId),
-                        cancelToken.Token,
-                        keyboard
+                        player.LastPhotoMessageId.Value,
+                        () => Log.Information("Deleted previous maze photo for player {0}", telegramId),
+                        ex => Log.Warning(ex, "Failed to delete previous photo message for player {0}", telegramId),
+                        cancelToken.Token
                     );
                 }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to delete previous photo message {0} for player {1}",
+                        player.LastPhotoMessageId.Value, telegramId);
+                }
+            }
 
-                return unit;
-            },
-            () => Task.FromResult(unit));
+            // Отправляем новое фото с клавиатурой
+            var viewImage = await mazeGameService.RenderPlayerView(chatId, messageId, telegramId);
+            if (viewImage != null)
+            {
+                using var stream = new MemoryStream(viewImage, false);
+
+                var inventoryText = mazeGameUiService.FormatInventoryText(player.Inventory);
+                var keyboard = mazeGameUiService.CreateMazeKeyboard(chatId, messageId);
+
+                await botClient.SendPhotoAndLog(
+                    telegramId,
+                    stream,
+                    inventoryText,
+                    async msg =>
+                    {
+                        await mazeGameRepository.UpdatePlayerLastPhotoMessageId(
+                            new MazeGamePlayer.CompositeId(chatId, messageId, telegramId),
+                            msg.MessageId
+                        );
+                        Log.Information("Sent updated maze view to player {0}", telegramId);
+                    },
+                    ex => Log.Error(ex, "Failed to send maze view to player {0}", telegramId),
+                    cancelToken.Token,
+                    keyboard
+                );
+            }
+
+            return unit;
+        }, () => Task.FromResult(unit));
     }
 }
-

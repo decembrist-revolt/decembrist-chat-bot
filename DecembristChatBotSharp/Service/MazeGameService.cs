@@ -53,7 +53,7 @@ public class MazeGameService(
             var value = 0.8 + random.NextDouble() * 0.2; // High value for bright colors
 
             var color = HsvToHex(hue, saturation, value);
-            
+
             if (!usedColors.Contains(color) && IsColorContrastingEnough(color, usedColors))
             {
                 return color;
@@ -77,7 +77,7 @@ public class MazeGameService(
         {
             var (r2, g2, b2) = HexToRgb(existingColor);
             var distanceSquared = (r1 - r2) * (r1 - r2) + (g1 - g2) * (g1 - g2) + (b1 - b2) * (b1 - b2);
-            
+
             if (distanceSquared < minDistanceSquared)
                 return false;
         }
@@ -96,22 +96,34 @@ public class MazeGameService(
         switch (h)
         {
             case < 1.0 / 6.0:
-                r = c; g = x; b = 0;
+                r = c;
+                g = x;
+                b = 0;
                 break;
             case < 2.0 / 6.0:
-                r = x; g = c; b = 0;
+                r = x;
+                g = c;
+                b = 0;
                 break;
             case < 3.0 / 6.0:
-                r = 0; g = c; b = x;
+                r = 0;
+                g = c;
+                b = x;
                 break;
             case < 4.0 / 6.0:
-                r = 0; g = x; b = c;
+                r = 0;
+                g = x;
+                b = c;
                 break;
             case < 5.0 / 6.0:
-                r = x; g = 0; b = c;
+                r = x;
+                g = 0;
+                b = c;
                 break;
             default:
-                r = c; g = 0; b = x;
+                r = c;
+                g = 0;
+                b = x;
                 break;
         }
 
@@ -135,7 +147,7 @@ public class MazeGameService(
     {
         var maze = mazeGenerator.GenerateMaze();
         var exitPosition = FindExitPosition(maze);
-        
+
         if (exitPosition == (-1, -1))
         {
             Log.Error("Failed to find exit in generated maze");
@@ -158,7 +170,7 @@ public class MazeGameService(
     public async Task<Option<MazeGamePlayer>> JoinGame(long chatId, int messageId, long telegramId)
     {
         var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId, messageId));
-        
+
         return await gameOpt.MatchAsync(
             async game =>
             {
@@ -171,7 +183,7 @@ public class MazeGameService(
                 // Get existing players to check color usage
                 var existingPlayers = await mazeGameRepository.GetAllPlayersInGame(chatId, messageId);
                 var usedColors = existingPlayers.Map(p => p.Color).ToHashSet();
-                
+
                 // Get next available color (predefined or generated)
                 var availableColor = GetPlayerColor(existingPlayers.Count, usedColors);
 
@@ -227,12 +239,13 @@ public class MazeGameService(
                             // Use shovel to break wall
                             game.Maze[newRow, newCol] = 2; // Convert wall to path
                             await mazeGameRepository.UpdateMaze(game.Id, game.Maze);
-                            
+
                             var newInventory = player.Inventory with { Shovels = player.Inventory.Shovels - 1 };
                             await mazeGameRepository.UpdatePlayerInventory(playerId, newInventory);
                             await mazeGameRepository.UpdatePlayerPosition(playerId, (newRow, newCol));
                             return true;
                         }
+
                         return false; // Can't move through wall
                     }
 
@@ -248,23 +261,23 @@ public class MazeGameService(
                             // Attack with all swords vs all shields
                             var attackerSwords = player.Inventory.Swords;
                             var defenderShields = targetPlayer.Inventory.Shields;
-                            
+
                             // Обменять все мечи на все щиты
                             var swordsUsed = Math.Min(attackerSwords, defenderShields);
                             var remainingSwords = attackerSwords - swordsUsed;
                             var remainingShields = defenderShields - swordsUsed;
-                            
+
                             if (remainingSwords > 0)
                             {
                                 // У атакующего остались мечи - защитник погибает
                                 await mazeGameRepository.KillPlayer(targetPlayer.Id);
                                 await Task.Delay(100); // Small delay before respawn
                                 await mazeGameRepository.RevivePlayer(targetPlayer.Id);
-                                
+
                                 // У атакующего сгорают ВСЕ мечи (использовал все для атаки)
                                 var attackerInventory = player.Inventory with { Swords = 0 };
                                 var defenderInventory = targetPlayer.Inventory with { Shields = 0 };
-                                
+
                                 await mazeGameRepository.UpdatePlayerInventory(playerId, attackerInventory);
                                 await mazeGameRepository.UpdatePlayerInventory(targetPlayer.Id, defenderInventory);
                                 await mazeGameRepository.UpdatePlayerPosition(playerId, (newRow, newCol));
@@ -275,12 +288,13 @@ public class MazeGameService(
                                 // Щитов было >= мечей - атака отражена, атакующий не двигается
                                 var attackerInventory = player.Inventory with { Swords = 0 };
                                 var defenderInventory = targetPlayer.Inventory with { Shields = remainingShields };
-                                
+
                                 await mazeGameRepository.UpdatePlayerInventory(playerId, attackerInventory);
                                 await mazeGameRepository.UpdatePlayerInventory(targetPlayer.Id, defenderInventory);
                                 return true; // Move registered but position unchanged
                             }
                         }
+
                         return false; // Can't move to occupied cell without sword
                     }
 
@@ -293,7 +307,10 @@ public class MazeGameService(
                             MazeItemType.Sword => player.Inventory with { Swords = player.Inventory.Swords + 1 },
                             MazeItemType.Shield => player.Inventory with { Shields = player.Inventory.Shields + 1 },
                             MazeItemType.Shovel => player.Inventory with { Shovels = player.Inventory.Shovels + 1 },
-                            MazeItemType.ViewExpander => player.Inventory with { ViewExpanders = player.Inventory.ViewExpanders + 1 },
+                            MazeItemType.ViewExpander => player.Inventory with
+                            {
+                                ViewExpanders = player.Inventory.ViewExpanders + 1
+                            },
                             _ => player.Inventory
                         };
 
@@ -328,13 +345,15 @@ public class MazeGameService(
                 async game =>
                 {
                     await mazeGameRepository.MarkPlayerUpdateSent(playerId);
-                    return RenderPlayerViewInternal(game, player, await mazeGameRepository.GetAllPlayersInGame(chatId, messageId));
+                    return RenderPlayerViewInternal(game, player,
+                        await mazeGameRepository.GetAllPlayersInGame(chatId, messageId));
                 },
                 () => Task.FromResult<byte[]?>(null)),
             () => Task.FromResult<byte[]?>(null));
     }
 
-    private byte[]? RenderPlayerViewInternal(MazeGame game, MazeGamePlayer currentPlayer, List<MazeGamePlayer> allPlayers)
+    private byte[]? RenderPlayerViewInternal(MazeGame game, MazeGamePlayer currentPlayer,
+        List<MazeGamePlayer> allPlayers)
     {
         var (playerRow, playerCol) = currentPlayer.Position;
         // Базовый радиус + бонус от ViewExpanders (каждый добавляет +1)
@@ -427,6 +446,7 @@ public class MazeGameService(
                 if (maze[i, j] == 3) return (i, j);
             }
         }
+
         return (-1, -1);
     }
 
@@ -498,19 +518,16 @@ public class MazeGameService(
     {
         var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId, messageId));
 
-        return await gameOpt.MatchAsync(
-            async game =>
-            {
-                var allPlayers = await mazeGameRepository.GetAllPlayersInGame(chatId, messageId);
-                
-                // Convert players to the format expected by MazeRendererService
-                var playersWithColors = allPlayers
-                    .Select(p => (p.Position, p.Color))
-                    .ToList();
-                
-                return mazeRenderer.RenderMazeWithPlayers(game.Maze, playersWithColors);
-            },
-            () => Task.FromResult<byte[]?>(null)!);
+        return await gameOpt.MatchAsync(async game =>
+        {
+            var allPlayers = await mazeGameRepository.GetAllPlayersInGame(chatId, messageId);
+
+            // Convert players to the format expected by MazeRendererService
+            var playersWithColors = allPlayers
+                .Select(p => (p.Position, p.Color))
+                .ToList();
+
+            return mazeRenderer.RenderMazeWithPlayers(game.Maze, playersWithColors);
+        }, () => Task.FromResult<byte[]?>(null)!);
     }
 }
-

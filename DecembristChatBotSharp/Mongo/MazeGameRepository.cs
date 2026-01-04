@@ -21,7 +21,7 @@ public class MazeGameRepository(
         var collection = GetGameCollection();
         var filter = Builders<MazeGame>.Filter.Eq(x => x.Id, game.Id);
         var options = new UpdateOptions { IsUpsert = true };
-        
+
         var update = Builders<MazeGame>.Update
             .Set(x => x.Maze, game.Maze)
             .Set(x => x.CreatedAt, game.CreatedAt)
@@ -37,7 +37,8 @@ public class MazeGameRepository(
             result => result.IsAcknowledged && (result.UpsertedId != null || result.ModifiedCount > 0),
             ex =>
             {
-                Log.Error(ex, "Failed to create maze game for chat {0}, message {1}", game.Id.ChatId, game.Id.MessageId);
+                Log.Error(ex, "Failed to create maze game for chat {0}, message {1}", game.Id.ChatId,
+                    game.Id.MessageId);
                 return false;
             });
     }
@@ -49,13 +50,11 @@ public class MazeGameRepository(
             .Find(game => game.Id == id)
             .FirstOrDefaultAsync(cancelToken.Token)
             .ToTryAsync()
-            .Match(
-                Optional,
-                ex =>
-                {
-                    Log.Error(ex, "Failed to get maze game {0}", id);
-                    return None;
-                });
+            .Match(Optional, ex =>
+            {
+                Log.Error(ex, "Failed to get maze game {0}", id);
+                return None;
+            });
     }
 
     public async Task<bool> FinishGame(MazeGame.CompositeId id, long winnerId, IMongoSession? session = null)
@@ -103,7 +102,7 @@ public class MazeGameRepository(
         var collection = GetPlayerCollection();
         var filter = Builders<MazeGamePlayer>.Filter.Eq(x => x.Id, player.Id);
         var options = new UpdateOptions { IsUpsert = true };
-        
+
         var update = Builders<MazeGamePlayer>.Update
             .Set(x => x.Position, player.Position)
             .Set(x => x.SpawnPosition, player.SpawnPosition)
@@ -135,13 +134,11 @@ public class MazeGameRepository(
             .Find(player => player.Id == id)
             .FirstOrDefaultAsync(cancelToken.Token)
             .ToTryAsync()
-            .Match(
-                Optional,
-                ex =>
-                {
-                    Log.Error(ex, "Failed to get maze player {0}", id);
-                    return None;
-                });
+            .Match(Optional, ex =>
+            {
+                Log.Error(ex, "Failed to get maze player {0}", id);
+                return None;
+            });
     }
 
     public async Task<List<MazeGamePlayer>> GetAllPlayersInGame(long chatId, int messageId)
@@ -151,16 +148,15 @@ public class MazeGameRepository(
             .Find(player => player.Id.ChatId == chatId && player.Id.MessageId == messageId)
             .ToListAsync(cancelToken.Token)
             .ToTryAsync()
-            .Match(
-                identity,
-                ex =>
-                {
-                    Log.Error(ex, "Failed to get all players for game {0}:{1}", chatId, messageId);
-                    return new List<MazeGamePlayer>();
-                });
+            .Match(identity, ex =>
+            {
+                Log.Error(ex, "Failed to get all players for game {0}:{1}", chatId, messageId);
+                return [];
+            });
     }
 
-    public async Task<bool> UpdatePlayerPosition(MazeGamePlayer.CompositeId id, (int row, int col) newPosition, IMongoSession? session = null)
+    public async Task<bool> UpdatePlayerPosition(MazeGamePlayer.CompositeId id, (int row, int col) newPosition,
+        IMongoSession? session = null)
     {
         var collection = GetPlayerCollection();
         var filter = Builders<MazeGamePlayer>.Filter.Eq(x => x.Id, id);
@@ -182,7 +178,8 @@ public class MazeGameRepository(
             });
     }
 
-    public async Task<bool> UpdatePlayerInventory(MazeGamePlayer.CompositeId id, MazePlayerInventory inventory, IMongoSession? session = null)
+    public async Task<bool> UpdatePlayerInventory(MazeGamePlayer.CompositeId id, MazePlayerInventory inventory,
+        IMongoSession? session = null)
     {
         var collection = GetPlayerCollection();
         var filter = Builders<MazeGamePlayer>.Filter.Eq(x => x.Id, id);
@@ -205,28 +202,26 @@ public class MazeGameRepository(
     {
         var collection = GetPlayerCollection();
         var playerOpt = await GetPlayer(id);
-        
-        return await playerOpt.MatchAsync(
-            async player =>
-            {
-                var filter = Builders<MazeGamePlayer>.Filter.Eq(x => x.Id, id);
-                var update = Builders<MazeGamePlayer>.Update
-                    .Set(x => x.IsAlive, false)
-                    .Set(x => x.Position, player.SpawnPosition);
 
-                var updateTask = not(session.IsNull())
-                    ? collection.UpdateOneAsync(session, filter, update, null, cancelToken.Token)
-                    : collection.UpdateOneAsync(filter, update, null, cancelToken.Token);
+        return await playerOpt.MatchAsync(async player =>
+        {
+            var filter = Builders<MazeGamePlayer>.Filter.Eq(x => x.Id, id);
+            var update = Builders<MazeGamePlayer>.Update
+                .Set(x => x.IsAlive, false)
+                .Set(x => x.Position, player.SpawnPosition);
 
-                return await updateTask.ToTryAsync().Match(
-                    result => result.IsAcknowledged && result.ModifiedCount > 0,
-                    ex =>
-                    {
-                        Log.Error(ex, "Failed to kill player {0}", id);
-                        return false;
-                    });
-            },
-            () => Task.FromResult(false));
+            var updateTask = not(session.IsNull())
+                ? collection.UpdateOneAsync(session, filter, update, null, cancelToken.Token)
+                : collection.UpdateOneAsync(filter, update, null, cancelToken.Token);
+
+            return await updateTask.ToTryAsync().Match(
+                result => result.IsAcknowledged && result.ModifiedCount > 0,
+                ex =>
+                {
+                    Log.Error(ex, "Failed to kill player {0}", id);
+                    return false;
+                });
+        }, () => Task.FromResult(false));
     }
 
     public async Task<bool> RevivePlayer(MazeGamePlayer.CompositeId id, IMongoSession? session = null)
@@ -258,16 +253,16 @@ public class MazeGameRepository(
             ? collection.UpdateOneAsync(session, filter, update, null, cancelToken.Token)
             : collection.UpdateOneAsync(filter, update, null, cancelToken.Token);
 
-        return await updateTask.ToTryAsync().Match(
-            result => result.IsAcknowledged && result.ModifiedCount > 0,
-            ex =>
+        return await updateTask.ToTryAsync()
+            .Match(result => result.IsAcknowledged && result.ModifiedCount > 0, ex =>
             {
                 Log.Error(ex, "Failed to mark player update sent {0}", id);
                 return false;
             });
     }
 
-    public async Task<bool> UpdatePlayerLastPhotoMessageId(MazeGamePlayer.CompositeId id, int? photoMessageId, IMongoSession? session = null)
+    public async Task<bool> UpdatePlayerLastPhotoMessageId(MazeGamePlayer.CompositeId id, int? photoMessageId,
+        IMongoSession? session = null)
     {
         var collection = GetPlayerCollection();
         var filter = Builders<MazeGamePlayer>.Filter.Eq(x => x.Id, id);
@@ -277,9 +272,8 @@ public class MazeGameRepository(
             ? collection.UpdateOneAsync(session, filter, update, null, cancelToken.Token)
             : collection.UpdateOneAsync(filter, update, null, cancelToken.Token);
 
-        return await updateTask.ToTryAsync().Match(
-            result => result.IsAcknowledged && result.ModifiedCount > 0,
-            ex =>
+        return await updateTask.ToTryAsync()
+            .Match(result => result.IsAcknowledged && result.ModifiedCount > 0, ex =>
             {
                 Log.Error(ex, "Failed to update player last photo message id {0}", id);
                 return false;
@@ -294,13 +288,11 @@ public class MazeGameRepository(
             .SortByDescending(game => game.CreatedAt)
             .FirstOrDefaultAsync(cancelToken.Token)
             .ToTryAsync()
-            .Match(
-                Optional,
-                ex =>
-                {
-                    Log.Error(ex, "Failed to get active game for chat {0}", chatId);
-                    return None;
-                });
+            .Match(Optional, ex =>
+            {
+                Log.Error(ex, "Failed to get active game for chat {0}", chatId);
+                return None;
+            });
     }
 
     private IMongoCollection<MazeGame> GetGameCollection() =>
@@ -309,4 +301,3 @@ public class MazeGameRepository(
     private IMongoCollection<MazeGamePlayer> GetPlayerCollection() =>
         db.GetCollection<MazeGamePlayer>(nameof(MazeGamePlayer));
 }
-
