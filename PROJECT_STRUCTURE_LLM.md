@@ -6,6 +6,7 @@ Telegram бот для группового чата канала, реализ�
 - **Антиспам**: Captcha, фильтрация сообщений, ограничение реакций
 - **Инвентарная система**: Предметы для троллинга участников чата (проклятия, мины, чары и т.д.)
 - **Социальные функции**: Лайки, дизлайки, лоры (записи), гивэвеи
+- **Maze Game**: Многопользовательская игра-лабиринт с PvP элементами и призами
 
 ## Технологический стек
 
@@ -50,6 +51,7 @@ DecembristChatBotSharp/
 │   ├── AdminUser.cs        # Администраторы
 │   ├── WhiteListMember.cs  # Белый список
 │   ├── UniqueItem.cs       # Уникальные предметы
+│   ├── MazeGame.cs         # Игра-лабиринт и игроки
 │   └── ...                 # Другие сущности
 │
 ├── Mongo/                  # Репозитории MongoDB
@@ -61,6 +63,7 @@ DecembristChatBotSharp/
 │   ├── AdminRepository.cs        # Администраторы
 │   ├── RestrictRepository.cs     # Ограничения
 │   ├── HistoryLogRepository.cs   # История действий
+│   ├── MazeGameRepository.cs     # Игры-лабиринты и игроки
 │   └── ...                       # Другие репозитории
 │
 ├── Service/                # Бизнес-логика
@@ -80,6 +83,11 @@ DecembristChatBotSharp/
 │   ├── DeepSeekService.cs      # AI-интеграция
 │   ├── RedditService.cs        # Reddit мемы
 │   ├── TelegramPostService.cs  # Посты из Telegram
+│   ├── MazeGameService.cs      # Логика игры лабиринт
+│   ├── MazeGeneratorService.cs # Генерация лабиринтов
+│   ├── MazeRendererService.cs  # Рендеринг изображений лабиринта
+│   ├── MazeGameUiService.cs    # UI элементы для лабиринта
+│   ├── MazeGameViewService.cs  # Отображение вида игрока
 │   └── Buttons/                # Генерация inline-кнопок
 │       ├── ProfileButton.cs
 │       ├── ListButtons.cs
@@ -94,6 +102,7 @@ DecembristChatBotSharp/
 │   ├── MessageHandlers/    # Обработчики сообщений
 │   │   ├── ChatMessageHandler.cs      # Сообщения в чатах
 │   │   ├── PrivateMessageHandler.cs   # Личные сообщения
+│   │   ├── MazeGameViewHandler.cs     # Запрос полной карты лабиринта
 │   │   ├── NewChatMemberHandler.cs    # Новые участники
 │   │   ├── CaptchaHandler.cs          # Captcha проверка
 │   │   ├── FilteredMessageHandler.cs  # Фильтрация спама
@@ -128,17 +137,20 @@ DecembristChatBotSharp/
 │   │       ├── DustCommandHandler.cs       # /dust
 │   │       ├── FastReplyCommandHandler.cs  # /fastreply
 │   │       ├── ShowLikesCommandHandler.cs  # /likes
+│   │       ├── MazeGameCommandHandler.cs   # /mazegame
 │   │       └── HelpChatCommandHandler.cs   # /help
 │   │
 │   ├── CallbackHandlers/   # Обработчики inline-кнопок
 │   │   ├── ChatCallback/
 │   │   │   ├── ChatCallbackHandler.cs
 │   │   │   ├── GiveawayCallbackHandler.cs
+│   │   │   ├── MazeGameJoinCallbackHandler.cs
 │   │   │   └── ListCallbackHandler.cs
 │   │   └── PrivateCallback/
 │   │       ├── PrivateCallbackHandler.cs
 │   │       ├── ProfilePrivateCallbackHandler.cs
 │   │       ├── LorePrivateCallbackHandler.cs
+│   │       ├── MazeGameCallbackHandlers.cs
 │   │       └── FilterCallbackHandler.cs
 │   │
 │   └── LoreHandlers/       # Обработчики лоров
@@ -217,6 +229,7 @@ DecembristChatBotSharp/
 - `CurseConfig`, `CharmConfig`, `MinaConfig` — настройки троллинга
 - `PremiumConfig` — премиум функции
 - `FilterConfig` — антиспам настройки
+- `MazeConfig` — настройки игры лабиринт
 
 ---
 
@@ -257,6 +270,8 @@ BotHandler.HandleUpdateAsync()
 - `expired_messages` — сообщения для автоудаления
 - `fast_replies` — быстрые ответы
 - `giveaway_participants` — участники гивэвеев
+- `maze_games` — активные игры лабиринт
+- `maze_players` — игроки в лабиринтах
 
 ---
 
