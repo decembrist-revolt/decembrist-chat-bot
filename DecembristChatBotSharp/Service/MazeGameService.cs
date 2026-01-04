@@ -16,12 +16,119 @@ public class MazeGameService(
     private const int MazeSize = 128;
     private const int CellSize = 10;
 
-    private static readonly string[] PlayerColors = new[]
-    {
+    // Predefined highly contrasting colors for the first players
+    private static readonly string[] PredefinedPlayerColors =
+    [
         "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",
         "#FF8000", "#8000FF", "#00FF80", "#FF0080", "#80FF00", "#0080FF",
         "#FF4040", "#40FF40", "#4040FF", "#FFFF40", "#FF40FF", "#40FFFF"
-    };
+    ];
+
+    private string GetPlayerColor(int playerIndex, System.Collections.Generic.HashSet<string> usedColors)
+    {
+        // First, try to use predefined colors
+        if (playerIndex < PredefinedPlayerColors.Length)
+        {
+            var color = PredefinedPlayerColors[playerIndex];
+            if (!usedColors.Contains(color))
+                return color;
+        }
+
+        // If predefined colors are exhausted, generate a new contrasting color
+        return GenerateContrastingColor(usedColors);
+    }
+
+    private string GenerateContrastingColor(System.Collections.Generic.HashSet<string> usedColors)
+    {
+        // Generate colors using golden ratio for better distribution
+        const double goldenRatioConjugate = 0.618033988749895;
+        var attempts = 0;
+        const int maxAttempts = 1000;
+
+        while (attempts < maxAttempts)
+        {
+            var hue = (random.NextDouble() + goldenRatioConjugate) % 1.0;
+            var saturation = 0.7 + random.NextDouble() * 0.3; // High saturation for vibrant colors
+            var value = 0.8 + random.NextDouble() * 0.2; // High value for bright colors
+
+            var color = HsvToHex(hue, saturation, value);
+            
+            if (!usedColors.Contains(color) && IsColorContrastingEnough(color, usedColors))
+            {
+                return color;
+            }
+
+            attempts++;
+        }
+
+        // Fallback: return a random bright color
+        return $"#{random.Next(256):X2}{random.Next(256):X2}{random.Next(256):X2}";
+    }
+
+    private bool IsColorContrastingEnough(string newColor, System.Collections.Generic.HashSet<string> existingColors)
+    {
+        if (existingColors.Count == 0) return true;
+
+        var (r1, g1, b1) = HexToRgb(newColor);
+        const int minDistanceSquared = 10000; // Minimum color distance
+
+        foreach (var existingColor in existingColors)
+        {
+            var (r2, g2, b2) = HexToRgb(existingColor);
+            var distanceSquared = (r1 - r2) * (r1 - r2) + (g1 - g2) * (g1 - g2) + (b1 - b2) * (b1 - b2);
+            
+            if (distanceSquared < minDistanceSquared)
+                return false;
+        }
+
+        return true;
+    }
+
+    private string HsvToHex(double h, double s, double v)
+    {
+        var c = v * s;
+        var x = c * (1 - Math.Abs((h * 6) % 2 - 1));
+        var m = v - c;
+
+        double r = 0, g = 0, b = 0;
+
+        switch (h)
+        {
+            case < 1.0 / 6.0:
+                r = c; g = x; b = 0;
+                break;
+            case < 2.0 / 6.0:
+                r = x; g = c; b = 0;
+                break;
+            case < 3.0 / 6.0:
+                r = 0; g = c; b = x;
+                break;
+            case < 4.0 / 6.0:
+                r = 0; g = x; b = c;
+                break;
+            case < 5.0 / 6.0:
+                r = x; g = 0; b = c;
+                break;
+            default:
+                r = c; g = 0; b = x;
+                break;
+        }
+
+        var red = (int)((r + m) * 255);
+        var green = (int)((g + m) * 255);
+        var blue = (int)((b + m) * 255);
+
+        return $"#{red:X2}{green:X2}{blue:X2}";
+    }
+
+    private (int r, int g, int b) HexToRgb(string hex)
+    {
+        hex = hex.TrimStart('#');
+        var r = Convert.ToInt32(hex.Substring(0, 2), 16);
+        var g = Convert.ToInt32(hex.Substring(2, 2), 16);
+        var b = Convert.ToInt32(hex.Substring(4, 2), 16);
+        return (r, g, b);
+    }
 
     public async Task<Option<MazeGame>> CreateGame(long chatId, int messageId)
     {
@@ -64,8 +171,8 @@ public class MazeGameService(
                 var existingPlayers = await mazeGameRepository.GetAllPlayersInGame(chatId, messageId);
                 var usedColors = existingPlayers.Map(p => p.Color).ToHashSet();
                 
-                // Find available color
-                var availableColor = PlayerColors.FirstOrDefault(c => !usedColors.Contains(c)) ?? PlayerColors[0];
+                // Get next available color (predefined or generated)
+                var availableColor = GetPlayerColor(existingPlayers.Count, usedColors);
 
                 // Generate random spawn position at edge
                 var spawnPosition = GenerateEdgeSpawnPosition(game.Maze, existingPlayers);

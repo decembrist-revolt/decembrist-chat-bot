@@ -3,8 +3,6 @@ using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
 using Serilog;
-using Telegram.Bot.Types.ReplyMarkups;
-using static DecembristChatBotSharp.Service.CallbackService;
 
 namespace DecembristChatBotSharp.Service;
 
@@ -13,6 +11,7 @@ public class MazeGameViewService(
     BotClient botClient,
     MazeGameService mazeGameService,
     MazeGameRepository mazeGameRepository,
+    MazeGameUiService mazeGameUiService,
     CancellationTokenSource cancelToken)
 {
     private readonly ConcurrentDictionary<(long chatId, int messageId, long telegramId), Timer> _pendingUpdates = new();
@@ -30,7 +29,7 @@ public class MazeGameViewService(
 
         // Создаём новый таймер на 3 секунды
         var timer = new Timer(
-            async _ => await SendViewUpdate(chatId, messageId, telegramId),
+             _ => SendViewUpdate(chatId, messageId, telegramId),
             null,
             TimeSpan.FromSeconds(DelaySeconds),
             Timeout.InfiniteTimeSpan
@@ -80,29 +79,8 @@ public class MazeGameViewService(
                 {
                     using var stream = new MemoryStream(viewImage, false);
                     
-                    var inventoryText = "🎒 Инвентарь: " +
-                                      "🗡️ " + player.Inventory.Swords + " " +
-                                      "🛡️ " + player.Inventory.Shields + " " +
-                                      "⛏️ " + player.Inventory.Shovels + " " +
-                                      "🔭 " + player.Inventory.ViewExpanders;
-
-                    // Создаём inline клавиатуру
-                    var upCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Up}");
-                    var downCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Down}");
-                    var leftCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Left}");
-                    var rightCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Right}");
-                    var exitCallback = GetCallback<string>("MazeExit", $"{chatId}_{messageId}");
-
-                    var keyboard = new InlineKeyboardMarkup([
-                        [InlineKeyboardButton.WithCallbackData("⬆️", upCallback)],
-                        [
-                            InlineKeyboardButton.WithCallbackData("⬅️", leftCallback),
-                            InlineKeyboardButton.WithCallbackData("➡️", rightCallback)
-                        ],
-                        [InlineKeyboardButton.WithCallbackData("⬇️", downCallback)],
-                        [InlineKeyboardButton.WithCallbackData(" ")],
-                        [InlineKeyboardButton.WithCallbackData("🚪 Выйти", exitCallback)]
-                    ]);
+                    var inventoryText = mazeGameUiService.FormatInventoryText(player.Inventory);
+                    var keyboard = mazeGameUiService.CreateMazeKeyboard(chatId, messageId);
 
                     await botClient.SendPhotoAndLog(
                         telegramId,

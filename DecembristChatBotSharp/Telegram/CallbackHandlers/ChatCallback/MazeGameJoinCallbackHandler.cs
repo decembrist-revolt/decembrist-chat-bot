@@ -14,6 +14,7 @@ public class MazeGameJoinCallbackHandler(
     BotClient botClient,
     MazeGameService mazeGameService,
     MazeGameRepository mazeGameRepository,
+    MazeGameUiService mazeGameUiService,
     MessageAssistance messageAssistance,
     CancellationTokenSource cancelToken) : IChatCallbackHandler
 {
@@ -73,26 +74,8 @@ public class MazeGameJoinCallbackHandler(
         {
             using var stream = new MemoryStream(viewImage, false);
             
-            var inventoryText = "🎒 Инвентарь: 🗡️ 0 🛡️ 0 ⛏️ 0 🔭 0";
-
-            // Создаём inline клавиатуру
-            var upCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Up}");
-            var downCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Down}");
-            var leftCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Left}");
-            var rightCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Right}");
-            var exitCallback = GetCallback<string>("MazeExit", $"{chatId}_{messageId}");
-
-            var keyboard = new InlineKeyboardMarkup([
-                [InlineKeyboardButton.WithCallbackData("⬆️", upCallback)],
-                [
-                    InlineKeyboardButton.WithCallbackData("⬅️", leftCallback),
-                    InlineKeyboardButton.WithCallbackData(""),
-                    InlineKeyboardButton.WithCallbackData("➡️", rightCallback)
-                ],
-                [InlineKeyboardButton.WithCallbackData("⬇️", downCallback)],
-                [InlineKeyboardButton.WithCallbackData("")],
-                [InlineKeyboardButton.WithCallbackData("🚪 Выйти", exitCallback)]
-            ]);
+            var inventoryText = mazeGameUiService.FormatInventoryText(player.Inventory);
+            var keyboard = mazeGameUiService.CreateMazeKeyboard(chatId, messageId);
 
             await botClient.SendPhotoAndLog(
                 telegramId,

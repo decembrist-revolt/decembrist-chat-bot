@@ -38,6 +38,7 @@ public record AppConfig(
     DustConfig DustConfig,
     CraftConfig CraftConfig,
     MazeConfig MazeConfig,
+    MazeGameConfig MazeGameConfig,
     PollPaymentConfig? PollPaymentConfig,
     QuizConfig? QuizConfig = null,
     DeepSeekConfig? DeepSeekConfig = null,
@@ -664,3 +665,7 @@ public record MazeConfig(
     [property: Range(1, 10)] int DefaultViewRadius = 3
 );
 
+public record MazeGameConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string InventoryTextTemplate
+);
