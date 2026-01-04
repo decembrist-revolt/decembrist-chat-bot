@@ -40,9 +40,7 @@ public class MazeGameCommandHandler(
         var button = InlineKeyboardButton.WithCallbackData("Вступить", callback);
         var keyboard = new InlineKeyboardMarkup(button);
 
-        var message = "🎮 Игра лабиринт началась!\n\n" +
-                      "Нажмите кнопку чтобы вступить в игру.\n" +
-                      "Цель: найти выход из лабиринта первым и получить 5 коробок!";
+        var message = appConfig.MazeConfig.AnnouncementMessage;
 
         var sentMessage = await botClient.SendMessage(
             chatId,

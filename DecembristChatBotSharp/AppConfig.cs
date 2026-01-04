@@ -38,7 +38,6 @@ public record AppConfig(
     DustConfig DustConfig,
     CraftConfig CraftConfig,
     MazeConfig MazeConfig,
-    MazeGameConfig MazeGameConfig,
     PollPaymentConfig? PollPaymentConfig,
     QuizConfig? QuizConfig = null,
     DeepSeekConfig? DeepSeekConfig = null,
@@ -663,10 +662,11 @@ public record QuizConfig(
 public record MazeConfig(
     [property: Range(1, int.MaxValue)] int ChestFrequency = 50,
     [property: Range(1, 10)] int DefaultViewRadius = 3,
-    [property: Range(16, 512)] int MazeSize = 128
-);
-
-public record MazeGameConfig(
+    [property: Range(16, 512)] int MazeSize = 128,
     [property: Required(AllowEmptyStrings = false)]
-    string InventoryTextTemplate
+    string InventoryTextTemplate = "",
+    [property: Required(AllowEmptyStrings = false)]
+    string WelcomeMessage = "",
+    [property: Required(AllowEmptyStrings = false)]
+    string AnnouncementMessage = ""
 );

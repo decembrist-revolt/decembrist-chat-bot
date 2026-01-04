@@ -11,7 +11,7 @@ public class MazeGameUiService(AppConfig appConfig)
     public string FormatInventoryText(MazePlayerInventory inventory)
     {
         return string.Format(
-            appConfig.MazeGameConfig.InventoryTextTemplate,
+            appConfig.MazeConfig.InventoryTextTemplate,
             inventory.Swords,
             inventory.Shields,
             inventory.Shovels,
