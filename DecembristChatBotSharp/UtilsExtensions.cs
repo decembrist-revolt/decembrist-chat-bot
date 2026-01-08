@@ -75,6 +75,20 @@ public static class UtilsExtensions
             .ToTryAsync()
             .Match(onEdit, onError);
 
+    public static Task<Unit> EditMessageMediaAndLog(
+        this BotClient botClient,
+        long chatId,
+        int messageId,
+        InputMedia media,
+        Action<Message> onEdit,
+        Action<Exception> onError,
+        CancellationToken cancelToken,
+        ParseMode parseMode = ParseMode.None,
+        InlineKeyboardMarkup? replyMarkup = null) =>
+        botClient.EditMessageMedia(chatId, messageId, media, replyMarkup: replyMarkup, cancellationToken: cancelToken)
+            .ToTryAsync()
+            .Match(onEdit, onError);
+
     public static Task<Unit> DeleteMessageAndLog(
         this BotClient botClient,
         long chatId,

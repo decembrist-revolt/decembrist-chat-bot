@@ -6,7 +6,7 @@ using static DecembristChatBotSharp.Service.CallbackService;
 namespace DecembristChatBotSharp.Service;
 
 [Singleton]
-public class MazeGameUiService(AppConfig appConfig)
+public class MazeGameButtons(AppConfig appConfig)
 {
     public string FormatInventoryText(MazePlayerInventory inventory)
     {

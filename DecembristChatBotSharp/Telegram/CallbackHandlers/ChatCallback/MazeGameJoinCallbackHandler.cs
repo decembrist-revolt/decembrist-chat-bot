@@ -11,7 +11,7 @@ public class MazeGameJoinCallbackHandler(
     BotClient botClient,
     MazeGameService mazeGameService,
     MazeGameRepository mazeGameRepository,
-    MazeGameUiService mazeGameUiService,
+    MazeGameButtons mazeGameButtons,
     MessageAssistance messageAssistance,
     AppConfig appConfig,
     PremiumMemberService premiumMemberService,
@@ -86,8 +86,8 @@ public class MazeGameJoinCallbackHandler(
         {
             using var stream = new MemoryStream(viewImage, false);
             
-            var inventoryText = mazeGameUiService.FormatInventoryText(player.Inventory);
-            var keyboard = mazeGameUiService.CreateMazeKeyboard(chatId, messageId);
+            var inventoryText = mazeGameButtons.FormatInventoryText(player.Inventory);
+            var keyboard = mazeGameButtons.CreateMazeKeyboard(chatId, messageId);
 
             await botClient.SendPhotoAndLog(
                 telegramId,

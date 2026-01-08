@@ -3,6 +3,8 @@ using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
 using Serilog;
+using Telegram.Bot;
+using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.Service;
 
@@ -11,7 +13,7 @@ public class MazeGameViewService(
     BotClient botClient,
     MazeGameService mazeGameService,
     MazeGameRepository mazeGameRepository,
-    MazeGameUiService mazeGameUiService,
+    MazeGameButtons mazeGameButtons,
     CancellationTokenSource cancelToken)
 {
     private readonly ConcurrentDictionary<(long chatId, int messageId, long telegramId), Timer> _pendingUpdates = new();
@@ -53,13 +55,13 @@ public class MazeGameViewService(
             // Удаляем предыдущее фото если есть
             if (player.LastPhotoMessageId.HasValue)
             {
-                await botClient.DeleteMessageAndLog(
-                    telegramId,
-                    player.LastPhotoMessageId.Value,
-                    () => Log.Information("Deleted previous maze photo for player {0}", telegramId),
-                    ex => Log.Warning(ex, "Failed to delete previous photo message for player {0}", telegramId),
-                    cancelToken.Token
-                );
+                // await botClient.DeleteMessageAndLog(
+                //     telegramId,
+                //     player.LastPhotoMessageId.Value,
+                //     () => Log.Information("Deleted previous maze photo for player {0}", telegramId),
+                //     ex => Log.Warning(ex, "Failed to delete previous photo message for player {0}", telegramId),
+                //     cancelToken.Token
+                // );
             }
 
             // Отправляем новое фото с клавиатурой
@@ -68,13 +70,16 @@ public class MazeGameViewService(
             {
                 using var stream = new MemoryStream(viewImage, false);
 
-                var inventoryText = mazeGameUiService.FormatInventoryText(player.Inventory);
-                var keyboard = mazeGameUiService.CreateMazeKeyboard(chatId, messageId);
+                var inventoryText = mazeGameButtons.FormatInventoryText(player.Inventory);
+                var keyboard = mazeGameButtons.CreateMazeKeyboard(chatId, messageId);
 
-                await botClient.SendPhotoAndLog(
-                    telegramId,
-                    stream,
-                    inventoryText,
+                await botClient.EditMessageMediaAndLog(
+                    chatId: telegramId,
+                    messageId: player.LastPhotoMessageId.Value,
+                    media: new InputMediaPhoto(new InputFileStream(stream))
+                    {
+                        Caption = inventoryText
+                    },
                     async msg =>
                     {
                         await mazeGameRepository.UpdatePlayerLastPhotoMessageId(
@@ -84,9 +89,26 @@ public class MazeGameViewService(
                         Log.Information("Sent updated maze view to player {0}", telegramId);
                     },
                     ex => Log.Error(ex, "Failed to send maze view to player {0}", telegramId),
-                    cancelToken.Token,
-                    keyboard
+                    cancelToken: cancelToken.Token,
+                    replyMarkup: keyboard
                 );
+
+                // await botClient.SendPhotoAndLog(
+                //     telegramId,
+                //     stream,
+                //     inventoryText,
+                //     async msg =>
+                //     {
+                //         await mazeGameRepository.UpdatePlayerLastPhotoMessageId(
+                //             new MazeGamePlayer.CompositeId(chatId, messageId, telegramId),
+                //             msg.MessageId
+                //         );
+                //         Log.Information("Sent updated maze view to player {0}", telegramId);
+                //     },
+                //     ex => Log.Error(ex, "Failed to send maze view to player {0}", telegramId),
+                //     cancelToken.Token,
+                //     keyboard
+                // );
             }
 
             return unit;
