@@ -37,8 +37,7 @@ public class MazeGameRepository(
             result => result.IsAcknowledged && (result.UpsertedId != null || result.ModifiedCount > 0),
             ex =>
             {
-                Log.Error(ex, "Failed to create maze game for chat {0}, message {1}", game.Id.ChatId,
-                    game.Id.MessageId);
+                Log.Error(ex, "Failed to create maze game for chat {0}", game.Id.ChatId);
                 return false;
             });
     }
@@ -47,7 +46,7 @@ public class MazeGameRepository(
     {
         var collection = GetGameCollection();
         return await collection
-            .Find(game => game.Id == id)
+            .Find(game => game.Id.ChatId == id.ChatId)
             .FirstOrDefaultAsync(cancelToken.Token)
             .ToTryAsync()
             .Match(Optional, ex =>
@@ -141,16 +140,16 @@ public class MazeGameRepository(
             });
     }
 
-    public async Task<List<MazeGamePlayer>> GetAllPlayersInGame(long chatId, int messageId)
+    public async Task<List<MazeGamePlayer>> GetAllPlayersInGame(long chatId)
     {
         var collection = GetPlayerCollection();
         return await collection
-            .Find(player => player.Id.ChatId == chatId && player.Id.MessageId == messageId)
+            .Find(player => player.Id.ChatId == chatId && player.Id.ChatId == chatId)
             .ToListAsync(cancelToken.Token)
             .ToTryAsync()
             .Match(identity, ex =>
             {
-                Log.Error(ex, "Failed to get all players for game {0}:{1}", chatId, messageId);
+                Log.Error(ex, "Failed to get all players for game {0}", chatId);
                 return [];
             });
     }
@@ -261,6 +260,24 @@ public class MazeGameRepository(
             });
     }
 
+    public async Task<bool> RemovePlayers(long chatId, IMongoSession? session = null)
+    {
+        var collection = GetPlayerCollection();
+        var filter = Builders<MazeGamePlayer>.Filter.Eq(x => x.Id.ChatId, chatId);
+        var deleteManyAsync = session is not null
+            ? collection.DeleteManyAsync(session, filter, cancellationToken: cancelToken.Token)
+            : collection.DeleteManyAsync(filter, cancellationToken: cancelToken.Token);
+        return await deleteManyAsync
+            .ToTryAsync()
+            .Match(
+                result => result.IsAcknowledged && result.DeletedCount > 0,
+                ex =>
+                {
+                    Log.Error(ex, "Failed to remove players for chat {0}", chatId);
+                    return false;
+                });
+    }
+
     public async Task<bool> UpdatePlayerLastPhotoMessageId(MazeGamePlayer.CompositeId id, int? photoMessageId,
         IMongoSession? session = null)
     {
@@ -294,6 +311,17 @@ public class MazeGameRepository(
                 return None;
             });
     }
+
+    public async Task<bool> RemoveGameForChat(long chatId) => await GetGameCollection()
+        .DeleteOneAsync(game => game.Id.ChatId == chatId, cancelToken.Token)
+        .ToTryAsync()
+        .Match(
+            result => result.IsAcknowledged && result.DeletedCount > 0,
+            ex =>
+            {
+                Log.Error(ex, "Failed to remove game for chat {0}", chatId);
+                return false;
+            });
 
     private IMongoCollection<MazeGame> GetGameCollection() =>
         db.GetCollection<MazeGame>(nameof(MazeGame));

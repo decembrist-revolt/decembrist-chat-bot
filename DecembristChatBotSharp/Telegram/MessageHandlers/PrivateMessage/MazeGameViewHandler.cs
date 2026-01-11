@@ -34,8 +34,7 @@ public class MazeGameViewHandler(
             return unit;
         }
 
-        // Находим активную игру
-        var activeGameOpt = await FindActiveGameForChat(targetChatId);
+        var activeGameOpt = await mazeGameService.FindActiveGameForChat(targetChatId);
 
         await activeGameOpt.MatchAsync(
             async game =>
@@ -79,11 +78,6 @@ public class MazeGameViewHandler(
         return unit;
     }
 
-    private async Task<Option<MazeGame>> FindActiveGameForChat(long chatId)
-    {
-        return await mazeGameRepository.GetActiveGameForChat(chatId);
-    }
-
     private async Task<byte[]?> RenderFullMazeMap(MazeGame game, long chatId)
     {
         var imageWidth = MazeSize * CellSize;
@@ -125,7 +119,7 @@ public class MazeGameViewHandler(
         }
 
         // Рисуем всех игроков
-        var players = await mazeGameRepository.GetAllPlayersInGame(chatId, game.Id.MessageId);
+        var players = await mazeGameRepository.GetAllPlayersInGame(chatId);
         foreach (var player in players.Where(p => p.IsAlive))
         {
             var (row, col) = player.Position;

@@ -3,13 +3,16 @@ using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
 using Lamar;
+using LanguageExt.UnsafeValueAccess;
 using Serilog;
 
 namespace DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
 
 [Singleton]
 public class MazeGameMoveCallbackHandler(
+    AppConfig appConfig,
     BotClient botClient,
+    CallbackService callbackService,
     MazeGameService mazeGameService,
     MazeGameRepository mazeGameRepository,
     MazeGameViewService mazeGameViewService,
@@ -22,18 +25,26 @@ public class MazeGameMoveCallbackHandler(
 
     public async Task<Unit> Do(CallbackQueryParameters queryParameters)
     {
-        var (_, suffix, privateChatId, telegramId, _, queryId, _) = queryParameters;
+        var (_, suffix, privateChatId, telegramId, messageId, queryId, maybeParameters) = queryParameters;
 
-        if (!TryParseMoveData(suffix, out var chatId, out var messageId, out var direction))
+        if (!Enum.TryParse(suffix, true, out MazeDirection direction) || maybeParameters.IsNone) return unit;
+        var parameters = maybeParameters.ValueUnsafe();
+
+        if (!callbackService.HasChatIdKey(parameters, out var targetChatId))
         {
-            Log.Warning("Failed to parse maze move data from suffix: {0}", suffix);
+            Log.Warning("Maze move parameters do not contain chatId");
             return await messageAssistance.AnswerCallbackQuery(queryId, privateChatId, Prefix,
                 "Ошибка обработки хода", showAlert: true);
         }
 
-        var moved = await mazeGameService.MovePlayer(chatId, messageId, telegramId, direction);
+        var moved = await mazeGameService.MovePlayer(targetChatId, messageId, telegramId, direction);
+        if (moved == MazeMoveResult.KeyboardNotFound)
+        {
+            return await messageAssistance.AnswerCallbackQuery(queryId, privateChatId, Prefix,
+                appConfig.MazeConfig.KeyboardIncorrectMessage, showAlert: true);
+        }
 
-        if (!moved)
+        if (moved == MazeMoveResult.InvalidMove)
         {
             return await messageAssistance.AnswerCallbackQuery(queryId, privateChatId, Prefix,
                 "Невозможно переместиться в этом направлении", showAlert: false);
@@ -44,20 +55,21 @@ public class MazeGameMoveCallbackHandler(
             "Ход сделан", showAlert: false);
 
         // Check if game finished
-        var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId, messageId));
+        var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(targetChatId));
         await gameOpt.MatchAsync(
             async game =>
             {
                 if (game.IsFinished && game.WinnerId == telegramId)
                 {
                     // Player won!
-                    _ = await HandleWinner(chatId, telegramId, privateChatId, messageId);
+                    _ = await HandleWinner(targetChatId, telegramId, privateChatId);
                 }
                 else
                 {
                     // Schedule view update with 3 second delay
-                    mazeGameViewService.ScheduleViewUpdate(chatId, messageId, telegramId);
+                    mazeGameViewService.ScheduleViewUpdate(targetChatId, telegramId);
                 }
+
                 return unit;
             },
             () => Task.FromResult(unit));
@@ -65,7 +77,7 @@ public class MazeGameMoveCallbackHandler(
         return unit;
     }
 
-    private async Task<Unit> HandleWinner(long chatId, long telegramId, long privateChatId, int messageId)
+    private async Task<Unit> HandleWinner(long chatId, long telegramId, long privateChatId)
     {
         Log.Information("Player {0} won maze game in chat {1}", telegramId, chatId);
 
@@ -82,10 +94,10 @@ public class MazeGameMoveCallbackHandler(
         );
 
         // Render and send full maze to chat
-        var fullMazeImage = await mazeGameService.RenderFullMaze(chatId, messageId);
+        var fullMazeImage = await mazeGameService.RenderFullMaze(chatId);
         if (fullMazeImage != null)
         {
-            using var stream = new MemoryStream(fullMazeImage, false);
+            await using var stream = new MemoryStream(fullMazeImage, false);
             var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
             
             await botClient.SendPhotoAndLog(
@@ -110,37 +122,14 @@ public class MazeGameMoveCallbackHandler(
             );
         }
 
+        await mazeGameService.RemoveGameAndPlayers(chatId);
         return unit;
-    }
-
-
-    private bool TryParseMoveData(string suffix, out long chatId, out int messageId, out MazeDirection direction)
-    {
-        chatId = 0;
-        messageId = 0;
-        direction = MazeDirection.Up;
-
-        try
-        {
-            var parts = suffix.Split('_');
-            if (parts.Length < 3) return false;
-
-            if (!long.TryParse(parts[0], out chatId)) return false;
-            if (!int.TryParse(parts[1], out messageId)) return false;
-            if (!int.TryParse(parts[2], out var directionInt)) return false;
-
-            direction = (MazeDirection)directionInt;
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
     }
 }
 
 [Singleton]
 public class MazeGameExitCallbackHandler(
+    AppConfig appConfig,
     MessageAssistance messageAssistance) : IPrivateCallbackHandler
 {
     public const string PrefixKey = "MazeExit";
@@ -148,12 +137,9 @@ public class MazeGameExitCallbackHandler(
 
     public async Task<Unit> Do(CallbackQueryParameters queryParameters)
     {
-        var (_, _, privateChatId, telegramId, _, queryId, _) = queryParameters;
-
+        var (_, _, privateChatId, telegramId, messageId, queryId, _) = queryParameters;
+        await messageAssistance.DeleteCommandMessage(privateChatId, messageId, Prefix);
         Log.Information("Player {0} exited maze game", telegramId);
-
-        return await messageAssistance.AnswerCallbackQuery(queryId, privateChatId, Prefix,
-            "Вы вышли из игры. Используйте кнопку 'Вступить' в чате чтобы вернуться.", showAlert: true);
+        return await messageAssistance.SendMessage(privateChatId, appConfig.MazeConfig.GameExitMessage, Prefix);
     }
 }
-

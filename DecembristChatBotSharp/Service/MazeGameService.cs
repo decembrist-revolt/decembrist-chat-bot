@@ -143,7 +143,7 @@ public class MazeGameService(
         return (r, g, b);
     }
 
-    public async Task<Option<MazeGame>> CreateGame(long chatId, int messageId)
+    public async Task<Option<MazeGame>> CreateGame(long chatId)
     {
         var maze = mazeGenerator.GenerateMaze();
         var exitPosition = FindExitPosition(maze);
@@ -155,7 +155,7 @@ public class MazeGameService(
         }
 
         var game = new MazeGame(
-            new MazeGame.CompositeId(chatId, messageId),
+            new MazeGame.CompositeId(chatId),
             maze,
             DateTime.UtcNow,
             exitPosition,
@@ -167,9 +167,9 @@ public class MazeGameService(
         return created ? Some(game) : None;
     }
 
-    public async Task<Option<MazeGamePlayer>> JoinGame(long chatId, int messageId, long telegramId)
+    public async Task<Option<MazeGamePlayer>> JoinGame(long chatId, long telegramId)
     {
-        var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId, messageId));
+        var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId));
 
         return await gameOpt.MatchAsync(
             async game =>
@@ -181,7 +181,7 @@ public class MazeGameService(
                 }
 
                 // Get existing players to check color usage
-                var existingPlayers = await mazeGameRepository.GetAllPlayersInGame(chatId, messageId);
+                var existingPlayers = await mazeGameRepository.GetAllPlayersInGame(chatId);
                 var usedColors = existingPlayers.Map(p => p.Color).ToHashSet();
 
                 // Get next available color (predefined or generated)
@@ -191,7 +191,7 @@ public class MazeGameService(
                 var spawnPosition = GenerateEdgeSpawnPosition(game.Maze, existingPlayers);
 
                 var player = new MazeGamePlayer(
-                    new MazeGamePlayer.CompositeId(chatId, messageId, telegramId),
+                    new MazeGamePlayer.CompositeId(chatId, telegramId),
                     spawnPosition,
                     spawnPosition,
                     availableColor,
@@ -210,24 +210,24 @@ public class MazeGameService(
             () => Task.FromResult<Option<MazeGamePlayer>>(None));
     }
 
-    public async Task<bool> MovePlayer(long chatId, int messageId, long telegramId, MazeDirection direction)
+    public async Task<MazeMoveResult> MovePlayer(long chatId, int keyboardMessage, long telegramId,
+        MazeDirection direction)
     {
-        var playerId = new MazeGamePlayer.CompositeId(chatId, messageId, telegramId);
+        var playerId = new MazeGamePlayer.CompositeId(chatId, telegramId);
         var playerOpt = await mazeGameRepository.GetPlayer(playerId);
-        var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId, messageId));
+        var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId));
 
-        return await playerOpt.MatchAsync(
-            async player => await gameOpt.MatchAsync(
-                async game =>
+        return await playerOpt.MatchAsync( async player => player.LastPhotoMessageId != keyboardMessage ? MazeMoveResult.KeyboardNotFound
+            : await gameOpt.MatchAsync(async game =>
                 {
-                    if (!player.IsAlive || game.IsFinished) return false;
+                    if (!player.IsAlive || game.IsFinished) return MazeMoveResult.InvalidMove;
 
                     var (currentRow, currentCol) = player.Position;
                     var (newRow, newCol) = ApplyDirection(currentRow, currentCol, direction);
 
                     // Check bounds
                     if (newRow < 0 || newRow >= MazeSize || newCol < 0 || newCol >= MazeSize)
-                        return false;
+                        return MazeMoveResult.InvalidMove;
 
                     var cellType = game.Maze[newRow, newCol];
 
@@ -243,14 +243,14 @@ public class MazeGameService(
                             var newInventory = player.Inventory with { Shovels = player.Inventory.Shovels - 1 };
                             await mazeGameRepository.UpdatePlayerInventory(playerId, newInventory);
                             await mazeGameRepository.UpdatePlayerPosition(playerId, (newRow, newCol));
-                            return true;
+                            return MazeMoveResult.Success;
                         }
 
-                        return false; // Can't move through wall
+                        return MazeMoveResult.InvalidMove; // Can't move through wall
                     }
 
                     // Check for other players at target position
-                    var allPlayers = await mazeGameRepository.GetAllPlayersInGame(chatId, messageId);
+                    var allPlayers = await mazeGameRepository.GetAllPlayersInGame(chatId);
                     var targetPlayer = allPlayers.FirstOrDefault(p => p.Position == (newRow, newCol) && p.IsAlive);
 
                     if (targetPlayer != null)
@@ -281,7 +281,7 @@ public class MazeGameService(
                                 await mazeGameRepository.UpdatePlayerInventory(playerId, attackerInventory);
                                 await mazeGameRepository.UpdatePlayerInventory(targetPlayer.Id, defenderInventory);
                                 await mazeGameRepository.UpdatePlayerPosition(playerId, (newRow, newCol));
-                                return true;
+                                return MazeMoveResult.Success;
                             }
                             else
                             {
@@ -291,11 +291,11 @@ public class MazeGameService(
 
                                 await mazeGameRepository.UpdatePlayerInventory(playerId, attackerInventory);
                                 await mazeGameRepository.UpdatePlayerInventory(targetPlayer.Id, defenderInventory);
-                                return true; // Move registered but position unchanged
+                                return MazeMoveResult.Success; // Move registered but position unchanged
                             }
                         }
 
-                        return false; // Can't move to occupied cell without sword
+                        return MazeMoveResult.InvalidMove; // Can't move to occupied cell without sword
                     }
 
                     // Handle chest pickup
@@ -328,17 +328,17 @@ public class MazeGameService(
                         await mazeGameRepository.FinishGame(game.Id, telegramId);
                     }
 
-                    return true;
+                    return MazeMoveResult.Success;
                 },
-                () => Task.FromResult(false)),
-            () => Task.FromResult(false));
+                () => Task.FromResult(MazeMoveResult.InvalidMove)),
+            () => Task.FromResult(MazeMoveResult.InvalidMove));
     }
 
-    public async Task<byte[]?> RenderPlayerView(long chatId, int messageId, long telegramId)
+    public async Task<byte[]?> RenderPlayerView(long chatId, long telegramId)
     {
-        var playerId = new MazeGamePlayer.CompositeId(chatId, messageId, telegramId);
+        var playerId = new MazeGamePlayer.CompositeId(chatId, telegramId);
         var playerOpt = await mazeGameRepository.GetPlayer(playerId);
-        var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId, messageId));
+        var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId));
 
         return await playerOpt.MatchAsync(
             async player => await gameOpt.MatchAsync(
@@ -346,7 +346,7 @@ public class MazeGameService(
                 {
                     await mazeGameRepository.MarkPlayerUpdateSent(playerId);
                     return RenderPlayerViewInternal(game, player,
-                        await mazeGameRepository.GetAllPlayersInGame(chatId, messageId));
+                        await mazeGameRepository.GetAllPlayersInGame(chatId));
                 },
                 () => Task.FromResult<byte[]?>(null)),
             () => Task.FromResult<byte[]?>(null));
@@ -514,13 +514,13 @@ public class MazeGameService(
         };
     }
 
-    public async Task<byte[]?> RenderFullMaze(long chatId, int messageId)
+    public async Task<byte[]?> RenderFullMaze(long chatId)
     {
-        var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId, messageId));
+        var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId));
 
         return await gameOpt.MatchAsync(async game =>
         {
-            var allPlayers = await mazeGameRepository.GetAllPlayersInGame(chatId, messageId);
+            var allPlayers = await mazeGameRepository.GetAllPlayersInGame(chatId);
 
             // Convert players to the format expected by MazeRendererService
             var playersWithColors = allPlayers
@@ -530,4 +530,20 @@ public class MazeGameService(
             return mazeRenderer.RenderMazeWithPlayers(game.Maze, playersWithColors);
         }, () => Task.FromResult<byte[]?>(null)!);
     }
+
+    public async Task<bool> RemoveGameAndPlayers(long chatId)
+    {
+        await mazeGameRepository.RemovePlayers(chatId);
+        return await mazeGameRepository.RemoveGameForChat(chatId);
+    }
+
+    public async Task<Option<MazeGame>> FindActiveGameForChat(long chatId) =>
+        await mazeGameRepository.GetActiveGameForChat(chatId);
+}
+
+public enum MazeMoveResult
+{
+    Success,
+    InvalidMove,
+    KeyboardNotFound
 }

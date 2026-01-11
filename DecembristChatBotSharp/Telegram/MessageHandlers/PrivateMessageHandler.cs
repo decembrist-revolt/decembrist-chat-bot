@@ -1,6 +1,7 @@
 ﻿using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Service.Buttons;
 using DecembristChatBotSharp.Telegram.LoreHandlers;
+using DecembristChatBotSharp.Telegram.MessageHandlers.PrivateMessage;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
@@ -19,16 +20,19 @@ public class PrivateMessageHandler(
     ProfileButtons profileButtons,
     LoreHandler loreHandler,
     FilterRecordHandler filterRecordHandler,
+    MazeGameJoinCommandHandler mazeGameJoinCommandHandler,
     CancellationTokenSource cancelToken)
 {
     public const string StartCommand = "/start";
     public const string SplitSymbol = "=";
     public const string ProfileCommand = "/profile";
     public const string InventoryCommandSuffix = "getInventoryForChat";
+    public const string MazeGameCommandSuffix = "mazeGameInvite";
 
     private const string MeCommand = "/me";
     private const string StatusCommand = "/status";
     private const string InventoryCommand = StartCommand + " " + InventoryCommandSuffix + SplitSymbol;
+    private const string MazeGameInviteCommand = StartCommand + " " + MazeGameCommandSuffix + SplitSymbol;
     public static string GetCommandForChat(string command, long chatId) => command + SplitSymbol + chatId;
 
     public async Task<Unit> Do(Message message)
@@ -36,6 +40,16 @@ public class PrivateMessageHandler(
         var chatId = message.Chat.Id;
         var type = message.Type;
         var telegramId = message.From!.Id;
+
+        var isHandler = type switch
+        {
+            MessageType.Text when message.Text?.Contains(MazeGameInviteCommand) == true
+                                  && message.Text.Split("=") is [_, var chatIdText]
+                                  && long.TryParse(chatIdText, out var targetChatId) =>
+                await SendMazeGame(chatId, targetChatId),
+            _ => false
+        };
+        if (isHandler) return unit;
 
         var trySend = type switch
         {
@@ -114,6 +128,11 @@ public class PrivateMessageHandler(
             cancellationToken: cancelToken.Token));
     }
 
+    private async Task<bool> SendMazeGame(long privateChatId, long chatId)
+    {
+        await mazeGameJoinCommandHandler.Do(chatId, privateChatId);
+        return true;
+    }
 
     private TryAsync<Message> SendMe(long telegramId, long chatId)
     {

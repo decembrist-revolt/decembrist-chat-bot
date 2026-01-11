@@ -5,6 +5,7 @@ using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
@@ -124,6 +125,20 @@ public class MessageAssistance(
             DateTime.UtcNow.AddMinutes(appConfig.AmuletConfig.MessageExpirationMinutes));
     }
 
+    public async Task<Unit> SendMessage(
+        long chatId,
+        string message,
+        string commandName,
+        ReplyMarkup? replyMarkup = null,
+        ParseMode parseMode = ParseMode.None,
+        [CallerMemberName] string callerName = "UnknownCaller") =>
+        await botClient.SendMessageAndLog(chatId, message, parseMode,
+            message => Log.Information("Sent response to command:'{0}' from {1} to chat {2}", commandName, callerName,
+                chatId),
+            ex => Log.Error(ex, "Failed to send response to command: {0} from {1} to chat {2}",
+                commandName, callerName, chatId),
+            cancelToken.Token, replyMarkup);
+
     public async Task<Unit> SendCommandResponse(
         long chatId,
         string message,
@@ -185,6 +200,26 @@ public class MessageAssistance(
                     commandName, callerName, messageId, chatId),
             ex =>
                 Log.Error(ex, "Failed to edit message to command {0}: from {1}, message:{2} to chat {3}",
+                    commandName, callerName, messageId, chatId),
+            cancelToken: cancelToken.Token,
+            parseMode: parseMode,
+            replyMarkup
+        );
+
+    public async Task<Unit> EditMessageMediaAndLog(
+        long chatId,
+        int messageId,
+        InputMedia inputMedia,
+        string commandName,
+        InlineKeyboardMarkup? replyMarkup = null,
+        ParseMode parseMode = ParseMode.None,
+        [CallerMemberName] string callerName = "UnknownCaller") =>
+        await botClient.EditMessageMediaAndLog(chatId, messageId, inputMedia,
+            _ =>
+                Log.Information("Edit message media to command {0}: from: {1}, message: {2}, chat:{3}",
+                    commandName, callerName, messageId, chatId),
+            ex =>
+                Log.Error(ex, "Failed to edit message media to command {0}: from {1}, message:{2} to chat {3}",
                     commandName, callerName, messageId, chatId),
             cancelToken: cancelToken.Token,
             parseMode: parseMode,

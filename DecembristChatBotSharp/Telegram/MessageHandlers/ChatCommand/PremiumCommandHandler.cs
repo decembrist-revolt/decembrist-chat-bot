@@ -17,8 +17,6 @@ public partial class PremiumCommandHandler(
     ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
-    public const string RemoveSubcommand = "clear";
-
     public string Command => "/premium";
     public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Premium membership command");
     public CommandLevel CommandLevel => CommandLevel.User;
@@ -64,7 +62,7 @@ public partial class PremiumCommandHandler(
         {
             return subCommand switch
             {
-                RemoveSubcommand => await RemovePremiumMember(chatId, premiumMemberId, messageId, adminTelegramId),
+                ChatCommandHandler.DeleteSubcommand => await RemovePremiumMember(chatId, premiumMemberId, messageId, adminTelegramId),
                 _ when GetDays(subCommand) is var days && days > 0 =>
                     await AddPremiumMember(chatId, premiumMemberId, days, messageId, adminTelegramId),
                 _ => WrongCommandFormat(chatId, text)

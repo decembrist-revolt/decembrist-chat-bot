@@ -2,10 +2,7 @@
 using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
-using Telegram.Bot;
-using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
-using static DecembristChatBotSharp.Service.CallbackService;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
@@ -25,6 +22,7 @@ public class MazeGameCommandHandler(
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
+        if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
         if (!isAdmin)
@@ -35,34 +33,50 @@ public class MazeGameCommandHandler(
             ).WhenAll();
         }
 
-        // Send announcement message with join button
-        var callback = GetCallback<string>("MazeJoin", "");
-        var button = InlineKeyboardButton.WithCallbackData("Вступить", callback);
-        var keyboard = new InlineKeyboardMarkup(button);
+        if (text.Split(' ') is [_, ChatCommandHandler.DeleteSubcommand])
+        {
+            return await Array(RemoveGame(chatId),
+                messageAssistance.DeleteCommandMessage(chatId, messageId, Command)
+            ).WhenAll();
+        }
 
+        var url = await botClient.GetBotStartLink(
+            PrivateMessageHandler.GetCommandForChat(PrivateMessageHandler.MazeGameCommandSuffix, chatId));
+        var replyMarkup = new InlineKeyboardMarkup(
+            InlineKeyboardButton.WithUrl(appConfig.CommandConfig.InviteToDirectMessage, url));
         var message = appConfig.MazeConfig.AnnouncementMessage;
 
-        var sentMessage = await botClient.SendMessage(
-            chatId,
-            message,
-            replyMarkup: keyboard,
-            cancellationToken: cancelToken.Token
-        ).ToTryAsync().Match(Optional, ex =>
+        var existingGame = await mazeGameService.FindActiveGameForChat(chatId);
+        var isGameExist = existingGame.IsSome;
+        if (isGameExist)
         {
-            Log.Error(ex, "Failed to send maze game announcement message to chat {ChatId}", chatId);
-            return Option<Message>.None;
-        });
-
-        if (sentMessage.IsNone) return unit;
-
-        // Create the maze game in database
-        sentMessage
-            .BindAsync(msg => mazeGameService.CreateGame(chatId, msg.MessageId).ToAsync())
-            .Match(
+            Log.Information("Active maze game already exists in chat {0}", chatId);
+            message = appConfig.MazeConfig.RepeatAnnouncementMessage;
+        }
+        else
+        {
+            var isCreate = await mazeGameService.CreateGame(chatId);
+            isCreate.Match(
                 game => Log.Information("Maze game created successfully"),
                 () => Log.Error("Failed to create maze game in database"));
+        }
 
-        // Delete the command message
-        return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        return await Array(messageAssistance.SendMessage(chatId, message, Command, replyMarkup),
+            messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
+    }
+
+    private async Task<Unit> RemoveGame(long chatId)
+    {
+        var isRemove = await mazeGameService.RemoveGameAndPlayers(chatId);
+        if (isRemove)
+        {
+            Log.Information("Maze game removed successfully from chat {ChatId}", chatId);
+        }
+        else
+        {
+            Log.Warning("No maze game found to remove in chat {ChatId}", chatId);
+        }
+
+        return unit;
     }
 }

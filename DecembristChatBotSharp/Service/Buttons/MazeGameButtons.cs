@@ -1,42 +1,35 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
 using Lamar;
 using Telegram.Bot.Types.ReplyMarkups;
 using static DecembristChatBotSharp.Service.CallbackService;
+using static DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback.MazeGameMoveCallbackHandler;
 
-namespace DecembristChatBotSharp.Service;
+namespace DecembristChatBotSharp.Service.Buttons;
 
 [Singleton]
 public class MazeGameButtons(AppConfig appConfig)
 {
-    public string FormatInventoryText(MazePlayerInventory inventory)
+    public InlineKeyboardMarkup CreateMazeKeyboard(long chatId)
     {
-        return string.Format(
-            appConfig.MazeConfig.InventoryTextTemplate,
-            inventory.Swords,
-            inventory.Shields,
-            inventory.Shovels,
-            inventory.ViewExpanders
-        );
-    }
-
-    public InlineKeyboardMarkup CreateMazeKeyboard(long chatId, int messageId)
-    {
-        var upCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Up}");
-        var downCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Down}");
-        var leftCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Left}");
-        var rightCallback = GetCallback<string>("MazeMove", $"{chatId}_{messageId}_{(int)MazeDirection.Right}");
-        var exitCallback = GetCallback<string>("MazeExit", $"{chatId}_{messageId}");
+        var exitCallback = GetCallback(MazeGameExitCallbackHandler.PrefixKey, MazeGameExitCallbackHandler.PrefixKey,
+            (ChatIdParameter, chatId));
 
         return new InlineKeyboardMarkup([
-            [InlineKeyboardButton.WithCallbackData("⬆️", upCallback)],
+            [GetMoveButton("⬆️", chatId, MazeDirection.Up)],
             [
-                InlineKeyboardButton.WithCallbackData("⬅️", leftCallback),
-                InlineKeyboardButton.WithCallbackData("➡️", rightCallback)
+                GetMoveButton("⬅️", chatId, MazeDirection.Left),
+                GetMoveButton("➡️", chatId, MazeDirection.Right),
             ],
-            [InlineKeyboardButton.WithCallbackData("⬇️", downCallback)],
+            [GetMoveButton("⬇️", chatId, MazeDirection.Down)],
             [InlineKeyboardButton.WithCallbackData(" ")],
             [InlineKeyboardButton.WithCallbackData("🚪 Выйти", exitCallback)]
         ]);
     }
-}
 
+    private static InlineKeyboardButton GetMoveButton(string name, long chatId, MazeDirection suffix)
+    {
+        var callback = GetCallback(PrefixKey, suffix, (ChatIdParameter, chatId));
+        return InlineKeyboardButton.WithCallbackData(name, callback);
+    }
+}
