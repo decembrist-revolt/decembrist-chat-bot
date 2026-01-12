@@ -17,6 +17,8 @@ public class MazeGameMoveCallbackHandler(
     MazeGameRepository mazeGameRepository,
     MazeGameViewService mazeGameViewService,
     MemberItemRepository memberItemRepository,
+    HistoryLogRepository historyLogRepository,
+    MongoDatabase db,
     MessageAssistance messageAssistance,
     CancellationTokenSource cancelToken) : IPrivateCallbackHandler
 {
@@ -81,13 +83,30 @@ public class MazeGameMoveCallbackHandler(
     {
         Log.Information("Player {0} won maze game in chat {1}", telegramId, chatId);
 
-        // Give 5 boxes
-        await memberItemRepository.AddMemberItem(chatId, telegramId, MemberItemType.Box, null, 5);
+        using var session = await db.OpenSession();
+        session.StartTransaction();
+
+        var boxReward = appConfig.MazeConfig.WinnerBoxReward;
+        var success =
+            await memberItemRepository.AddMemberItem(chatId, telegramId, MemberItemType.Box, session, boxReward);
+        if (!success)
+        {
+            await session.TryAbort(cancelToken.Token);
+            Log.Error("Failed to give maze winner boxes to player {0} in chat {1}", telegramId, chatId);
+        }
+        else
+        {
+            // Log to history
+            await historyLogRepository.LogItem(
+                chatId, telegramId, MemberItemType.Box, boxReward, MemberItemSourceType.MazeGame, session);
+
+            await session.TryCommit(cancelToken.Token);
+        }
 
         // Send private message
         await botClient.SendMessageAndLog(
             privateChatId,
-            "🎉 Поздравляем! Вы первым нашли выход из лабиринта!\n\nВы получили 5 коробок! 📦📦📦📦📦",
+            $"🎉 Поздравляем! Вы первым нашли выход из лабиринта!\n\nВы получили {boxReward} коробок!",
             _ => Log.Information("Sent winner message to player {0}", telegramId),
             ex => Log.Error(ex, "Failed to send winner message to player {0}", telegramId),
             cancelToken.Token
@@ -99,11 +118,11 @@ public class MazeGameMoveCallbackHandler(
         {
             await using var stream = new MemoryStream(fullMazeImage, false);
             var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
-            
+
             await botClient.SendPhotoAndLog(
                 chatId,
                 stream,
-                $"🎉 {username} первым нашел выход из лабиринта и получил 5 коробок!\n\nФинальная карта лабиринта с позициями всех участников:",
+                $"🎉 {username} первым нашел выход из лабиринта и получил {boxReward} коробок!\n\nФинальная карта лабиринта с позициями всех участников:",
                 _ => Log.Information("Sent final maze image to chat {0}", chatId),
                 ex => Log.Error(ex, "Failed to send final maze image to chat {0}", chatId),
                 cancelToken.Token
@@ -115,7 +134,7 @@ public class MazeGameMoveCallbackHandler(
             var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
             await botClient.SendMessageAndLog(
                 chatId,
-                $"🎉 {username} первым нашел выход из лабиринта и получил 5 коробок!",
+                $"🎉 {username} первым нашел выход из лабиринта и получил {boxReward} коробок!",
                 _ => Log.Information("Announced maze winner in chat {0}", chatId),
                 ex => Log.Error(ex, "Failed to announce maze winner in chat {0}", chatId),
                 cancelToken.Token
@@ -123,6 +142,7 @@ public class MazeGameMoveCallbackHandler(
         }
 
         await mazeGameService.RemoveGameAndPlayers(chatId);
+
         return unit;
     }
 }
