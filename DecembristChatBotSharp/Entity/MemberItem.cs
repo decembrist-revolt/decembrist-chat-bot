@@ -1,4 +1,4 @@
-﻿namespace DecembristChatBotSharp.Entity;
+﻿﻿namespace DecembristChatBotSharp.Entity;
 
 public record MemberItem(
     MemberItem.CompositeId Id,
@@ -53,5 +53,6 @@ public enum MemberItemSourceType
     Give = 7,
     SlotMachine = 8,
     Giveaway = 9,
-    Quiz = 10
+    Quiz = 10,
+    MazeGame = 11
 }

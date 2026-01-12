@@ -14,7 +14,7 @@ public record MazeGame(
     long? WinnerId
 )
 {
-    public record CompositeId(long ChatId, int MessageId);
+    public record CompositeId(long ChatId);
 }
 
 /// <summary>
@@ -34,7 +34,11 @@ public record MazeGamePlayer(
     int? LastPhotoMessageId // MessageId последней отправленной фотографии для удаления
 )
 {
-    public record CompositeId(long ChatId, int MessageId, long TelegramId);
+    public record CompositeId(long ChatId, long TelegramId)
+    {
+        public static implicit operator CompositeId((long, long) tuple) =>
+            new(ChatId: tuple.Item1, TelegramId: tuple.Item2);
+    };
 }
 
 /// <summary>
@@ -71,4 +75,3 @@ public enum MazeDirection
     Left,
     Right
 }
-
