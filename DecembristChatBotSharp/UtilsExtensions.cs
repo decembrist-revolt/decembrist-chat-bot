@@ -75,6 +75,20 @@ public static class UtilsExtensions
             .ToTryAsync()
             .Match(onEdit, onError);
 
+    public static Task<Unit> EditMessageMediaAndLog(
+        this BotClient botClient,
+        long chatId,
+        int messageId,
+        InputMedia media,
+        Action<Message> onEdit,
+        Action<Exception> onError,
+        CancellationToken cancelToken,
+        ParseMode parseMode = ParseMode.None,
+        InlineKeyboardMarkup? replyMarkup = null) =>
+        botClient.EditMessageMedia(chatId, messageId, media, replyMarkup: replyMarkup, cancellationToken: cancelToken)
+            .ToTryAsync()
+            .Match(onEdit, onError);
+
     public static Task<Unit> DeleteMessageAndLog(
         this BotClient botClient,
         long chatId,
@@ -109,6 +123,31 @@ public static class UtilsExtensions
         Action<Exception> onError,
         CancellationToken cancelToken) =>
         botClient.SetMessageReaction(chatId, messageId, emojis, cancellationToken: cancelToken).ToTryAsync()
+            .Match(onSent, onError);
+
+    public static Task<Unit> SendPhotoAndLog(
+        this BotClient botClient,
+        long chatId,
+        Stream photo,
+        string caption,
+        Action<Message> onSent,
+        Action<Exception> onError,
+        CancellationToken cancelToken) =>
+        botClient.SendPhoto(chatId, photo, caption: caption, cancellationToken: cancelToken)
+            .ToTryAsync()
+            .Match(onSent, onError);
+
+    public static Task<Unit> SendPhotoAndLog(
+        this BotClient botClient,
+        long chatId,
+        Stream photo,
+        string caption,
+        Action<Message> onSent,
+        Action<Exception> onError,
+        CancellationToken cancelToken,
+        ReplyMarkup? replyMarkup) =>
+        botClient.SendPhoto(chatId, photo, caption: caption, replyMarkup: replyMarkup, cancellationToken: cancelToken)
+            .ToTryAsync()
             .Match(onSent, onError);
 
     public static Task<Unit> BanChatMemberAndLog(this BotClient botClient,

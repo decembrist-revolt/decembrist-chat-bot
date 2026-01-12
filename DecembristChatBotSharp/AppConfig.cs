@@ -37,6 +37,7 @@ public record AppConfig(
     GiveawayConfig GiveawayConfig,
     DustConfig DustConfig,
     CraftConfig CraftConfig,
+    MazeConfig MazeConfig,
     PollPaymentConfig? PollPaymentConfig,
     QuizConfig? QuizConfig = null,
     DeepSeekConfig? DeepSeekConfig = null,
@@ -656,4 +657,26 @@ public record QuizConfig(
     string SubtopicAvoidancePrompt,
     [property: Range(1, int.MaxValue)] int AutoCloseUnansweredMinutes = 240,
     [property: Range(1, int.MaxValue)] int SubtopicHistoryLimit = 25
+);
+
+public record MazeConfig(
+    [property: Range(1, int.MaxValue)] int ChestFrequency = 50,
+    [property: Range(1, 10)] int DefaultViewRadius = 3,
+    [property: Range(0, int.MaxValue)] int MoveDelaySeconds = 3,
+    [property: Range(16, 512)] int MazeSize = 128,
+    [property: Range(1, int.MaxValue)] int WinnerBoxReward = 5,
+    [property: Required(AllowEmptyStrings = false)]
+    string InventoryTextTemplate = "",
+    [property: Required(AllowEmptyStrings = false)]
+    string WelcomeMessage = "",
+    [property: Required(AllowEmptyStrings = false)]
+    string RepeatAnnouncementMessage = "",
+    [property: Required(AllowEmptyStrings = false)]
+    string GameNotFoundMessage = "",
+    [property: Required(AllowEmptyStrings = false)]
+    string GameExitMessage = "",
+    [property: Required(AllowEmptyStrings = false)]
+    string KeyboardIncorrectMessage = "",
+    [property: Required(AllowEmptyStrings = false)]
+    string AnnouncementMessage = ""
 );

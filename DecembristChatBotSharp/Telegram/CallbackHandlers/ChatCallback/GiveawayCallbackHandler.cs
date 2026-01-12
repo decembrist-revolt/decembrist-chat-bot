@@ -115,10 +115,8 @@ public class GiveawayCallbackHandler(
             if (parts.Length < 3) return false;
 
             if (!Enum.TryParse(parts[0], out item)) return false;
-            if (!int.TryParse(parts[1], out quantity)) return false;
-            if (!Enum.TryParse(parts[2], out targetAudience)) return false;
-
-            return true;
+            
+            return int.TryParse(parts[1], out quantity) && Enum.TryParse(parts[2], out targetAudience);
         }
         catch
         {

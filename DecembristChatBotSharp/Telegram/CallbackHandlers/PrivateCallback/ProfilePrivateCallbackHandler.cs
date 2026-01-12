@@ -1,6 +1,7 @@
 ﻿using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Service.Buttons;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
+using DecembristChatBotSharp.Telegram.MessageHandlers.PrivateMessage;
 using Lamar;
 using Telegram.Bot.Types.Enums;
 using static DecembristChatBotSharp.Service.Buttons.ProfileButtons;
@@ -15,7 +16,8 @@ public class ProfilePrivateCallbackHandler(
     AdminPanelButton adminPanelButton,
     AppConfig appConfig,
     ProfileButtons profileButtons,
-    InventoryService inventoryService) : IPrivateCallbackHandler
+    InventoryService inventoryService,
+    MazeGameViewHandler mazeGameViewHandler) : IPrivateCallbackHandler
 {
     public const string PrefixKey = "Profile";
     public string Prefix => PrefixKey;
@@ -37,6 +39,7 @@ public class ProfilePrivateCallbackHandler(
                     ProfileSuffix.Lore => await SwitchToLore(messageId, telegramId, targetChatId),
                     ProfileSuffix.Inventory => await SwitchToInventory(messageId, telegramId, targetChatId),
                     ProfileSuffix.AdminPanel => await SwitchToAdminPanel(messageId, telegramId, targetChatId),
+                    ProfileSuffix.MazeMap => await SwitchToMazeMap(messageId, telegramId, targetChatId),
                     ProfileSuffix.Back => await SwitchToWelcome(messageId, telegramId, targetChatId),
                     _ => throw new ArgumentOutOfRangeException(nameof(suffix), suffix, null)
                 };
@@ -73,6 +76,17 @@ public class ProfilePrivateCallbackHandler(
         var message = appConfig.MenuConfig.FilterDescription;
         return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
     }
+
+    private async Task<Unit> SwitchToMazeMap(int messageId, long telegramId, long chatId)
+    {
+        // Отправляем полную карту лабиринта
+        await mazeGameViewHandler.SendFullMazeMap(telegramId, telegramId, chatId);
+        
+        // Возвращаемся в профиль
+        var markup = await profileButtons.GetProfileMarkup(telegramId, chatId);
+        var message = "✅ Карта отправлена\n\n" + appConfig.MenuConfig.WelcomeMessage;
+        return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
+    }
 }
 
 public enum ProfileSuffix
@@ -80,5 +94,6 @@ public enum ProfileSuffix
     Lore,
     Inventory,
     AdminPanel,
+    MazeMap,
     Back
 }

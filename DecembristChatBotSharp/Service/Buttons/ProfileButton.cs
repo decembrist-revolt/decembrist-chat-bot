@@ -27,6 +27,7 @@ public class ProfileButtons(
         if (isAdmin)
         {
             markup.Add([GetProfileButton("Admin Panel", chatId, ProfileSuffix.AdminPanel)]);
+            markup.Add([GetProfileButton("Maze Map", chatId, ProfileSuffix.MazeMap)]);
         }
 
         return new InlineKeyboardMarkup(markup);
