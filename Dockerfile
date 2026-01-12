@@ -11,7 +11,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 # Install SkiaSharp dependencies
 RUN apt-get update && apt-get install -y \
     libfontconfig1 \
-    libgomp1 \
+    libfreetype6 \
+    libgdiplus \
+    libharfbuzz0b \
+    libicu-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR '/app'
