@@ -278,6 +278,8 @@ BotHandler.HandleUpdateAsync()
 ## Docker
 
 - `Dockerfile` — сборка .NET приложения
+  - **Важно**: Включает установку нативных зависимостей для SkiaSharp (`libfontconfig1`, `libgomp1`)
+  - Необходимо для работы MazeGameService и генерации изображений лабиринта
 - `docker-compose.yml` — запуск с MongoDB
 - `data/` — volume для MongoDB данных
 
