@@ -174,7 +174,11 @@ public record MenuConfig(
     [property: Required(AllowEmptyStrings = false)]
     string LoreDescription,
     [property: Required(AllowEmptyStrings = false)]
-    string FilterDescription
+    string FilterDescription,
+    [property: Required(AllowEmptyStrings = false)]
+    string NonMazeDescription,
+    [property: Required(AllowEmptyStrings = false)]
+    string MazeDescription
 );
 
 public record LoreConfig(
@@ -630,8 +634,7 @@ public record GiveawayConfig(
     string HelpMessage,
     [property: Required(AllowEmptyStrings = false)]
     string ButtonText,
-    [property: Range(1, int.MaxValue)]
-    int DefaultDurationMinutes
+    [property: Range(1, int.MaxValue)] int DefaultDurationMinutes
 );
 
 public record QuizConfig(
