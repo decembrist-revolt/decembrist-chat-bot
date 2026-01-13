@@ -11,9 +11,10 @@ public class CallbackService(MessageAssistance messageAssistance)
     private const char PathSeparator = '/';
     public const string ChatIdParameter = "chatId";
     public const string IndexStartParameter = "indexStart";
+    public const string StepsCountParameter = "MazeCountSteps";
 
     private static readonly System.Collections.Generic.HashSet<string> ParameterWhiteList =
-        [ChatIdParameter, IndexStartParameter];
+        [ChatIdParameter, IndexStartParameter, StepsCountParameter];
 
     public static string GetCallback<TEnum, T>
         (string prefix, TEnum suffix, params ( string key, T value )[] parameters) where TEnum : Enum =>
@@ -62,5 +63,11 @@ public class CallbackService(MessageAssistance messageAssistance)
         return parameters.ContainsKey(ChatIdParameter) &&
                long.TryParse(parameters[ChatIdParameter], out chatId) &&
                messageAssistance.IsAllowedChat(chatId);
+    }
+
+    public bool HasIntKey(Map<string, string> parameters, string key, out int value)
+    {
+        value = 0;
+        return parameters.ContainsKey(key) && int.TryParse(parameters[key], out value);
     }
 }

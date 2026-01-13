@@ -211,7 +211,33 @@ public class MazeGameService(
     }
 
     public async Task<MazeMoveResult> MovePlayer(long chatId, int keyboardMessage, long telegramId,
-        MazeDirection direction)
+        MazeDirection direction, int steps = 1)
+    {
+        var playerId = new MazeGamePlayer.CompositeId(chatId, telegramId);
+        var playerOpt = await mazeGameRepository.GetPlayer(playerId);
+        
+        var initialCheck = await playerOpt.MatchAsync(
+            player => Task.FromResult(player.LastPhotoMessageId == keyboardMessage),
+            () => Task.FromResult(false));
+        
+        if (!initialCheck)
+        {
+            return MazeMoveResult.KeyboardNotFound;
+        }
+        
+        for (var i = 0; i < steps; i++)
+        {
+            var result = await MovePlayerSingleStep(chatId, telegramId, direction);
+            if (result != MazeMoveResult.Success)
+            {
+                return result;
+            }
+        }
+        
+        return MazeMoveResult.Success;
+    }
+
+    private async Task<MazeMoveResult> MovePlayerSingleStep(long chatId, long telegramId, MazeDirection direction)
     {
         var playerId = new MazeGamePlayer.CompositeId(chatId, telegramId);
         var playerOpt = await mazeGameRepository.GetPlayer(playerId);

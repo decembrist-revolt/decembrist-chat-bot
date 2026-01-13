@@ -39,7 +39,11 @@ public class MazeGameMoveCallbackHandler(
                 "Ошибка обработки хода", showAlert: true);
         }
 
-        var moved = await mazeGameService.MovePlayer(targetChatId, messageId, telegramId, direction);
+        var steps = callbackService.HasIntKey(parameters, CallbackService.StepsCountParameter, out var stepsCount)
+            ? stepsCount
+            : 1;
+
+        var moved = await mazeGameService.MovePlayer(targetChatId, messageId, telegramId, direction, steps);
         if (moved == MazeMoveResult.KeyboardNotFound)
         {
             return await messageAssistance.AnswerCallbackQuery(queryId, privateChatId, Prefix,
