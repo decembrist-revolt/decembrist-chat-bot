@@ -87,7 +87,7 @@ public class MazeGameJoinCommandHandler(
             using var stream = new MemoryStream(viewImage, false);
 
             var inventoryText = mazeGameViewService.FormatInventoryText(player.Inventory);
-            var keyboard = mazeGameButtons.CreateMazeKeyboard(chatId);
+            var keyboard = mazeGameButtons.GetMazeKeyboard(chatId);
 
             await botClient.SendPhotoAndLog(
                 telegramId,

@@ -11,7 +11,8 @@ public class CallbackService(MessageAssistance messageAssistance)
     private const char PathSeparator = '/';
     public const string ChatIdParameter = "chatId";
     public const string IndexStartParameter = "indexStart";
-    public const string StepsCountParameter = "MazeCountSteps";
+    public const string StepsCountParameter = "mazeSteps";
+    private const int MaxStepsCount = 3;
 
     private static readonly System.Collections.Generic.HashSet<string> ParameterWhiteList =
         [ChatIdParameter, IndexStartParameter, StepsCountParameter];
@@ -65,9 +66,11 @@ public class CallbackService(MessageAssistance messageAssistance)
                messageAssistance.IsAllowedChat(chatId);
     }
 
-    public bool HasIntKey(Map<string, string> parameters, string key, out int value)
+    public bool HasStepsCountKey(Map<string, string> parameters, out int value)
     {
         value = 0;
-        return parameters.ContainsKey(key) && int.TryParse(parameters[key], out value);
+        return parameters.ContainsKey(StepsCountParameter) &&
+               int.TryParse(parameters[StepsCountParameter], out value) &&
+               value is > 0 and <= MaxStepsCount;
     }
 }

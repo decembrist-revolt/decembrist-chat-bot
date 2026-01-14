@@ -1,5 +1,4 @@
 ﻿using DecembristChatBotSharp.Entity;
-using DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
 using Lamar;
 using Telegram.Bot.Types.ReplyMarkups;
 using static DecembristChatBotSharp.Entity.MazeDirection;
@@ -11,13 +10,9 @@ namespace DecembristChatBotSharp.Service.Buttons;
 [Singleton]
 public class MazeGameButtons(AppConfig appConfig)
 {
-    public InlineKeyboardMarkup CreateMazeKeyboard(long chatId)
+    public InlineKeyboardMarkup GetMazeKeyboard(long chatId)
     {
-        var exitCallback = GetCallback(MazeGameExitCallbackHandler.PrefixKey, MazeGameExitCallbackHandler.PrefixKey,
-            (ChatIdParameter, chatId));
-
         return new InlineKeyboardMarkup([
-            // Перемещение на 1 клетку
             [
                 GetMoveButton("⬆️x3", chatId, Up, 3),
                 GetMoveButton("⬆️x2", chatId, Up, 2),
@@ -38,13 +33,17 @@ public class MazeGameButtons(AppConfig appConfig)
             ],
 
             [InlineKeyboardButton.WithCallbackData(" ")],
-            [InlineKeyboardButton.WithCallbackData("🚪 Выйти", exitCallback)]
+            [
+                InlineKeyboardButton.WithCallbackData("🚪 Выйти",
+                    GetCallback(PrefixKey, ExitSuffix, (ChatIdParameter, chatId)))
+            ]
         ]);
     }
 
     private static InlineKeyboardButton GetMoveButton(string name, long chatId, MazeDirection suffix, int countSteps)
     {
-        var callback = GetCallback(PrefixKey, suffix, (ChatIdParameter, chatId), (StepsCountParameter, countSteps));
+        var callback = GetCallback(PrefixKey, suffix, (ChatIdParameter, chatId),
+            (StepsCountParameter, countSteps));
         return InlineKeyboardButton.WithCallbackData(name, callback);
     }
 }
