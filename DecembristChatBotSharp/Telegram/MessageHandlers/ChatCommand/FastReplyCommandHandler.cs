@@ -2,13 +2,16 @@
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
+using LanguageExt.UnsafeValueAccess;
 using Serilog;
 using Telegram.Bot;
+using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public class FastReplyCommandHandler(
+    User botUser,
     AppConfig appConfig,
     AdminUserRepository adminUserRepository,
     FastReplyRepository fastReplyRepository,
@@ -20,9 +23,14 @@ public class FastReplyCommandHandler(
 {
     public const string CommandKey = "/fastreply";
     public const string ArgSeparator = "@";
+    private const int ExpirationMinutesSuccess = 15;
+    private readonly string _botUsername = botUser.Username ?? botUser.Id.ToString();
 
     public string Command => CommandKey;
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Creates new fast reply option '/fastreply' for help");
+
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+        "Creates new fast reply option '/fastreply' for help");
+
     public CommandLevel CommandLevel => CommandLevel.Item;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
@@ -32,12 +40,15 @@ public class FastReplyCommandHandler(
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
         var args = text.Trim().Split(ArgSeparator).Skip(1).ToArray();
-        if (args is not [var message, var reply])
+        var maybeMessageAndReply = ParseMessageAndReply(args);
+        if (maybeMessageAndReply.IsNone)
         {
             return await Array(
                 SendFastReplyHelp(chatId),
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
+
+        var (message, reply) = maybeMessageAndReply.ValueUnsafe();
 
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
 
@@ -127,7 +138,8 @@ public class FastReplyCommandHandler(
         Log.Information("New fast reply {0} -> {1} in chat {2}", message, reply, chatId);
 
         var replyMessage = string.Format(appConfig.CommandConfig.NewFastReplyMessage, message, reply);
-        return await messageAssistance.SendCommandResponse(chatId, replyMessage, Command);
+        var expireAt = DateTime.UtcNow.AddMinutes(ExpirationMinutesSuccess);
+        return await messageAssistance.SendCommandResponse(chatId, replyMessage, Command, expireAt);
     }
 
     private async Task<Unit> SendFastReplyHelp(long chatId)
@@ -147,5 +159,23 @@ public class FastReplyCommandHandler(
     {
         var message = string.Format(appConfig.CommandConfig.FastReplyBlockedMessage);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private Option<(string, string)> ParseMessageAndReply(string[] args)
+    {
+        if (args is not [var message, var reply])
+        {
+            return None;
+        }
+
+        if (message.StartsWith(_botUsername)) message = message[_botUsername.Length..];
+        message = message.Trim();
+
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return None;
+        }
+
+        return (message, reply);
     }
 }
