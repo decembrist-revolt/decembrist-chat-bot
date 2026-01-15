@@ -1,4 +1,4 @@
-﻿using Lamar;
+﻿﻿using Lamar;
 
 namespace DecembristChatBotSharp.Service;
 
@@ -14,7 +14,7 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
     /// Chests are placed randomly throughout the maze (frequency configurable via MazeConfig.ChestFrequency) without blocking paths.
     /// Outer edge is clear for starting area.
     /// </summary>
-    public int[,] GenerateMaze()
+    public ( int[,], (int exitRow, int exitCol) ) GenerateMaze()
     {
         var maze = new int[_mazeSize, _mazeSize];
         
@@ -42,8 +42,19 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
         // Step 4: Ensure there's a long path from edge to exit
         EnsurePathFromEdgeToExit(maze, exitRow, exitCol);
         
-        // Step 5: Mark exit
-        maze[exitRow, exitCol] = 3;
+        // Step 5: Mark exit as 3x3 area (9 cells total)
+        for (var dr = -1; dr <= 1; dr++)
+        {
+            for (var dc = -1; dc <= 1; dc++)
+            {
+                var r = exitRow + dr;
+                var c = exitCol + dc;
+                if (r >= 0 && r < _mazeSize && c >= 0 && c < _mazeSize)
+                {
+                    maze[r, c] = 3;
+                }
+            }
+        }
         
         // Step 6: Fill all accessible paths with value 2 (will preserve 3 for exit)
         FloodFillPaths(maze);
@@ -51,7 +62,7 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
         // Step 7: Place chests randomly (1 per ~50 cells, value 4)
         PlaceChestsInMaze(maze);
 
-        return maze;
+        return ( maze, (exitRow  , exitCol) );
     }
 
     /// <summary>
@@ -219,7 +230,7 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
     /// </summary>
     private void EnsurePathFromEdgeToExit(int[,] maze, int exitRow, int exitCol)
     {
-        // Clear small area around exit to ensure it's accessible
+        // Clear 3x3 area around exit (exit will be 9 cells)
         for (var dr = -1; dr <= 1; dr++)
         {
             for (var dc = -1; dc <= 1; dc++)
@@ -519,15 +530,15 @@ public class MazeGeneratorService(Random random, AppConfig appConfig)
     /// </summary>
     public (int[,] maze, List<(int row, int col)> solution) GenerateMazeWithSolution()
     {
-        var maze = GenerateMaze();
+        var ( maze, exitPos ) = GenerateMaze();
         
-        // Find the exit position (value 3)
-        var exitPos = FindExitPosition(maze);
-        
-        if (!exitPos.HasValue) return (maze, []);
+        if (exitPos == (-1, -1))
+        {
+            return (maze,[]);
+        }
         
         var startPos = GetRandomStartPosition(maze);
-        var solution = FindPath(maze, startPos, exitPos.Value);
+        var solution = FindPath(maze, startPos, exitPos);
         
         return (maze, solution);
     }

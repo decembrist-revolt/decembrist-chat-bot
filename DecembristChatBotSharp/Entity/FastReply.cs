@@ -19,5 +19,7 @@ public record FastReply(
 public enum FastReplyType
 {
     Text,
-    Sticker
+    Sticker,
+    Photo,
+    Animation,
 }

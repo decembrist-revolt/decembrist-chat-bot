@@ -44,4 +44,10 @@ public class ProfileButtons(
         var callback = GetCallback(PrefixKey, ProfileSuffix.Back, (ChatIdParameter, chatId));
         return InlineKeyboardButton.WithCallbackData("Back Profile", callback);
     }
+
+    public static InlineKeyboardButton GetBackFromMediaButton(long chatId)
+    {
+        var callback = GetCallback(PrefixKey, ProfileSuffix.BackMedia, (ChatIdParameter, chatId));
+        return InlineKeyboardButton.WithCallbackData("Back Profile", callback);
+    }
 }

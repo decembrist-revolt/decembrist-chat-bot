@@ -1,4 +1,6 @@
-﻿using DecembristChatBotSharp.Service;
+﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
@@ -8,6 +10,7 @@ namespace DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
 
 [Singleton]
 public class FilterCallbackHandler(
+    AdminUserRepository adminUserRepository,
     MessageAssistance messageAssistance,
     AppConfig appConfig,
     CallbackService callbackService
@@ -29,6 +32,8 @@ public class FilterCallbackHandler(
 
                 return filterSuffix switch
                 {
+                    _ when !await adminUserRepository.IsAdmin(new CompositeId(telegramId, chatId)) =>
+                        await messageAssistance.SendAdminOnlyMessage(telegramId, telegramId),
                     FilterSuffix.Create => await SendRequestFilterRecord(targetChatId, telegramId),
                     FilterSuffix.Delete => await SendRequestDelete(targetChatId, telegramId),
                     _ => throw new ArgumentOutOfRangeException(nameof(suffix), suffix, null)

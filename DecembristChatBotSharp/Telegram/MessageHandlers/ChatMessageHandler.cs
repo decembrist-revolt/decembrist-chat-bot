@@ -1,4 +1,5 @@
 ﻿using Lamar;
+using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
@@ -11,7 +12,9 @@ public readonly record struct ChatMessageHandlerParams(
     Option<int> ReplyToMessageId,
     bool BotMentioned,
     bool ReplyToBotMessage,
-    Option<string> ReplyToMessageText
+    Option<string> ReplyToMessageText,
+    Option<string> ReplyFileId,
+    MessageType MessageType = MessageType.Unknown
 )
 {
     public void Deconstruct(out int messageId, out long telegramId, out long chatId)

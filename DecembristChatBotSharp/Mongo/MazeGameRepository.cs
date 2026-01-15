@@ -312,16 +312,24 @@ public class MazeGameRepository(
             });
     }
 
-    public async Task<bool> RemoveGameForChat(long chatId) => await GetGameCollection()
-        .DeleteOneAsync(game => game.Id.ChatId == chatId, cancelToken.Token)
-        .ToTryAsync()
-        .Match(
-            result => result.IsAcknowledged && result.DeletedCount > 0,
-            ex =>
-            {
-                Log.Error(ex, "Failed to remove game for chat {0}", chatId);
-                return false;
-            });
+    public async Task<bool> RemoveGameForChat(long chatId, IMongoSession? session = null)
+    {
+        var collection = GetGameCollection();
+        var filter = Builders<MazeGame>.Filter.Eq(x => x.Id.ChatId, chatId);
+
+        var deleteTask = session is not null
+            ? collection.DeleteOneAsync(session, filter, cancellationToken: cancelToken.Token)
+            : collection.DeleteOneAsync(filter, cancelToken.Token);
+        return await deleteTask
+            .ToTryAsync()
+            .Match(
+                result => result.IsAcknowledged && result.DeletedCount > 0,
+                ex =>
+                {
+                    Log.Error(ex, "Failed to remove game for chat {0}", chatId);
+                    return false;
+                });
+    }
 
     private IMongoCollection<MazeGame> GetGameCollection() =>
         db.GetCollection<MazeGame>(nameof(MazeGame));

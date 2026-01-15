@@ -58,6 +58,17 @@ public class FastReplyHandler(
                 replyParameters: new ReplyParameters { MessageId = messageId },
                 cancellationToken: cancelToken.Token),
 
+            FastReplyType.Photo => botClient.SendPhoto(
+                chatId,
+                new InputFileId(reply.Reply),
+                replyParameters: new ReplyParameters { MessageId = messageId },
+                cancellationToken: cancelToken.Token),
+
+            FastReplyType.Animation => botClient.SendAnimation(
+                chatId,
+                new InputFileId(reply.Reply),
+                replyParameters: new ReplyParameters { MessageId = messageId },
+                cancellationToken: cancelToken.Token),
             _ => throw new ArgumentException($"Unsupported reply type: {reply.ReplyType}")
         };
 }
