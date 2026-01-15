@@ -1,14 +1,15 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
+using Serilog;
 using SkiaSharp;
-using Telegram.Bot.Types;
 
-namespace DecembristChatBotSharp.Service;
+namespace DecembristChatBotSharp.Telegram.MessageHandlers.PrivateMessage;
 
 [Singleton]
-public class MazeGameMapService(
-    AppConfig appConfig,
+public class MazeGameViewHandler(
+    BotClient botClient,
     MazeGameService mazeGameService,
     MazeGameRepository mazeGameRepository,
     AdminUserRepository adminUserRepository,
@@ -17,33 +18,64 @@ public class MazeGameMapService(
     private const int CellSize = 10;
     private const int MazeSize = 128;
 
-    public async Task<Option<InputMediaPhoto>> GetFullMazeMapMedia(long telegramId, long targetChatId)
+    public async Task<Unit> SendFullMazeMap(long privateChatId, long telegramId, long targetChatId)
     {
+        // Проверяем что пользователь админ
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, targetChatId));
-        if (!isAdmin) return None;
+        if (!isAdmin)
+        {
+            await botClient.SendMessageAndLog(
+                privateChatId,
+                "❌ У вас нет прав администратора для этого чата",
+                _ => { },
+                ex => Log.Error(ex, "Failed to send admin check message"),
+                cancelToken.Token
+            );
+            return unit;
+        }
 
-        var activeGameOpt = mazeGameService.FindActiveGameForChat(targetChatId);
+        var activeGameOpt = await mazeGameService.FindActiveGameForChat(targetChatId);
 
-        return await activeGameOpt.MatchAsync(
+        await activeGameOpt.MatchAsync(
             async game =>
             {
+                // Рендерим полную карту с всеми игроками
                 var fullMapImage = await RenderFullMazeMap(game, targetChatId);
-                if (fullMapImage == null) return None;
-
-                var stream = new MemoryStream(fullMapImage, false);
-                var caption = string.Format(appConfig.MenuConfig.MazeDescription, targetChatId,
-                    game.CreatedAt.ToString("HH:mm:ss"),
-                    game.IsFinished ? "Завершена" : "Активна");
-
-                var inputMedia = new InputMediaPhoto(new InputFileStream(stream))
+                
+                if (fullMapImage != null)
                 {
-                    Caption = caption
-                };
+                    using var stream = new MemoryStream(fullMapImage, false);
+                    
+                    var caption = $"🗺️ Полная карта лабиринта\nЧат: {targetChatId}\n" +
+                                $"Игра началась: {game.CreatedAt:HH:mm:ss}\n" +
+                                $"Статус: {(game.IsFinished ? "Завершена" : "Активна")}";
 
-                return Some(inputMedia);
+                    await botClient.SendPhotoAndLog(
+                        privateChatId,
+                        stream,
+                        caption,
+                        _ => Log.Information("Sent full maze map to admin {0} for chat {1}", telegramId, targetChatId),
+                        ex => Log.Error(ex, "Failed to send full maze map to admin {0}", telegramId),
+                        cancelToken.Token,
+                        null
+                    );
+                }
+                
+                return unit;
             },
-            () => None
-        );
+            async () =>
+            {
+                await botClient.SendMessageAndLog(
+                    privateChatId,
+                    $"❌ Нет активной игры лабиринт для чата {targetChatId}",
+                    _ => { },
+                    ex => Log.Error(ex, "Failed to send no game message"),
+                    cancelToken.Token
+                );
+                return unit;
+            });
+
+        return unit;
     }
 
     private async Task<byte[]?> RenderFullMazeMap(MazeGame game, long chatId)
@@ -104,3 +136,4 @@ public class MazeGameMapService(
         return data.ToArray();
     }
 }
+

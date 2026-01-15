@@ -15,7 +15,7 @@ public class MazeRendererService(MazeGeneratorService mazeGenerator)
     /// </summary>
     public byte[] RenderMazeAsPng()
     {
-        var (maze, _) = mazeGenerator.GenerateMaze();
+        var maze = mazeGenerator.GenerateMaze();
         return RenderMazeToPng(maze);
     }
 

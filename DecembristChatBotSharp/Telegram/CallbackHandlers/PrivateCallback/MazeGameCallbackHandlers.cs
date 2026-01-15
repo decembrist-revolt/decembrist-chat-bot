@@ -23,13 +23,11 @@ public class MazeGameMoveCallbackHandler(
     CancellationTokenSource cancelToken) : IPrivateCallbackHandler
 {
     public const string PrefixKey = "MazeMove";
-    public const string ExitSuffix = "MazeExit";
     public string Prefix => PrefixKey;
 
     public async Task<Unit> Do(CallbackQueryParameters queryParameters)
     {
         var (_, suffix, privateChatId, telegramId, messageId, queryId, maybeParameters) = queryParameters;
-        if (suffix == ExitSuffix) return await SendGameExit(privateChatId, telegramId, messageId);
 
         if (!Enum.TryParse(suffix, true, out MazeDirection direction) || maybeParameters.IsNone) return unit;
         var parameters = maybeParameters.ValueUnsafe();
@@ -41,29 +39,26 @@ public class MazeGameMoveCallbackHandler(
                 "Ошибка обработки хода", showAlert: true);
         }
 
-        var steps = callbackService.HasStepsCountKey(parameters, out var stepsCount)
-            ? stepsCount
-            : 1;
-
-        var moved = await mazeGameService.MovePlayer(targetChatId, messageId, telegramId, direction, steps);
-        var answer = moved switch
+        var moved = await mazeGameService.MovePlayer(targetChatId, messageId, telegramId, direction);
+        if (moved == MazeMoveResult.KeyboardNotFound)
         {
-            MazeMoveResult.Success => "Ход сделан",
-            MazeMoveResult.InvalidMove => "Невозможно переместиться в этом направлении",
-            MazeMoveResult.KeyboardNotFound => appConfig.MazeConfig.KeyboardIncorrectMessage,
-            MazeMoveResult.PartialSuccess => "Ход сделан частично",
-            _ => "Ошибка обработки хода"
-        };
-        if (moved != MazeMoveResult.Success && moved != MazeMoveResult.PartialSuccess)
-        {
-            return await messageAssistance.AnswerCallbackQuery(queryId, privateChatId, Prefix, answer, showAlert: true);
+            return await messageAssistance.AnswerCallbackQuery(queryId, privateChatId, Prefix,
+                appConfig.MazeConfig.KeyboardIncorrectMessage, showAlert: true);
         }
 
-        await messageAssistance.AnswerCallbackQuery(queryId, privateChatId, Prefix, answer, showAlert: false);
+        if (moved == MazeMoveResult.InvalidMove)
+        {
+            return await messageAssistance.AnswerCallbackQuery(queryId, privateChatId, Prefix,
+                "Невозможно переместиться в этом направлении", showAlert: false);
+        }
+
+        // Answer callback
+        await messageAssistance.AnswerCallbackQuery(queryId, privateChatId, Prefix,
+            "Ход сделан", showAlert: false);
 
         // Check if game finished
         var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(targetChatId));
-        return await gameOpt.MatchAsync(
+        await gameOpt.MatchAsync(
             async game =>
             {
                 if (game.IsFinished && game.WinnerId == telegramId)
@@ -79,14 +74,9 @@ public class MazeGameMoveCallbackHandler(
 
                 return unit;
             },
-            () => unit);
-    }
+            () => Task.FromResult(unit));
 
-    private async Task<Unit> SendGameExit(long privateChatId, long telegramId, int messageId)
-    {
-        await messageAssistance.DeleteCommandMessage(privateChatId, messageId, Prefix);
-        Log.Information("Player {0} exited maze game", telegramId);
-        return await messageAssistance.SendMessage(privateChatId, appConfig.MazeConfig.GameExitMessage, Prefix);
+        return unit;
     }
 
     private async Task<Unit> HandleWinner(long chatId, long telegramId, long privateChatId)
@@ -113,18 +103,22 @@ public class MazeGameMoveCallbackHandler(
             await session.TryCommit(cancelToken.Token);
         }
 
-        await messageAssistance.SendMessage(
+        // Send private message
+        await botClient.SendMessageAndLog(
             privateChatId,
             $"🎉 Поздравляем! Вы первым нашли выход из лабиринта!\n\nВы получили {boxReward} коробок!",
-            Prefix
+            _ => Log.Information("Sent winner message to player {0}", telegramId),
+            ex => Log.Error(ex, "Failed to send winner message to player {0}", telegramId),
+            cancelToken.Token
         );
 
+        // Render and send full maze to chat
         var fullMazeImage = await mazeGameService.RenderFullMaze(chatId);
-        var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
-
         if (fullMazeImage != null)
         {
             await using var stream = new MemoryStream(fullMazeImage, false);
+            var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
+
             await botClient.SendPhotoAndLog(
                 chatId,
                 stream,
@@ -136,17 +130,36 @@ public class MazeGameMoveCallbackHandler(
         }
         else
         {
-            await messageAssistance.SendMessage(
+            // Fallback to text message if maze rendering fails
+            var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
+            await botClient.SendMessageAndLog(
                 chatId,
                 $"🎉 {username} первым нашел выход из лабиринта и получил {boxReward} коробок!",
-                Prefix
+                _ => Log.Information("Announced maze winner in chat {0}", chatId),
+                ex => Log.Error(ex, "Failed to announce maze winner in chat {0}", chatId),
+                cancelToken.Token
             );
         }
 
-        await mazeGameService.NotifyAllPlayer(chatId,
-            $"{username} первым нашел выход из лабиринта,\nИгра окончена! Спасибо всем за участие. Лабиринт будет удален.");
         await mazeGameService.RemoveGameAndPlayers(chatId);
 
         return unit;
+    }
+}
+
+[Singleton]
+public class MazeGameExitCallbackHandler(
+    AppConfig appConfig,
+    MessageAssistance messageAssistance) : IPrivateCallbackHandler
+{
+    public const string PrefixKey = "MazeExit";
+    public string Prefix => PrefixKey;
+
+    public async Task<Unit> Do(CallbackQueryParameters queryParameters)
+    {
+        var (_, _, privateChatId, telegramId, messageId, queryId, _) = queryParameters;
+        await messageAssistance.DeleteCommandMessage(privateChatId, messageId, Prefix);
+        Log.Information("Player {0} exited maze game", telegramId);
+        return await messageAssistance.SendMessage(privateChatId, appConfig.MazeConfig.GameExitMessage, Prefix);
     }
 }

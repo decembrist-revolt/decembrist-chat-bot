@@ -60,7 +60,7 @@ public class MazeGameViewService(
 
                 await using var stream = new MemoryStream(viewImage, false);
                 var inventoryText = FormatInventoryText(player.Inventory);
-                var keyboard = mazeGameButtons.GetMazeKeyboard(chatId);
+                var keyboard = mazeGameButtons.CreateMazeKeyboard(chatId);
 
                 if (player.LastPhotoMessageId.HasValue)
                 {

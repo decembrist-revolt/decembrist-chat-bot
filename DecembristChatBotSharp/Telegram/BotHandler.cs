@@ -149,30 +149,12 @@ public class BotHandler(
         var replyToMessageText = Optional(message.ReplyToMessage?.Text ?? message.ReplyToMessage?.Caption);
         var replyToMessageId = Optional(message.ReplyToMessage?.MessageId);
         var replyToTelegramId = Optional(message.ReplyToMessage?.From?.Id);
-
-        Option<string> replyToFileId = None;
-        var type = MessageType.Unknown;
-        if (message.ReplyToMessage is not null)
-        {
-            (replyToFileId, type) = GetFileId(message.ReplyToMessage);
-        }
-
         var parameters = new ChatMessageHandlerParams(
             payload, messageId, telegramId, chatId,
-            replyToTelegramId, replyToMessageId,
-            botMentioned, replyToBotMessage, replyToMessageText, replyToFileId, type);
+            replyToTelegramId, replyToMessageId, 
+            botMentioned, replyToBotMessage, replyToMessageText);
         return parameters;
     }
-
-    private (Option<string>, MessageType) GetFileId(Message message) =>
-        message switch
-        {
-            { Animation.FileId: var fileId } => (fileId, MessageType.Animation),
-            { Photo: not null } => (message.Photo!.Last().FileId, MessageType.Photo),
-            { Sticker.FileId: var fileId } => (fileId, MessageType.Sticker),
-            { Text: not null } => (None, MessageType.Text),
-            _ => (None, MessageType.Unknown)
-        };
 
     private Task HandleCallback(CallbackQuery query)
     {

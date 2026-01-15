@@ -1,7 +1,7 @@
-﻿using DecembristChatBotSharp.Mongo;
-using DecembristChatBotSharp.Service;
+﻿using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Service.Buttons;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
+using DecembristChatBotSharp.Telegram.MessageHandlers.PrivateMessage;
 using Lamar;
 using Telegram.Bot.Types.Enums;
 using static DecembristChatBotSharp.Service.Buttons.ProfileButtons;
@@ -17,8 +17,7 @@ public class ProfilePrivateCallbackHandler(
     AppConfig appConfig,
     ProfileButtons profileButtons,
     InventoryService inventoryService,
-    MazeGameMapService mazeGameMapService,
-    AdminUserRepository adminUserRepository) : IPrivateCallbackHandler
+    MazeGameViewHandler mazeGameViewHandler) : IPrivateCallbackHandler
 {
     public const string PrefixKey = "Profile";
     public string Prefix => PrefixKey;
@@ -41,7 +40,6 @@ public class ProfilePrivateCallbackHandler(
                     ProfileSuffix.Inventory => await SwitchToInventory(messageId, telegramId, targetChatId),
                     ProfileSuffix.AdminPanel => await SwitchToAdminPanel(messageId, telegramId, targetChatId),
                     ProfileSuffix.MazeMap => await SwitchToMazeMap(messageId, telegramId, targetChatId),
-                    ProfileSuffix.BackMedia => await SendProfileMessage(messageId, telegramId, targetChatId),
                     ProfileSuffix.Back => await SwitchToWelcome(messageId, telegramId, targetChatId),
                     _ => throw new ArgumentOutOfRangeException(nameof(suffix), suffix, null)
                 };
@@ -55,14 +53,6 @@ public class ProfilePrivateCallbackHandler(
         var markup = await profileButtons.GetProfileMarkup(telegramId, chatId);
         var message = appConfig.MenuConfig.WelcomeMessage;
         return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
-    }
-
-    private async Task<Unit> SendProfileMessage(int messageId, long telegramId, long chatId)
-    {
-        await messageAssistance.DeleteCommandMessage(telegramId, messageId, Prefix);
-        var markup = await profileButtons.GetProfileMarkup(telegramId, chatId);
-        var message = appConfig.MenuConfig.WelcomeMessage;
-        return await messageAssistance.SendMessage(telegramId, message, Prefix, markup);
     }
 
     private async Task<Unit> SwitchToInventory(int messageId, long telegramId, long chatId)
@@ -87,30 +77,15 @@ public class ProfilePrivateCallbackHandler(
         return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
     }
 
-    private async Task<Unit> SwitchNonMazeView(int messageId, long telegramId, long chatId)
-    {
-        var markup = await profileButtons.GetProfileMarkup(telegramId, chatId);
-        var message = appConfig.MenuConfig.NonMazeDescription;
-        return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
-    }
-
     private async Task<Unit> SwitchToMazeMap(int messageId, long telegramId, long chatId)
     {
-        var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
-        if (!isAdmin) return await messageAssistance.SendAdminOnlyMessage(telegramId, telegramId);
-        var mapMediaOpt = await mazeGameMapService.GetFullMazeMapMedia(telegramId, chatId);
-        return await mapMediaOpt.Match(media =>
-            {
-                var markup = GetBackFromMediaButton(chatId);
-                return messageAssistance.EditMessageMediaAndLog(
-                    telegramId,
-                    messageId,
-                    media,
-                    Prefix,
-                    markup
-                );
-            },
-            () => SwitchNonMazeView(messageId, telegramId, chatId));
+        // Отправляем полную карту лабиринта
+        await mazeGameViewHandler.SendFullMazeMap(telegramId, telegramId, chatId);
+        
+        // Возвращаемся в профиль
+        var markup = await profileButtons.GetProfileMarkup(telegramId, chatId);
+        var message = "✅ Карта отправлена\n\n" + appConfig.MenuConfig.WelcomeMessage;
+        return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
     }
 }
 
@@ -120,6 +95,5 @@ public enum ProfileSuffix
     Inventory,
     AdminPanel,
     MazeMap,
-    BackMedia,
     Back
 }
