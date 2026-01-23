@@ -116,7 +116,8 @@ public record CaptchaConfig(
     [property: Range(1, long.MaxValue)] long CaptchaTimeHours,
     [property: Range(1, int.MaxValue)] int CaptchaRequestAgainCount,
     [property: Range(1, int.MaxValue)] int CaptchaRequestAgainExpiration,
-    [property: Range(1, int.MaxValue)] int CaptchaRetryCount);
+    [property: Range(1, int.MaxValue)] int CaptchaRetryCount,
+    bool IsEnabled = false);
 
 public record AllowedChatConfig(
     System.Collections.Generic.HashSet<long>? AllowedChatIds,
