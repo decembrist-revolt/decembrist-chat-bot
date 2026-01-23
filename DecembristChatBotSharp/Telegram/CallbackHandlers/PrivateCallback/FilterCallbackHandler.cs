@@ -32,7 +32,7 @@ public class FilterCallbackHandler(
 
                 return filterSuffix switch
                 {
-                    _ when !await adminUserRepository.IsAdmin(new CompositeId(telegramId, chatId)) =>
+                    _ when !await adminUserRepository.IsAdmin(new CompositeId(telegramId, targetChatId)) =>
                         await messageAssistance.SendAdminOnlyMessage(telegramId, telegramId),
                     FilterSuffix.Create => await SendRequestFilterRecord(targetChatId, telegramId),
                     FilterSuffix.Delete => await SendRequestDelete(targetChatId, telegramId),
