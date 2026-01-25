@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Service.Buttons;
@@ -21,11 +22,15 @@ public partial class ListCommandHandler(
     BotClient botClient,
     AppConfig appConfig,
     CancellationTokenSource cancelToken,
-    ListButtons listButtons) : ICommandHandler
+    ListButtons listButtons,
+    ChatConfigService chatConfigService) : ICommandHandler
 {
     public const string CommandKey = "/list";
     public string Command => CommandKey;
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Shows a list of available content from the chat, options: " + _listOptions);
+
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+        "Shows a list of available content from the chat, options: " + _listOptions);
+
     public CommandLevel CommandLevel => CommandLevel.User;
 
     private readonly string _listOptions = string.Join(", ", Enum.GetValues<ListType>().Map(type => type.ToString()));
@@ -37,11 +42,15 @@ public partial class ListCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
+        var maybeListConfig = await chatConfigService.GetConfig(chatId, config => config.ListConfig);
+        if (!maybeListConfig.TryGetSome(out var listConfig))
+            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+
         var taskResult = ParseText(text.Trim()).MatchAsync(
-            listType => HandleList(chatId, telegramId, listType), () =>
+            listType => HandleList(chatId, telegramId, listType, listConfig), () =>
             {
                 Log.Information("Failed to parse list type from text: {Text}", text);
-                return SendHelpMessage(chatId);
+                return SendHelpMessage(chatId, listConfig);
             });
 
         return await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, Command),
@@ -57,7 +66,7 @@ public partial class ListCommandHandler(
             .Bind(x => Enum.TryParse<ListType>(x, true, out var type) ? Some(type) : None);
 
 
-    private async Task<Unit> HandleList(long chatId, long telegramId, ListType listType)
+    private async Task<Unit> HandleList(long chatId, long telegramId, ListType listType, ListConfig2 listConfig)
     {
         var isLock = await lockRepository.TryAcquire(chatId, Command, listType.ToString());
         if (!isLock)
@@ -67,23 +76,24 @@ public partial class ListCommandHandler(
 
         var maybeKeysAndCount = await listService.GetListBody(chatId, listType);
         return await maybeKeysAndCount.MatchAsync(
-            None: () => SendNotFound(chatId, listType),
-            Some: tuple => SendListSuccess(chatId, telegramId, listType, tuple.Item1, tuple.Item2));
+            None: () => SendNotFound(chatId, listType, listConfig),
+            Some: tuple => SendListSuccess(chatId, telegramId, listType, tuple.Item1, tuple.Item2, listConfig));
     }
 
-    private Task<Unit> SendNotFound(long chatId, ListType listType)
+    private Task<Unit> SendNotFound(long chatId, ListType listType, ListConfig2 listConfig)
     {
-        var message = string.Format(appConfig.ListConfig.NotFound, listType);
+        var message = string.Format(listConfig.NotFound, listType);
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private Task<Unit> SendListSuccess(long chatId, long telegramId, ListType listType, string keys, int totalCount)
+    private Task<Unit> SendListSuccess(long chatId, long telegramId, ListType listType, string keys, int totalCount,
+        ListConfig2 listConfig)
     {
         var keyboard = listButtons.GetListChatMarkup(totalCount, listType);
-        var message = string.Format(appConfig.ListConfig.SuccessTemplate, listType, totalCount, keys);
+        var message = string.Format(listConfig.SuccessTemplate, listType, totalCount, keys);
         Task? taskPermission = null;
         var taskSent = botClient.SendMessageAndLog(chatId, message, ParseMode.MarkdownV2,
-            onSent: message => taskPermission = HandleOnSentSuccess(message, chatId, telegramId),
+            onSent: message => taskPermission = HandleOnSentSuccess(message, chatId, telegramId, listConfig),
             ex => Log.Error(ex, "Failed to send response to command: {0} from {1} to chat {2}",
                 Command, nameof(SendListSuccess), chatId),
             replyMarkup: keyboard, cancelToken: cancelToken.Token
@@ -91,12 +101,12 @@ public partial class ListCommandHandler(
         return Array(taskPermission.ToUnit() ?? Task.CompletedTask, taskSent).WhenAll();
     }
 
-    private Task HandleOnSentSuccess(Message message, long chatId, long telegramId)
+    private Task HandleOnSentSuccess(Message message, long chatId, long telegramId, ListConfig2 listConfig)
     {
         Log.Information(
             "Sent response to command:'{0}' from {1} to chat {2}", Command, nameof(HandleOnSentSuccess), chatId);
 
-        var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ListConfig.ExpirationMinutes);
+        var expireAt = DateTime.UtcNow.AddMinutes(listConfig.ExpirationMinutes);
         var id = new CallbackPermission.CompositeId(chatId, telegramId, CallbackType.List, message.MessageId);
         var permission = new CallbackPermission(id, expireAt);
 
@@ -104,8 +114,8 @@ public partial class ListCommandHandler(
         return callbackRepository.AddCallbackPermission(permission);
     }
 
-    private Task<Unit> SendHelpMessage(long chatId) => messageAssistance
-        .SendCommandResponse(chatId, string.Format(appConfig.ListConfig.HelpMessage, Command, _listOptions), Command);
+    private Task<Unit> SendHelpMessage(long chatId, ListConfig2 listConfig) => messageAssistance
+        .SendCommandResponse(chatId, string.Format(listConfig.HelpMessage, Command, _listOptions), Command);
 }
 
 public enum ListType

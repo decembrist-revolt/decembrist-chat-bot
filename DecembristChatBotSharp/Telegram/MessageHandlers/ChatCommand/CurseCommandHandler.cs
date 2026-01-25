@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using JasperFx.Core;
@@ -15,6 +16,7 @@ public partial class CurseCommandHandler(
     AppConfig appConfig,
     AdminUserRepository adminUserRepository,
     CurseRepository curseRepository,
+    ChatConfigService chatConfigService,
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
     MemberItemService itemService,
@@ -34,7 +36,9 @@ public partial class CurseCommandHandler(
     private static readonly string EmojisString = string.Join(", ", Emojis);
     public string Command => CommandKey;
 
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "All user messages will be cursed by certain emoji");
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+        "All user messages will be cursed by certain emoji");
+
     public CommandLevel CommandLevel => CommandLevel.Item;
 
     [GeneratedRegex(@"\s+")]
@@ -44,17 +48,20 @@ public partial class CurseCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
+        var maybeCurseConfig = await chatConfigService.GetConfig(chatId, config => config.CurseConfig);
+        if (!maybeCurseConfig.TryGetSome(out var curseConfig))
+            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
 
         var taskResult = parameters.ReplyToTelegramId.Match(
-            async receiverId => await HandleCurse(telegramId, chatId, receiverId, text, messageId),
-            async () => await SendReceiverNotSet(chatId));
+            async receiverId => await HandleCurse(telegramId, chatId, receiverId, text, messageId, curseConfig),
+            async () => await SendReceiverNotSet(chatId, curseConfig));
 
         return await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, Command),
             taskResult).WhenAll();
     }
 
     private async Task<Unit> HandleCurse(long telegramId, long chatId, long receiverId, string text,
-        int messageId)
+        int messageId, CurseConfig2 curseConfig)
     {
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
         var compositeId = (receiverId, chatId);
@@ -65,56 +72,56 @@ public partial class CurseCommandHandler(
         }
 
         return await ParseEmoji(text.Trim()).MatchAsync(
-            None: async () => await SendHelpMessageWithLock(chatId),
+            None: async () => await SendHelpMessageWithLock(chatId, curseConfig),
             Some: async emoji =>
             {
-                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.CurseConfig.DurationMinutes);
+                var expireAt = DateTime.UtcNow.AddMinutes(curseConfig.DurationMinutes);
                 var reactMember = new ReactionSpamMember(compositeId, emoji, expireAt);
 
                 var result = await itemService.UseCurse(chatId, telegramId, reactMember, isAdmin);
                 return result switch
                 {
                     CurseResult.NoItems => await messageAssistance.SendNoItems(chatId),
-                    CurseResult.Failed => await SendHelpMessageWithLock(chatId),
+                    CurseResult.Failed => await SendHelpMessageWithLock(chatId, curseConfig),
                     CurseResult.Blocked => await messageAssistance.SendAmuletMessage(chatId, receiverId, Command),
-                    CurseResult.Duplicate => await SendDuplicateMessage(chatId),
-                    CurseResult.Success => await SendSuccessMessage(compositeId, emoji.Emoji),
+                    CurseResult.Duplicate => await SendDuplicateMessage(chatId, curseConfig),
+                    CurseResult.Success => await SendSuccessMessage(compositeId, emoji.Emoji, curseConfig),
                     _ => unit
                 };
             });
     }
 
-    private async Task<Unit> SendReceiverNotSet(long chatId)
+    private async Task<Unit> SendReceiverNotSet(long chatId, CurseConfig2 curseConfig)
     {
-        var message = string.Format(appConfig.CurseConfig.ReceiverNotSetMessage, Command);
+        var message = string.Format(curseConfig.ReceiverNotSetMessage, Command);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendDuplicateMessage(long chatId)
+    private async Task<Unit> SendDuplicateMessage(long chatId, CurseConfig2 curseConfig)
     {
-        var message = appConfig.CurseConfig.DuplicateMessage;
+        var message = curseConfig.DuplicateMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendHelpMessageWithLock(long chatId)
+    private async Task<Unit> SendHelpMessageWithLock(long chatId, CurseConfig2 curseConfig)
     {
         if (!await lockRepository.TryAcquire(chatId, Command))
         {
             return await messageAssistance.SendCommandNotReady(chatId, Command);
         }
 
-        var message = string.Format(appConfig.CurseConfig.HelpMessage, Command, EmojisString);
+        var message = string.Format(curseConfig.HelpMessage, Command, EmojisString);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendSuccessMessage(CompositeId id, string emoji)
+    private async Task<Unit> SendSuccessMessage(CompositeId id, string emoji, CurseConfig2 curseConfig)
     {
         var (receiverId, chatId) = id;
         var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
             .ToAsync()
             .IfNone(receiverId.ToString);
-        var expireAt = appConfig.CurseConfig.DurationMinutes;
-        var message = string.Format(appConfig.CurseConfig.SuccessMessage, username, emoji);
+        var expireAt = curseConfig.DurationMinutes;
+        var message = string.Format(curseConfig.SuccessMessage, username, emoji);
         const string logTemplate = "Curse message sent {0} ChatId: {1}, Emoji:{2} Receiver: {3}";
         return await botClient.SendMessageAndLog(chatId, message,
             m =>

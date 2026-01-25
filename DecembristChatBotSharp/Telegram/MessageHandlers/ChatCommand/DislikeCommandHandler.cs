@@ -1,7 +1,8 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
-using LanguageExt.UnsafeValueAccess;
 using Serilog;
 using Telegram.Bot.Types.Enums;
 
@@ -14,29 +15,37 @@ public class DislikeCommandHandler(
     MessageAssistance messageAssistance,
     BotClient botClient,
     AppConfig appConfig,
+    ChatConfigService chatConfigService,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public string Command => "/dislike";
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Reply with this command to give the user a dislike");
+
+    public string Description =>
+        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command,
+            "Reply with this command to give the user a dislike");
+
     public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
+        var maybeDislikeConfig = await chatConfigService.GetConfig(chatId, config => config.DislikeConfig);
+        if (!maybeDislikeConfig.TryGetSome(out var dislikeConfig))
+            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
 
         var taskResult = parameters.ReplyToTelegramId.MatchAsync(
-            None: async () => await SendReceiverNotSet(chatId),
+            None: async () => await SendReceiverNotSet(chatId, dislikeConfig),
             Some: async receiverId =>
             {
                 if (receiverId == telegramId)
-                    return await SendSelfMessage(chatId);
+                    return await SendSelfMessage(chatId, dislikeConfig);
 
                 var result =
                     await dislikeRepository.AddDislikeMember(new DislikeMember((telegramId, chatId), receiverId));
                 return result switch
                 {
-                    DislikeResult.Exist => await SendExistDislike(chatId),
-                    DislikeResult.Success => await SendSuccessMessage(chatId),
+                    DislikeResult.Exist => await SendExistDislike(chatId, dislikeConfig),
+                    DislikeResult.Success => await SendSuccessMessage(chatId, dislikeConfig),
                     _ => unit
                 };
             });
@@ -44,9 +53,9 @@ public class DislikeCommandHandler(
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
     }
 
-    private async Task<Unit> SendExistDislike(long chatId)
+    private async Task<Unit> SendExistDislike(long chatId, DislikeConfig2 dislikeConfig)
     {
-        var message = appConfig.DislikeConfig.ExistDislikeMessage;
+        var message = dislikeConfig.ExistDislikeMessage;
         return await botClient.SendMessageAndLog(chatId, message,
             m =>
             {
@@ -57,9 +66,9 @@ public class DislikeCommandHandler(
             cancelToken.Token);
     }
 
-    private async Task<Unit> SendReceiverNotSet(long chatId)
+    private async Task<Unit> SendReceiverNotSet(long chatId, DislikeConfig2 dislikeConfig)
     {
-        var message = appConfig.DislikeConfig.ReceiverNotSetMessage;
+        var message = dislikeConfig.ReceiverNotSetMessage;
         return await botClient.SendMessageAndLog(chatId, message,
             message =>
             {
@@ -70,9 +79,9 @@ public class DislikeCommandHandler(
             cancelToken.Token);
     }
 
-    private async Task<Unit> SendSelfMessage(long chatId)
+    private async Task<Unit> SendSelfMessage(long chatId, DislikeConfig2 dislikeConfig)
     {
-        var message = appConfig.DislikeConfig.SelfMessage;
+        var message = dislikeConfig.SelfMessage;
         return await botClient.SendMessageAndLog(chatId, message,
             message =>
             {
@@ -83,9 +92,9 @@ public class DislikeCommandHandler(
             cancelToken.Token);
     }
 
-    private async Task<Unit> SendSuccessMessage(long chatId)
+    private async Task<Unit> SendSuccessMessage(long chatId, DislikeConfig2 dislikeConfig)
     {
-        var message = appConfig.DislikeConfig.SuccessMessage;
+        var message = dislikeConfig.SuccessMessage;
         return await botClient.SendMessageAndLog(chatId, message, ParseMode.MarkdownV2,
             m =>
             {

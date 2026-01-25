@@ -1,4 +1,4 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using DecembristChatBotSharp.Entity.Configs;
 using MongoDB.Driver;
 
 namespace DecembristChatBotSharp.Mongo;

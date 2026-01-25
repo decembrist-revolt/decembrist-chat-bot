@@ -13,6 +13,7 @@ public class MazeGameCommandHandler(
     MessageAssistance messageAssistance,
     AdminUserRepository adminUserRepository,
     MazeGameService mazeGameService,
+    ChatConfigService chatConfigService,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public string Command => "/mazegame";
@@ -40,18 +41,22 @@ public class MazeGameCommandHandler(
             ).WhenAll();
         }
 
+        var maybeMazeConfig = await chatConfigService.GetConfig(chatId, config => config.MazeConfig);
+        if (!maybeMazeConfig.TryGetSome(out var mazeConfig))
+            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+
         var url = await botClient.GetBotStartLink(
             PrivateMessageHandler.GetCommandForChat(PrivateMessageHandler.MazeGameCommandSuffix, chatId));
         var replyMarkup = new InlineKeyboardMarkup(
             InlineKeyboardButton.WithUrl(appConfig.CommandConfig.InviteToDirectMessage, url));
-        var message = appConfig.MazeConfig.AnnouncementMessage;
+        var message = mazeConfig.AnnouncementMessage;
 
         var existingGame = await mazeGameService.FindActiveGameForChat(chatId);
         var isGameExist = existingGame.IsSome;
         if (isGameExist)
         {
             Log.Information("Active maze game already exists in chat {0}", chatId);
-            message = appConfig.MazeConfig.RepeatAnnouncementMessage;
+            message = mazeConfig.RepeatAnnouncementMessage;
         }
         else
         {

@@ -1,4 +1,4 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
 using Microsoft.Extensions.Caching.Memory;
@@ -31,11 +31,10 @@ public class ChatConfigService(
         return configOption;
     }
 
-    public async Task<T> GetConfig<T>(long chatId, Func<ChatConfig, T> selector)
-    {
-        return await GetChatConfig(chatId)
-            .Match(selector, () => default );
-    }
+    public async Task<Option<T>> GetConfig<T>(long chatId, Func<ChatConfig, T> selector) where T : IConfig =>
+        (await GetChatConfig(chatId))
+        .Map(selector)
+        .Filter(x => x.Enabled);
 
     public void InvalidateCache(long chatId)
     {
