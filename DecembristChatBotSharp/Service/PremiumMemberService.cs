@@ -10,6 +10,7 @@ public class PremiumMemberService(
     PremiumMemberRepository premiumMemberRepository,
     HistoryLogRepository historyLogRepository,
     MongoDatabase db,
+    MinionService minionService,
     CancellationTokenSource cancelToken
 )
 {
@@ -74,6 +75,9 @@ public class PremiumMemberService(
             return AddPremiumMemberResult.Error;
         }
 
+        // If user becomes premium, revoke their minion status
+        await minionService.RevokeMinionStatusOnBecomingPremium(telegramId, chatId);
+
         Log.Information(
             "{0} premium member {1} to chat {2} exp: {3}", addResult, telegramId, chatId, expirationDate);
         return addResult;
@@ -105,6 +109,9 @@ public class PremiumMemberService(
             Log.Error("Failed to commit remove premium member {0} in chat {1}", telegramId, chatId);
             return false;
         }
+
+        // If user loses premium, revoke their minion relationships
+        await minionService.RevokeMinionStatusOnPremiumLoss(telegramId, chatId);
 
         Log.Information("Removed premium member {0} from chat {1}", telegramId, chatId);
         return true;

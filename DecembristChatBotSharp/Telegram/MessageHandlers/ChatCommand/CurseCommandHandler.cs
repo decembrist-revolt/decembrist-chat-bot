@@ -18,6 +18,7 @@ public partial class CurseCommandHandler(
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
     MemberItemService itemService,
+    MinionService minionService,
     ExpiredMessageRepository expiredMessageRepository,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
@@ -62,6 +63,17 @@ public partial class CurseCommandHandler(
         {
             var isDelete = await curseRepository.DeleteCurseMember(compositeId);
             return LogAssistant.LogDeleteResult(isDelete, telegramId, chatId, receiverId, Command);
+        }
+
+        // Check if target has minion - redirect to minion
+        var originalReceiverId = receiverId;
+        var redirectTarget = await minionService.GetRedirectTarget(receiverId, chatId);
+        if (redirectTarget.IsSome)
+        {
+            receiverId = redirectTarget.IfNone(receiverId);
+            compositeId = (receiverId, chatId);
+            // Send redirect message
+            await minionService.SendNegativeEffectRedirectMessage(chatId, originalReceiverId, receiverId);
         }
 
         return await ParseEmoji(text.Trim()).MatchAsync(

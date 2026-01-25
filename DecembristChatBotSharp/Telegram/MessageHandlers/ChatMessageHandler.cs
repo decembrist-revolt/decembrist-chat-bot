@@ -52,6 +52,7 @@ public class ChatMessageHandler(
     CharmHandler charmHandler,
     CurseHandler curseHandler,
     MinaHandler minaHandler,
+    MinionHandler minionHandler,
     WrongCommandHandler wrongCommandHandler,
     QuizAnswerHandler quizAnswerHandler,
     AiQueryHandler aiQueryHandler
@@ -69,6 +70,10 @@ public class ChatMessageHandler(
         if (await minaHandler.Do(parameters)) return unit;
         if (await restrictHandler.Do(parameters)) return unit;
         if (await charmHandler.Do(parameters)) return unit;
+
+
+        // Check for minion confirmation messages
+        if (await minionHandler.HandleMinionConfirmation(parameters)) return unit;
 
         if (parameters.Payload is TextPayload { Text.Length: > 1, Text: var text })
         {

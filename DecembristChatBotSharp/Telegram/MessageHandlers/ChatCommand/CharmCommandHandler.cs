@@ -15,6 +15,7 @@ public partial class CharmCommandHandler(
     ExpiredMessageRepository expiredMessageRepository,
     MessageAssistance messageAssistance,
     MemberItemService itemService,
+    MinionService minionService,
     AppConfig appConfig,
     BotClient botClient,
     CancellationTokenSource cancelToken) : ICommandHandler
@@ -50,6 +51,16 @@ public partial class CharmCommandHandler(
         }
 
         if (receiverId == telegramId) return await SendSelfMessage(chatId);
+
+        // Check if target has minion - redirect to minion
+        var originalReceiverId = receiverId;
+        var redirectTarget = await minionService.GetRedirectTarget(receiverId, chatId);
+        if (redirectTarget.IsSome)
+        {
+            receiverId = redirectTarget.IfNone(receiverId);
+            // Send redirect message
+            await minionService.SendNegativeEffectRedirectMessage(chatId, originalReceiverId, receiverId);
+        }
 
         return await ParseText(text.Trim()).Match(
             None: async () => await SendHelpMessage(chatId),

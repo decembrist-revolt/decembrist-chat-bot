@@ -14,8 +14,10 @@ public class DailyPremiumRewardJob(
     AppConfig appConfig,
     PremiumMemberRepository premiumMemberRepository,
     MemberItemRepository memberItemRepository,
+    MinionRepository minionRepository,
     HistoryLogRepository historyLogRepository,
     BotClient botClient,
+    Random random,
     CancellationTokenSource cancelToken) : IRegisterJob
 {
     public async Task Register(IScheduler scheduler)
@@ -86,6 +88,27 @@ public class DailyPremiumRewardJob(
         await historyLogRepository.LogItems(
             chatId, telegramIds, MemberItemType.Box, 1, MemberItemSourceType.PremiumDaily, session);
 
+        // Handle minion rewards - configurable chance for each minion
+        var minionIds = await minionRepository.GetMinionIdsByChat(chatId);
+        var luckyMinions = Enumerable.ToList(minionIds.Where(_ => random.NextDouble() < appConfig.MinionConfig.DailyBoxChance));
+
+        if (luckyMinions.Count > 0)
+        {
+            var minionArr = luckyMinions.ToArr();
+            var minionAddCount = await memberItemRepository.AddMemberItems(chatId, minionArr, MemberItemType.Box, session);
+            if (minionAddCount != minionArr.Length)
+            {
+                await session.TryAbort(cancelToken.Token);
+                Log.Error("Failed to add minion items for chat {0}", chatId);
+                return;
+            }
+
+            await historyLogRepository.LogItems(
+                chatId, minionArr, MemberItemType.Box, 1, MemberItemSourceType.MinionDaily, session);
+            
+            Log.Information("Gave boxes to {0} lucky minions in chat {1}", minionAddCount, chatId);
+        }
+
         if (!await session.TryCommit(cancelToken.Token))
         {
             await session.TryAbort(cancelToken.Token);
@@ -93,21 +116,40 @@ public class DailyPremiumRewardJob(
             return;
         }
 
-        if (!await SendPremiumRewardMessage(chatId, telegramIds)) return;
+        if (!await SendPremiumRewardMessage(chatId, telegramIds, luckyMinions.ToArr())) return;
 
         Log.Information("Successfully processed premium rewards for chat {0}", chatId);
     }
 
-    private async Task<bool> SendPremiumRewardMessage(long chatId, Arr<long> telegramIds)
+    private async Task<bool> SendPremiumRewardMessage(long chatId, Arr<long> premiumIds, Arr<long> minionIds)
     {
-        var usernames =
-            from telegramId in telegramIds
+        // Premium users message
+        var premiumUsernames =
+            from telegramId in premiumIds
             select botClient.GetUsername(chatId, telegramId, cancelToken.Token)
                 .ToAsync()
                 .IfNone(telegramId.ToString);
-        var usernamesString = (await usernames.Traverse(identity)).Map(username => username.EscapeMarkdown()).ToFullString();
+        var premiumUsernamesString = (await premiumUsernames.Traverse(identity))
+            .Map(username => username.EscapeMarkdown())
+            .ToFullString();
 
-        var message = string.Format(appConfig.CommandConfig.PremiumConfig.DailyPremiumRewardMessage, usernamesString);
+        var message = string.Format(appConfig.CommandConfig.PremiumConfig.DailyPremiumRewardMessage, premiumUsernamesString);
+
+        // Add minions message if there are lucky minions
+        if (minionIds.Length > 0)
+        {
+            var minionUsernames =
+                from telegramId in minionIds
+                select botClient.GetUsername(chatId, telegramId, cancelToken.Token)
+                    .ToAsync()
+                    .IfNone(telegramId.ToString);
+            var minionUsernamesString = (await minionUsernames.Traverse(identity))
+                .Map(username => username.EscapeMarkdown())
+                .ToFullString();
+
+            message += string.Format(appConfig.CommandConfig.PremiumConfig.DailyMinionRewardMessage, minionUsernamesString);
+        }
+
         return await botClient.SendMessage(
                 chatId, message, parseMode: ParseMode.MarkdownV2, cancellationToken: cancelToken.Token)
             .ToTryAsync()

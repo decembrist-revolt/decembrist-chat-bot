@@ -9,6 +9,7 @@ namespace DecembristChatBotSharp.Service;
 public class OpenBoxService(
     MemberItemRepository memberItemRepository,
     MemberItemService memberItemService,
+    MinionService minionService,
     AppConfig appConfig,
     MongoDatabase db,
     HistoryLogRepository historyLogRepository,
@@ -25,6 +26,40 @@ public class OpenBoxService(
         if (!hasBox) return await AbortWithResult(session, OpenBoxResult.NoItems);
 
         var (itemType, quantity) = GetRandomItemWithQuantity();
+        
+        // Check if user is a minion and handle amulet transfer
+        if (itemType == MemberItemType.Amulet)
+        {
+            var masterId = await minionService.GetMasterId(telegramId, chatId);
+            if (masterId.IsSome)
+            {
+                // Minion got amulet - transfer to master
+                var success = await memberItemService.HandleAmuletItem((telegramId, chatId), session);
+                if (success)
+                {
+                    await minionService.TransferAmuletToMaster(telegramId, chatId, session);
+                }
+                return await HandleItemType(chatId, telegramId, itemType, 0, OpenBoxResult.AmuletActivated, session);
+            }
+
+            if (await memberItemService.HandleAmuletItem((telegramId, chatId), session))
+            {
+                return await HandleItemType(chatId, telegramId, itemType, 0, OpenBoxResult.AmuletActivated, session);
+            }
+        }
+
+        // Check if user has a minion and handle stone transfer
+        if (itemType == MemberItemType.Stone)
+        {
+            var minionId = await minionService.GetMinionId(telegramId, chatId);
+            if (minionId.IsSome)
+            {
+                // Master got stone - transfer to minion
+                await minionService.TransferStoneToMinion(telegramId, chatId, session);
+                return await HandleUniqueItem(chatId, minionId.IfNone(telegramId), itemType, session);
+            }
+        }
+        
         return itemType switch
         {
             MemberItemType.Stone => await HandleUniqueItem(chatId, telegramId, itemType, session),

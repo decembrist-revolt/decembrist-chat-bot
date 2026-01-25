@@ -11,6 +11,7 @@ public class MinaHandler(
     BotClient botClient,
     MinaRepository minaRepository,
     CurseRepository curseRepository,
+    MinionService minionService,
     AppConfig appConfig,
     CancellationTokenSource cancelToken)
 {
@@ -26,6 +27,16 @@ public class MinaHandler(
     
     private async Task<bool> ActivateMine(MineTrigger trigger, int messageId, long victimTelegramId, long chatId)
     {
+        // Check if victim has minion - redirect to minion
+        var originalVictimId = victimTelegramId;
+        var redirectTarget = await minionService.GetRedirectTarget(victimTelegramId, chatId);
+        if (redirectTarget.IsSome)
+        {
+            victimTelegramId = redirectTarget.IfNone(victimTelegramId);
+            // Send redirect message
+            await minionService.SendNegativeEffectRedirectMessage(chatId, originalVictimId, victimTelegramId);
+        }
+
         var expireAt = DateTime.UtcNow.AddMinutes(appConfig.CurseConfig.DurationMinutes);
         var curseMember = new ReactionSpamMember(new CompositeId(victimTelegramId, chatId), trigger.Emoji, expireAt);
         
