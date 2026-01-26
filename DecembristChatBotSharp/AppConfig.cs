@@ -206,8 +206,6 @@ public record LoreConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ContentSuccess,
     [property: Required(AllowEmptyStrings = false)]
-    string ContentDefault,
-    [property: Required(AllowEmptyStrings = false)]
     string ContentRequest,
     [property: Required(AllowEmptyStrings = false)]
     string KeyNotFound,
@@ -233,7 +231,6 @@ public record ListConfig(
     string HelpMessage,
     [property: Required(AllowEmptyStrings = false)]
     string NotAccess,
-    [property: Range(1, int.MaxValue)] int RowLimit,
     [property: Range(1, int.MaxValue)] int ExpirationMinutes
 );
 

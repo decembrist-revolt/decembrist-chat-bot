@@ -30,7 +30,6 @@ public class DiContainer
         registry.AddSingleton(client);
 
         registry.AddQuartz();
-        registry.AddMemoryCache();
         registry.AddSingleton<Random>();
 
         registry.Scan(s =>

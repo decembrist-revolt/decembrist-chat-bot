@@ -12,7 +12,7 @@ public class ListButtons(AppConfig appConfig)
     public InlineKeyboardMarkup GetListChatMarkup(int totalCount, ListType listType, int currentOffset = 0)
     {
         var markup = new List<InlineKeyboardButton>();
-        var limit = appConfig.ListConfig.RowLimit;
+        var limit = ListService.ListRowLimit;
         if (currentOffset > 0)
         {
             markup.Add(GetListChatButton("⬅️ Prev", listType, currentOffset - limit));

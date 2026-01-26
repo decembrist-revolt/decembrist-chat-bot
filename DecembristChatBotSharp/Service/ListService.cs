@@ -12,6 +12,8 @@ public class ListService(
     LoreRecordRepository loreRecordRepository,
     FastReplyRepository fastReplyRepository)
 {
+    public const int ListRowLimit = 25;
+
     private readonly ImmutableList<string> _dustRecipes = appConfig.DustConfig.DustRecipes.Select(dustRecipe =>
             $"• `{dustRecipe.Key.ToString().EscapeMarkdown()}`{$" ⇒ {dustRecipe.Value.Reward.Item} - {dustRecipe.Value.Reward.Range.Min}-{dustRecipe.Value.Reward.Range.Max}".EscapeMarkdown()}")
         .ToImmutableList();
@@ -89,7 +91,7 @@ public class ListService(
         if (maybeResult.IsEmpty || maybeResult.Count < currentOffset) return None;
 
         var sb = new StringBuilder();
-        foreach (var line in maybeResult.Skip(currentOffset).Take(appConfig.ListConfig.RowLimit))
+        foreach (var line in maybeResult.Skip(currentOffset).Take(ListRowLimit))
         {
             sb.AppendLine(line);
         }

@@ -26,7 +26,7 @@ public class LoreButtons(AppConfig appConfig)
     public InlineKeyboardMarkup GetLoreListPrivateMarkup(long chatId, int currentOffset, int totalCount)
     {
         var markup = new List<InlineKeyboardButton>();
-        var limit = appConfig.ListConfig.RowLimit;
+        var limit = ListService.ListRowLimit;
         if (currentOffset > 0)
         {
             markup.Add(GetLoreListButton("⬅️ Prev", chatId, currentOffset - limit));

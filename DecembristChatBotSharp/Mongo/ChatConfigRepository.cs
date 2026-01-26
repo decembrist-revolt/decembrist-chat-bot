@@ -1,5 +1,6 @@
 ﻿using DecembristChatBotSharp.Entity.Configs;
 using MongoDB.Driver;
+using Serilog;
 
 namespace DecembristChatBotSharp.Mongo;
 
@@ -13,7 +14,11 @@ public class ChatConfigRepository(MongoDatabase db, CancellationTokenSource canc
             .Find(c => c.ChatId == chatId)
             .FirstAsync()
             .ToTryAsync()
-            .Match(Some, _ => Option<ChatConfig>.None);
+            .Match(Some, ex =>
+            {
+                Log.Error("Failed to get config from chatId: {chatId}", chatId);
+                return Option<ChatConfig>.None;
+            });
     }
 
     private IMongoCollection<ChatConfig> GetCollection() => db.GetCollection<ChatConfig>(nameof(ChatConfig));

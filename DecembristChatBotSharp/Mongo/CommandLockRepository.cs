@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using DecembristChatBotSharp.Entity;
+﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Service;
 using Lamar;
@@ -54,7 +53,7 @@ public class CommandLockRepository(
         var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
         if (maybeCommandConfig.TryGetSome(out var commandConfig))
         {
-            return chatConfigService.LogExistConfig(false, nameof(CommandConfig2));
+            return chatConfigService.LogNonExistConfig(false, nameof(CommandConfig2));
         }
 
         var collection = GetCollection();

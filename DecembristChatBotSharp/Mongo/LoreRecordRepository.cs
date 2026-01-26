@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using MongoDB.Driver;
 using Serilog;
@@ -8,9 +9,10 @@ namespace DecembristChatBotSharp.Mongo;
 [Singleton]
 public class LoreRecordRepository(
     MongoDatabase db,
-    AppConfig appConfig,
     CancellationTokenSource cancelToken) : IRepository
 {
+    private const string DefaultLoreContent = "Эта часть лора ещё не заполнена";
+
     public async Task<bool> AddLoreRecord(
         LoreRecord.CompositeId id,
         long telegramId,
@@ -20,7 +22,7 @@ public class LoreRecordRepository(
         var collection = GetCollection();
 
         var update = Builders<LoreRecord>.Update
-            .Set(x => x.Content, content ?? appConfig.LoreConfig.ContentDefault)
+            .Set(x => x.Content, content ?? DefaultLoreContent)
             .AddToSet(x => x.AuthorIds, telegramId);
 
         var options = new UpdateOptions { IsUpsert = true };
@@ -76,7 +78,7 @@ public class LoreRecordRepository(
             .Find(m => m.Id.ChatId == chatId)
             .SortBy(m => m.Id.Key)
             .Skip(skip)
-            .Limit(appConfig.ListConfig.RowLimit)
+            .Limit(ListService.ListRowLimit)
             .Project(record => record.Id.Key)
             .ToListAsync()
             .ToTryAsync()

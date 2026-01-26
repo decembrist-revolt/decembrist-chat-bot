@@ -9,7 +9,6 @@ namespace DecembristChatBotSharp.Mongo;
 
 [Singleton]
 public class ExpiredMessageRepository(
-    AppConfig appConfig,
     ChatConfigService chatConfigService,
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
@@ -20,7 +19,7 @@ public class ExpiredMessageRepository(
         var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
         if (maybeCommandConfig.TryGetSome(out var commandConfig))
         {
-            return chatConfigService.LogExistConfig(unit, nameof(CommandConfig2));
+            return chatConfigService.LogNonExistConfig(unit, nameof(CommandConfig2));
         }
 
         var date = expirationDate ?? DateTime.UtcNow.AddSeconds(commandConfig.CommandIntervalSeconds);
