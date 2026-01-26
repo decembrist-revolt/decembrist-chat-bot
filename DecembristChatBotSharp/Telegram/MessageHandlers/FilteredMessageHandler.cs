@@ -1,5 +1,6 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
@@ -14,18 +15,21 @@ public class FilteredMessageHandler(
     FilteredMessageRepository filteredMessageRepository,
     BotClient botClient,
     CancellationTokenSource cancelToken,
-    AppConfig appConfig)
+    ChatConfigService chatConfigService)
 {
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
         if (parameters.Payload is not TextPayload { Text: var text }) return false;
         var (messageId, telegramId, chatId) = parameters;
 
+        var maybeFilterConfig = await chatConfigService.GetConfig(chatId, config => config.FilterConfig);
+        if (!maybeFilterConfig.TryGetSome(out var filterConfig)) return false;
+
         if (!await IsFiltered(text, chatId) || await whiteListRepository.IsWhiteListMember((telegramId, chatId)))
             return false;
-        var messageText = string.Format(appConfig.FilterConfig.CaptchaMessage,
-            appConfig.FilterConfig.CaptchaAnswer,
-            appConfig.FilterConfig.CaptchaTimeSeconds);
+        var messageText = string.Format(filterConfig.CaptchaMessage,
+            filterConfig.CaptchaAnswer,
+            filterConfig.CaptchaTimeSeconds);
 
         return await botClient.SendMessage(chatId, messageText,
                 replyParameters: new ReplyParameters { MessageId = messageId },

@@ -1,4 +1,7 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using System.Runtime.CompilerServices;
+using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using LanguageExt.UnsafeValueAccess;
 using MongoDB.Driver;
@@ -8,7 +11,7 @@ namespace DecembristChatBotSharp.Mongo;
 
 [Singleton]
 public class CommandLockRepository(
-    AppConfig appConfig,
+    ChatConfigService chatConfigService,
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
 {
@@ -48,8 +51,14 @@ public class CommandLockRepository(
     /// <returns>True if lock acquired</returns>
     public async Task<bool> AcquireLock(long chatId, string command, string? arguments = null, long? telegramId = null)
     {
+        var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
+        if (maybeCommandConfig.TryGetSome(out var commandConfig))
+        {
+            return chatConfigService.LogExistConfig(false, nameof(CommandConfig2));
+        }
+
         var collection = GetCollection();
-        var commandIntervalSeconds = appConfig.CommandConfig.CommandIntervalSeconds;
+        var commandIntervalSeconds = commandConfig.CommandIntervalSeconds;
         var expiredTime = DateTime.UtcNow.AddSeconds(commandIntervalSeconds);
         var commandLock = new CommandLock(
             new CommandLock.CompositeId(chatId, command, arguments, telegramId),

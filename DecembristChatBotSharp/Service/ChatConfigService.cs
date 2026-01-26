@@ -1,7 +1,10 @@
-﻿using DecembristChatBotSharp.Entity.Configs;
+﻿using System.Runtime.CompilerServices;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
+using LanguageExt.UnsafeValueAccess;
 using Microsoft.Extensions.Caching.Memory;
+using Serilog;
 
 namespace DecembristChatBotSharp.Service;
 
@@ -35,6 +38,20 @@ public class ChatConfigService(
         (await GetChatConfig(chatId))
         .Map(selector)
         .Filter(x => x.Enabled);
+
+    public async Task<bool> TryGetConfig<T>(long chatId, Func<ChatConfig, T> selector, out T value) where T : IConfig
+    {
+        var option = await GetConfig(chatId, selector);
+        value = option.IsSome ? option.ValueUnsafe() : default!;
+        return option.IsSome;
+    }
+
+    public T LogExistConfig<T>(T input, string configName, [CallerMemberName] string? callerName = null)
+    {
+        Log.Information("{memberName}: Config disabled or not found: {configName}, skipping lock acquisition",
+            callerName, configName);
+        return input;
+    }
 
     public void InvalidateCache(long chatId)
     {

@@ -7,14 +7,17 @@ namespace DecembristChatBotSharp.Service;
 [Singleton]
 public class UniqueItemService(
     UniqueItemRepository uniqueItemRepository,
-    AppConfig appConfig)
+    ChatConfigService chatConfigService)
 {
     public async Task<bool> ChangeOwnerUniqueItem(
         long chatId, long telegramId, MemberItemType itemType, IMongoSession session)
     {
+        var maybeItemConfig = await chatConfigService.GetConfig(chatId, config => config.ItemConfig);
+        if (maybeItemConfig.TryGetSome(out var itemConfig)) return false;
+
         var expiredAt = itemType switch
         {
-            MemberItemType.Stone => DateTime.UtcNow.AddMinutes(appConfig.ItemConfig.UniqueItemGiveExpirationMinutes),
+            MemberItemType.Stone => DateTime.UtcNow.AddMinutes(itemConfig.UniqueItemGiveExpirationMinutes),
             _ => throw new ArgumentOutOfRangeException(nameof(itemType), itemType, null)
         };
 
