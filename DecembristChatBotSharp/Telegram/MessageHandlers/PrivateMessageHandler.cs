@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Service;
+﻿using DecembristChatBotSharp.Entity.Configs;
+using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Service.Buttons;
 using DecembristChatBotSharp.Telegram.LoreHandlers;
 using DecembristChatBotSharp.Telegram.MessageHandlers.PrivateMessage;
@@ -21,6 +22,7 @@ public class PrivateMessageHandler(
     LoreHandler loreHandler,
     FilterRecordHandler filterRecordHandler,
     MazeGameJoinCommandHandler mazeGameJoinCommandHandler,
+    ChatConfigService chatConfigService,
     CancellationTokenSource cancelToken)
 {
     public const string StartCommand = "/start";
@@ -37,7 +39,7 @@ public class PrivateMessageHandler(
 
     public async Task<Unit> Do(Message message)
     {
-        var chatId = message.Chat.Id;
+        var privateChatId = message.Chat.Id;
         var type = message.Type;
         var telegramId = message.From!.Id;
 
@@ -46,31 +48,31 @@ public class PrivateMessageHandler(
             MessageType.Text when message.Text?.Contains(MazeGameInviteCommand) == true
                                   && message.Text.Split("=") is [_, var chatIdText]
                                   && long.TryParse(chatIdText, out var targetChatId) =>
-                await SendMazeGame(chatId, targetChatId),
+                await SendMazeGame(privateChatId, targetChatId),
             _ => false
         };
         if (isHandler) return unit;
 
         var trySend = type switch
         {
-            MessageType.Sticker => SendStickerFileId(chatId, message.Sticker!.FileId),
-            MessageType.Text when message.Text == MeCommand => SendMe(telegramId, chatId),
-            MessageType.Text when message.Text == ProfileCommand => SendMenuButton(chatId),
+            MessageType.Sticker => SendStickerFileId(privateChatId, message.Sticker!.FileId),
+            MessageType.Text when message.Text == MeCommand => SendMe(telegramId, privateChatId),
+            MessageType.Text when message.Text == ProfileCommand => SendMenuButton(privateChatId),
             MessageType.Text when message.Text?.Contains(InventoryCommand) == true
                                   && message.Text.Split("=") is [_, var chatIdText]
                                   && long.TryParse(chatIdText, out var targetChatId) =>
-                await SendInventory(chatId, targetChatId),
-            MessageType.Text when message.Text == StatusCommand => SendStatus(chatId),
+                await SendInventory(privateChatId, targetChatId),
+            MessageType.Text when message.Text == StatusCommand => SendStatus(privateChatId),
             MessageType.Text when message.Text is { } text && text.StartsWith(FastReplyHandler.StickerPrefix) =>
-                SendSticker(chatId, text[FastReplyHandler.StickerPrefix.Length..]),
+                SendSticker(privateChatId, text[FastReplyHandler.StickerPrefix.Length..]),
             MessageType.Text when message is { Text: not null, ReplyToMessage.Text: { } replyText }
                                   && replyText.Contains(LoreHandler.Tag) => loreHandler.Do(message).ToTryAsync(),
             MessageType.Text when message is { Text: not null, ReplyToMessage.Text: { } replyText }
                                   && replyText.Contains(FilterRecordHandler.Tag) =>
                 filterRecordHandler.Do(message).ToTryAsync(),
             MessageType.ChatShared when message.ChatShared is { ChatId: var sharedChatId } =>
-                await SendProfile(sharedChatId, chatId),
-            _ => TryAsync(botClient.SendMessage(chatId, "OK", cancellationToken: cancelToken.Token))
+                await SendProfile(sharedChatId, privateChatId),
+            _ => TryAsync(botClient.SendMessage(privateChatId, "OK", cancellationToken: cancelToken.Token))
         };
         return await trySend.Match(
             message => Log.Information("Sent private {0} to {1}", message.Text?.Replace('\n', ' '), telegramId),
@@ -80,23 +82,29 @@ public class PrivateMessageHandler(
 
     private async Task<TryAsync<Message>> SendProfile(long chatId, long privateChatId)
     {
-        if (!messageAssistance.IsAllowedChat(chatId)) return SendChatNotAllowed(privateChatId);
-        var message = appConfig.MenuConfig.WelcomeMessage;
+        var maybeMenuConfig = await chatConfigService.GetConfig(chatId, config => config.MenuConfig);
+        if (!maybeMenuConfig.TryGetSome(out var menuConfig))
+        {
+            Log.Warning("MenuConfig not found for chat {ChatId}", chatId);
+            return TryAsync<Message>(new Exception("Config not found"));
+        }
+        if (!messageAssistance.IsAllowedChat(chatId)) return SendChatNotAllowed(privateChatId, menuConfig);
+        var message = menuConfig.WelcomeMessage;
         var markup = await profileButtons.GetProfileMarkup(privateChatId, chatId);
         return TryAsync(botClient.SendMessage(privateChatId, message,
             replyMarkup: markup,
             cancellationToken: cancelToken.Token));
     }
 
-    private TryAsync<Message> SendChatNotAllowed(long chatId)
+    private TryAsync<Message> SendChatNotAllowed(long privateChatId, MenuConfig menuConfig)
     {
-        var message = appConfig.MenuConfig.ChatNotAllowed;
-        return botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token).ToTryAsync();
+        var message = menuConfig.ChatNotAllowed;
+        return botClient.SendMessage(privateChatId, message, cancellationToken: cancelToken.Token).ToTryAsync();
     }
 
     private TryAsync<Message> SendMenuButton(long chatId)
     {
-        var message = appConfig.MenuConfig.WelcomeMessage;
+        var message = "Добро пожаловать, нажмите на кнопку, чтобы продолжить";
         var buttons = new ReplyKeyboardMarkup(new[]
         {
             KeyboardButton.WithRequestChat("Check profile", 1, false),

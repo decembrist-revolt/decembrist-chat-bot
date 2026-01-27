@@ -1,6 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
 using Serilog;
@@ -27,8 +28,8 @@ public class MessageAssistance(
 
     public async Task<Unit> SendCommandNotReady(long chatId, string command)
     {
-        var interval = appConfig.CommandConfig.CommandIntervalSeconds;
-        var message = string.Format(appConfig.CommandConfig.CommandNotReady, command, interval);
+        var interval = appConfig.CommandAssistanceConfig.CommandIntervalSeconds;
+        var message = string.Format(appConfig.CommandAssistanceConfig.CommandNotReady, command, interval);
         return await botClient.SendMessageAndLog(chatId, message,
             message =>
             {
@@ -46,7 +47,7 @@ public class MessageAssistance(
             cancelToken.Token);
 
     public async Task<Unit> SendAdminOnlyMessage(long chatId, long telegramId) =>
-        await botClient.SendMessageAndLog(chatId, appConfig.CommandConfig.AdminOnlyMessage,
+        await botClient.SendMessageAndLog(chatId, appConfig.CommandAssistanceConfig.AdminOnlyMessage,
             message =>
             {
                 Log.Information("Sent admin only message to {0} chat {1}", telegramId, chatId);
@@ -58,7 +59,7 @@ public class MessageAssistance(
     public async Task<Unit> SendStickerNotFound(long chatId, string fileId)
     {
         var stickerMessage = FastReplyHandler.StickerPrefix + fileId;
-        var message = string.Format(appConfig.CommandConfig.StickerNotFoundMessage, stickerMessage);
+        var message = string.Format(appConfig.CommandAssistanceConfig.StickerNotFoundMessage, stickerMessage);
         return await botClient.SendMessageAndLog(chatId, message,
             message =>
             {
@@ -70,7 +71,7 @@ public class MessageAssistance(
     }
 
     public async Task<Unit> SendNoItems(long chatId) =>
-        await botClient.SendMessageAndLog(chatId, appConfig.ItemConfig.NoItemsMessage,
+        await botClient.SendMessageAndLog(chatId, appConfig.ItemAssistanceConfig.NoItemsMessage,
             message =>
             {
                 Log.Information("Sent no items message to chat {0}", chatId);
@@ -81,18 +82,18 @@ public class MessageAssistance(
 
     public async Task<Unit> SendGetItemMessage(long chatId, string username, MemberItemType item, int count = 1)
     {
-        var message = string.Format(appConfig.ItemConfig.GetItemMessage, username, item);
+        var message = string.Format(appConfig.ItemAssistanceConfig.GetItemMessage, username, item);
         message += count switch
         {
-            > 1 => "\n\n" + string.Format(appConfig.ItemConfig.MultipleItemMessage, count),
-            0 when item == MemberItemType.Amulet => "\n\n" + string.Format(appConfig.ItemConfig.AmuletBrokenMessage),
+            > 1 => "\n\n" + string.Format(appConfig.ItemAssistanceConfig.MultipleItemMessage, count),
+            0 when item == MemberItemType.Amulet => "\n\n" + string.Format(appConfig.ItemAssistanceConfig.AmuletBrokenMessage),
             _ => string.Empty
         };
 
         return await botClient.SendMessageAndLog(chatId, message,
             message =>
             {
-                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ItemConfig.BoxMessageExpiration);
+                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ItemAssistanceConfig.BoxMessageExpiration);
                 Log.Information("Sent get item message to chat {0}", chatId);
                 expiredMessageRepository.QueueMessage(chatId, message.MessageId, expireAt);
             },
@@ -103,7 +104,7 @@ public class MessageAssistance(
     public async Task<Unit> SendInviteToDirect(long chatId, string url, string message)
     {
         var replyMarkup = new InlineKeyboardMarkup(
-            InlineKeyboardButton.WithUrl(appConfig.CommandConfig.InviteToDirectMessage, url));
+            InlineKeyboardButton.WithUrl(appConfig.CommandAssistanceConfig.InviteToDirectMessage, url));
         return await botClient.SendMessage(
                 chatId, message, replyMarkup: replyMarkup, cancellationToken: cancelToken.Token)
             .ToTryAsync()
@@ -237,7 +238,7 @@ public class MessageAssistance(
         [CallerMemberName] string callerName = "UnknownCaller")
     {
         var chatTitle = await botClient.GetChatTitleOrId(chatId, cancelToken.Token);
-        var message = string.Format(appConfig.MenuConfig.ProfileTitle, chatTitle, text);
+        var message = string.Format(ProfilePrivateCallbackHandler.ProfileTitle, chatTitle, text);
         return await EditMessageAndLog(
             telegramId, messageId, message, commandName, replyMarkup: replyMarkup, parseMode, callerName: callerName);
     }
@@ -260,7 +261,7 @@ public class MessageAssistance(
     {
         var maybeUsername = await botClient.GetUsername(chatId, telegramId, cancelToken.Token);
         var username = maybeUsername.IfNone("Anonymous");
-        var message = string.Format(appConfig.CommandConfig.PremiumConfig.AddPremiumMessage, username, days);
+        var message = string.Format(appConfig.CommandAssistanceConfig.PremiumConfig.AddPremiumMessage, username, days);
         return await botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Sent add premium message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send add premium message to chat {0}", chatId),
@@ -271,7 +272,7 @@ public class MessageAssistance(
     {
         var maybeUsername = await botClient.GetUsername(chatId, telegramId, cancelToken.Token);
         var username = maybeUsername.IfNone("Anonymous");
-        var message = string.Format(appConfig.CommandConfig.PremiumConfig.AddPremiumMessage, username, days);
+        var message = string.Format(appConfig.CommandAssistanceConfig.PremiumConfig.AddPremiumMessage, username, days);
         return await botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Sent add premium message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send add premium message to chat {0}", chatId),

@@ -46,7 +46,7 @@ public partial class CharmCommandHandler(
     }
 
     private async Task<Unit> HandleCharm(string text, long receiverId, long chatId, long telegramId,
-        CharmConfig2 charmConfig)
+        CharmConfig charmConfig)
     {
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
         if (isAdmin && text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
@@ -77,7 +77,7 @@ public partial class CharmCommandHandler(
             });
     }
 
-    private Option<string> ParseText(string text, CharmConfig2 charmConfig)
+    private Option<string> ParseText(string text, CharmConfig charmConfig)
     {
         var argsPosition = text.IndexOf(' ');
         return Optional(argsPosition != -1 ? text[(argsPosition + 1)..] : string.Empty)
@@ -86,31 +86,31 @@ public partial class CharmCommandHandler(
             .Filter(arg => arg.Length > 0 && arg.Length <= charmConfig.CharacterLimit);
     }
 
-    private async Task<Unit> SendReceiverNotSet(long chatId, CharmConfig2 charmConfig)
+    private async Task<Unit> SendReceiverNotSet(long chatId, CharmConfig charmConfig)
     {
         var message = string.Format(charmConfig.ReceiverNotSetMessage, Command);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendHelpMessage(long chatId, CharmConfig2 charmConfig)
+    private async Task<Unit> SendHelpMessage(long chatId, CharmConfig charmConfig)
     {
         var message = string.Format(charmConfig.HelpMessage, Command, charmConfig.CharacterLimit);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendSelfMessage(long chatId, CharmConfig2 charmConfig)
+    private async Task<Unit> SendSelfMessage(long chatId, CharmConfig charmConfig)
     {
         var message = charmConfig.SelfMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendDuplicateMessage(long chatId, CharmConfig2 charmConfig)
+    private async Task<Unit> SendDuplicateMessage(long chatId, CharmConfig charmConfig)
     {
         var message = charmConfig.DuplicateMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendSuccessMessage(long chatId, long receiverId, string phrase, CharmConfig2 charmConfig)
+    private async Task<Unit> SendSuccessMessage(long chatId, long receiverId, string phrase, CharmConfig charmConfig)
     {
         var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
             .ToAsync()

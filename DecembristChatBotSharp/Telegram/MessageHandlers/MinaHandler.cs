@@ -31,7 +31,7 @@ public class MinaHandler(
     }
 
     private async Task<bool> ActivateMine(MineTrigger trigger, int messageId, long victimTelegramId, long chatId,
-        CurseConfig2 curseConfig, MinaConfig2 minaConfig)
+        CurseConfig curseConfig, MinaConfig minaConfig)
     {
         var expireAt = DateTime.UtcNow.AddMinutes(curseConfig.DurationMinutes);
         var curseMember = new ReactionSpamMember(new CompositeId(victimTelegramId, chatId), trigger.Emoji, expireAt);
@@ -47,7 +47,7 @@ public class MinaHandler(
     }
 
     private async Task SendMineActivationMessage(long chatId, long victimTelegramId, MineTrigger trigger,
-        MinaConfig2 minaConfig)
+        MinaConfig minaConfig)
     {
         var victimUsername = await botClient.GetUsername(chatId, victimTelegramId, cancelToken.Token)
             .ToAsync()

@@ -60,7 +60,7 @@ public class NewMemberHandler(
         );
     }
 
-    private async Task<Either<UsernameEx, string>> SendWelcomeMessageForUser(long chatId, User user, CaptchaConfig2 captchaConfig)
+    private async Task<Either<UsernameEx, string>> SendWelcomeMessageForUser(long chatId, User user, Entity.Configs.CaptchaConfig captchaConfig)
     {
         var username = Optional(user.Username).Match(
             Some: username => $"@{username}",

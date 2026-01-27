@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
 using SkiaSharp;
@@ -8,7 +9,7 @@ namespace DecembristChatBotSharp.Service;
 
 [Singleton]
 public class MazeGameMapService(
-    AppConfig appConfig,
+    ChatConfigService chatConfigService,
     MazeGameService mazeGameService,
     MazeGameRepository mazeGameRepository,
     AdminUserRepository adminUserRepository,
@@ -21,6 +22,9 @@ public class MazeGameMapService(
     {
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, targetChatId));
         if (!isAdmin) return None;
+        var maybeCharmConfig = await chatConfigService.GetConfig(targetChatId, config => config.MenuConfig);
+        if (maybeCharmConfig.TryGetSome(out var menuConfig))
+            return chatConfigService.LogNonExistConfig(None, nameof(MenuConfig));
 
         var activeGameOpt = mazeGameService.FindActiveGameForChat(targetChatId);
 
@@ -31,7 +35,7 @@ public class MazeGameMapService(
                 if (fullMapImage == null) return None;
 
                 var stream = new MemoryStream(fullMapImage, false);
-                var caption = string.Format(appConfig.MenuConfig.MazeDescription, targetChatId,
+                var caption = string.Format(menuConfig.MazeDescription, targetChatId,
                     game.CreatedAt.ToString("HH:mm:ss"),
                     game.IsFinished ? "Завершена" : "Активна");
 

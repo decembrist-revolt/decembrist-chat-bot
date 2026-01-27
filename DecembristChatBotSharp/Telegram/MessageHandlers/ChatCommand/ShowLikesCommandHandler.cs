@@ -1,5 +1,7 @@
 ﻿using System.Text;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
@@ -14,11 +16,12 @@ public class ShowLikesCommandHandler(
     BotClient botClient,
     MessageAssistance messageAssistance,
     ExpiredMessageRepository expiredMessageRepository,
+    ChatConfigService chatConfigService,
     CancellationTokenSource cancelToken
 ) : ICommandHandler
 {
     public string Command => "/likes";
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Show top like users");
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command, "Show top like users");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
@@ -26,14 +29,18 @@ public class ShowLikesCommandHandler(
         var chatId = parameters.ChatId;
         var messageId = parameters.MessageId;
 
+        var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.LikeConfig);
+        if (!maybeCommandConfig.TryGetSome(out var likeConfig))
+            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+
         var lockSuccess = await lockRepository.TryAcquire(chatId, Command);
         if (!lockSuccess) return await messageAssistance.CommandNotReady(chatId, messageId, Command);
 
         Log.Information("Processing show likes command in chat {0}", chatId);
 
-        var limit = appConfig.CommandConfig.LikeConfig.TopLikeMemberCount;
+        var limit = likeConfig.TopLikeMemberCount;
         var topLikeMembers = await memberLikeRepository.GetTopLikeMembers(chatId, limit);
-        if (topLikeMembers.Count <= 0) return await SendNoLikes(chatId);
+        if (topLikeMembers.Count <= 0) return await SendNoLikes(chatId, likeConfig);
 
         var usernameCountChunks = await topLikeMembers.Chunk(5)
             .Map(chunk => chunk.Map(likeCount => FillUsername(chatId, likeCount)))
@@ -48,9 +55,9 @@ public class ShowLikesCommandHandler(
         return unit;
     }
 
-    private async Task<Unit> SendNoLikes(long chatId)
+    private async Task<Unit> SendNoLikes(long chatId, LikeConfig likeConfig)
     {
-        var message = appConfig.CommandConfig.LikeConfig.NoLikesMessage;
+        var message = likeConfig.NoLikesMessage;
         return await botClient.SendMessageAndLog(chatId, message,
             message =>
             {

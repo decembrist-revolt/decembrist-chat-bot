@@ -23,7 +23,7 @@ public class ExpiredMessageJob(
             .WithIdentity(nameof(ExpiredMessageJob))
             .StartNow()
             .WithSimpleSchedule(x => x
-                .WithIntervalInSeconds(appConfig.CommandConfig.CommandIntervalSeconds)
+                .WithIntervalInSeconds(appConfig.CommandAssistanceConfig.CommandIntervalSeconds)
                 .RepeatForever())
             .Build();
 

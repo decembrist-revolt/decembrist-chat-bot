@@ -18,7 +18,7 @@ public partial class LoreCommandHandler(
     public string Command => "/lore";
 
     public string Description =>
-        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Show a lore record from the lore chat");
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command, "Show a lore record from the lore chat");
 
     public CommandLevel CommandLevel => CommandLevel.User;
 
@@ -42,7 +42,7 @@ public partial class LoreCommandHandler(
             taskResult).WhenAll();
     }
 
-    private OptionAsync<string> ParseText(string text, long chatId, LoreConfig2 loreConfig)
+    private OptionAsync<string> ParseText(string text, long chatId, LoreConfig loreConfig)
     {
         var argsPosition = text.IndexOf(' ');
         return Optional(argsPosition != -1 ? text[(argsPosition + 1)..] : string.Empty)
@@ -52,14 +52,14 @@ public partial class LoreCommandHandler(
             .FilterAsync(arg => loreRecordRepository.IsLoreRecordExist((chatId, arg)));
     }
 
-    private async Task<Unit> SendLorRecord(long chatId, string key, LoreConfig2 loreConfig)
+    private async Task<Unit> SendLorRecord(long chatId, string key, LoreConfig loreConfig)
     {
         var expireAt = DateTime.UtcNow.AddMinutes(loreConfig.ChatLoreExpiration);
         var message = await loreService.GetLoreRecord(chatId, key);
         return await messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
     }
 
-    private Task<Unit> SendNotFound(long chatId, LoreConfig2 loreConfig)
+    private Task<Unit> SendNotFound(long chatId, LoreConfig loreConfig)
     {
         var message = string.Format(loreConfig.LoreNotFound, Command,
             $"{ListCommandHandler.CommandKey} {ListType.Lore}");

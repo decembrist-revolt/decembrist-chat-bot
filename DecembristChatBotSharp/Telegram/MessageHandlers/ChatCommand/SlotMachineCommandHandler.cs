@@ -28,7 +28,7 @@ public class SlotMachineCommandHandler(
     public string Command => CommandKey;
 
     public string Description =>
-        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
             "Play slot machine for a chance to win boxes");
 
     public CommandLevel CommandLevel => CommandLevel.Item;
@@ -59,7 +59,7 @@ public class SlotMachineCommandHandler(
         };
     }
 
-    private async Task<Unit> ProcessSlotResult(long chatId, long telegramId, SlotMachineConfig2 slotMachineConfig)
+    private async Task<Unit> ProcessSlotResult(long chatId, long telegramId, SlotMachineConfig slotMachineConfig)
     {
         var isPremium = await premiumMemberService.IsPremium(telegramId, chatId);
         var attempts = isPremium ? slotMachineConfig.PremiumAttempts : 1;
@@ -138,7 +138,7 @@ public class SlotMachineCommandHandler(
         return unit;
     }
 
-    private async Task<Unit> SendSlotMachineErrorMessage(long chatId, SlotMachineConfig2 slotMachineConfig)
+    private async Task<Unit> SendSlotMachineErrorMessage(long chatId, SlotMachineConfig slotMachineConfig)
     {
         var message = slotMachineConfig.ErrorMessage;
         return await botClient.SendMessageAndLog(chatId, message,

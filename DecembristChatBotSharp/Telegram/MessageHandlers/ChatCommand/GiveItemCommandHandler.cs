@@ -22,7 +22,7 @@ public partial class GiveItemCommandHandler(
     public string Command => "/give";
 
     public string Description =>
-        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command,
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command,
             $"Give item to replied member, options: {_itemOptions}");
 
     public CommandLevel CommandLevel => CommandLevel.User;
@@ -30,7 +30,6 @@ public partial class GiveItemCommandHandler(
     private readonly string _itemOptions =
         string.Join(", ", Enum.GetValues<MemberItemType>().Map(type => type.ToString()));
 
-    private readonly GiveConfig _giveConfig = appConfig.GiveConfig;
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex ArgsRegex();
@@ -65,7 +64,7 @@ public partial class GiveItemCommandHandler(
             .Bind(memberItemService.ParseItem);
 
     private async Task<Unit> HandleGive(long chatId, long telegramId, long receiverId, ItemQuantity itemQuantity,
-        GiveConfig2 giveConfig, ItemConfig2 itemConfig)
+        GiveConfig giveConfig, ItemConfig itemConfig)
     {
         var (giveResult, isAmuletBroken) = await giveService.GiveItem(chatId, telegramId, receiverId, itemQuantity);
         giveResult.LogGiveResult(itemQuantity, telegramId, receiverId, chatId);
@@ -85,7 +84,7 @@ public partial class GiveItemCommandHandler(
         };
     }
 
-    private async Task<Unit> SendNotExpired(long chatId, MemberItemType itemType, GiveConfig2 giveConfig)
+    private async Task<Unit> SendNotExpired(long chatId, MemberItemType itemType, GiveConfig giveConfig)
     {
         var maybeTime = await uniqueItemService.GetRemainingTime((chatId, itemType));
         return await maybeTime.MatchAsync(async time =>
@@ -100,7 +99,7 @@ public partial class GiveItemCommandHandler(
 
     private async Task<Unit> SendSuccess(
         long telegramId, long receiverId, long chatId, ItemQuantity itemQuantity, bool isAmuletBroken,
-        GiveConfig2 giveConfig, ItemConfig2 itemConfig)
+        GiveConfig giveConfig, ItemConfig itemConfig)
     {
         var senderName = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
         var receiverName = await botClient.GetUsernameOrId(receiverId, chatId, cancelToken.Token);
@@ -113,7 +112,7 @@ public partial class GiveItemCommandHandler(
 
     private async Task<Unit> SendAdminSuccess(
         long telegramId, long receiverId, long chatId, ItemQuantity itemQuantity, bool isAmuletBroken,
-        GiveConfig2 giveConfig, ItemConfig2 itemConfig)
+        GiveConfig giveConfig, ItemConfig itemConfig)
     {
         Log.Information("Admin: {0} give item: {1} for: {2}", telegramId, itemQuantity, receiverId);
         var receiverName = await botClient.GetUsernameOrId(receiverId, chatId, cancelToken.Token);
@@ -124,21 +123,21 @@ public partial class GiveItemCommandHandler(
         return await messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
     }
 
-    private Task<Unit> SendHelp(long chatId, GiveConfig2 giveConfig)
+    private Task<Unit> SendHelp(long chatId, GiveConfig giveConfig)
     {
         var message = string.Format(giveConfig.HelpMessage, Command, _itemOptions);
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private Task<Unit> SendReceiverNotSet(long chatId, GiveConfig2 giveConfig)
+    private Task<Unit> SendReceiverNotSet(long chatId, GiveConfig giveConfig)
     {
         var message = string.Format(giveConfig.ReceiverNotSet, Command);
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private Task<Unit> SendFailed(long chatId, GiveConfig2 giveConfig) =>
+    private Task<Unit> SendFailed(long chatId, GiveConfig giveConfig) =>
         messageAssistance.SendCommandResponse(chatId, giveConfig.FailedMessage, Command);
 
-    private Task<Unit> SendSelf(long chatId, GiveConfig2 giveConfig) =>
+    private Task<Unit> SendSelf(long chatId, GiveConfig giveConfig) =>
         messageAssistance.SendCommandResponse(chatId, giveConfig.SelfMessage, Command);
 }

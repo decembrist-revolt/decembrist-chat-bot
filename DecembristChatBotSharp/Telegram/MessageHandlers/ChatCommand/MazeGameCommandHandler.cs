@@ -8,7 +8,6 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public class MazeGameCommandHandler(
-    AppConfig appConfig,
     BotClient botClient,
     MessageAssistance messageAssistance,
     AdminUserRepository adminUserRepository,
@@ -45,10 +44,14 @@ public class MazeGameCommandHandler(
         if (!maybeMazeConfig.TryGetSome(out var mazeConfig))
             return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
 
+        var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
+        if (!maybeCommandConfig.TryGetSome(out var commandConfig))
+            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+
         var url = await botClient.GetBotStartLink(
             PrivateMessageHandler.GetCommandForChat(PrivateMessageHandler.MazeGameCommandSuffix, chatId));
         var replyMarkup = new InlineKeyboardMarkup(
-            InlineKeyboardButton.WithUrl(appConfig.CommandConfig.InviteToDirectMessage, url));
+            InlineKeyboardButton.WithUrl(commandConfig.InviteToDirectMessage, url));
         var message = mazeConfig.AnnouncementMessage;
 
         var existingGame = await mazeGameService.FindActiveGameForChat(chatId);
@@ -60,7 +63,7 @@ public class MazeGameCommandHandler(
         }
         else
         {
-            var isCreate = await mazeGameService.CreateGame(chatId);
+            var isCreate = await mazeGameService.CreateGame(chatId, mazeConfig);
             isCreate.Match(
                 game => Log.Information("Maze game created successfully"),
                 () => Log.Error("Failed to create maze game in database"));

@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
@@ -24,14 +25,20 @@ public class CaptchaHandler(
     WhiteListRepository whiteListRepository,
     MessageAssistance messageAssistance,
     ExpiredMessageRepository expiredMessageRepository,
-    CancellationTokenSource cancelToken
+    CancellationTokenSource cancelToken,
+    ChatConfigService chatConfigService
 )
 {
-    private readonly CaptchaConfig _captchaConfig = appConfig.CaptchaConfig;
+    private readonly CaptchaJobConfig _captchaJobConfig = appConfig.CaptchaJobConfig;
 
     public async Task<Result> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
+        
+        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.CaptchaConfig);
+        if (!maybeConfig.TryGetSome(out var captchaConfig))
+            return chatConfigService.LogNonExistConfig(Result.JustMessage, nameof(Entity.Configs.CaptchaConfig));
+
         var payload = parameters.Payload;
 
         var maybe = await newMemberRepository.FindNewMember((telegramId, chatId)).Match(
@@ -41,9 +48,9 @@ public class CaptchaHandler(
 
         var newMember = maybe.ValueUnsafe();
 
-        var tryCaptcha = TryAsync(IsCaptchaPassed(payload)
-            ? OnCaptchaPassed(telegramId, chatId, messageId, newMember)
-            : OnCaptchaFailed(chatId, messageId, newMember));
+        var tryCaptcha = TryAsync(IsCaptchaPassed(payload, captchaConfig)
+            ? OnCaptchaPassed(telegramId, chatId, messageId, newMember, captchaConfig)
+            : OnCaptchaFailed(chatId, messageId, newMember, captchaConfig));
 
         return await tryCaptcha.IfFail(ex =>
                 Log.Error(ex, "Captcha handler failed for user {0} in chat {1}", telegramId, chatId))
@@ -56,17 +63,18 @@ public class CaptchaHandler(
         return None;
     }
 
-    private bool IsCaptchaPassed(IMessagePayload payload) =>
+    private bool IsCaptchaPassed(IMessagePayload payload, Entity.Configs.CaptchaConfig captchaConfig) =>
         payload is TextPayload { Text: var text } &&
-        string.Equals(appConfig.CaptchaConfig.CaptchaAnswer, text, StringComparison.CurrentCultureIgnoreCase);
+        string.Equals(captchaConfig.CaptchaAnswer, text, StringComparison.CurrentCultureIgnoreCase);
 
     private async Task<Unit> OnCaptchaPassed(
         long telegramId,
         long chatId,
         int messageId,
-        NewMember newMember)
+        NewMember newMember,
+        Entity.Configs.CaptchaConfig captchaConfig)
     {
-        var joinMessage = string.Format(_captchaConfig.JoinText, newMember.Username);
+        var joinMessage = string.Format(captchaConfig.JoinText, newMember.Username);
         return await newMemberRepository.RemoveNewMember((telegramId, chatId))
             .MapAsync(_ => Array(
                 whiteListRepository.AddWhiteListMember(new WhiteListMember((telegramId, chatId))),
@@ -75,15 +83,15 @@ public class CaptchaHandler(
             ).WhenAll());
     }
 
-    private async Task<Unit> OnCaptchaFailed(long chatId, int messageId, NewMember newMember)
+    private async Task<Unit> OnCaptchaFailed(long chatId, int messageId, NewMember newMember, Entity.Configs.CaptchaConfig captchaConfig)
     {
         Log.Information("User {0} failed captcha in chat {1}", newMember.Id.TelegramId, chatId);
         var retryCount = newMember.CaptchaRetryCount;
 
         var captchaTask = retryCount switch
         {
-            _ when retryCount >= _captchaConfig.CaptchaRetryCount => KickCaptchaFailedUser(chatId, newMember),
-            _ when retryCount % _captchaConfig.CaptchaRequestAgainCount == 0 => SendCaptchaMessage(chatId, newMember),
+            _ when retryCount >= _captchaJobConfig.CaptchaRetryCount => KickCaptchaFailedUser(chatId, newMember),
+            _ when retryCount % _captchaJobConfig.CaptchaRequestAgainCount == 0 => SendCaptchaMessage(chatId, newMember, captchaConfig),
             _ => newMemberRepository.AddMemberItem(newMember with { CaptchaRetryCount = retryCount + 1 }).ToUnit()
         };
         return await Array(captchaTask,
@@ -96,17 +104,17 @@ public class CaptchaHandler(
             newMemberRepository.RemoveNewMember(newMember.Id).ToUnit()
         ).WhenAll();
 
-    private async Task<Unit> SendCaptchaMessage(long chatId, NewMember newMember)
+    private async Task<Unit> SendCaptchaMessage(long chatId, NewMember newMember, Entity.Configs.CaptchaConfig captchaConfig)
     {
         var username = newMember.Username;
-        var text = string.Format(_captchaConfig.CaptchaRequestAgainText, username, _captchaConfig.CaptchaAnswer);
+        var text = string.Format(captchaConfig.CaptchaRequestAgainText, username, captchaConfig.CaptchaAnswer);
         await messageAssistance.DeleteCommandMessage(chatId, newMember.WelcomeMessageId, nameof(CaptchaHandler));
 
         return await botClient.SendMessage(chatId, text, cancellationToken: cancelToken.Token)
             .ToTryAsync()
             .Match(async message =>
                 {
-                    var expireAt = DateTime.UtcNow.AddMinutes(appConfig.CaptchaConfig.CaptchaRequestAgainExpiration);
+                    var expireAt = DateTime.UtcNow.AddMinutes(captchaConfig.CaptchaRequestAgainExpiration);
                     expiredMessageRepository.QueueMessage(chatId, message.MessageId, expireAt);
                     await newMemberRepository.AddMemberItem(newMember with
                     {

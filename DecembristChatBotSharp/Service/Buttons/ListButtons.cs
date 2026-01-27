@@ -7,7 +7,7 @@ using static DecembristChatBotSharp.Service.CallbackService;
 namespace DecembristChatBotSharp.Service.Buttons;
 
 [Singleton]
-public class ListButtons(AppConfig appConfig)
+public class ListButtons()
 {
     public InlineKeyboardMarkup GetListChatMarkup(int totalCount, ListType listType, int currentOffset = 0)
     {

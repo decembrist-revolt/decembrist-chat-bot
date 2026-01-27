@@ -34,7 +34,7 @@ public class DailyTopLikersGiftJob(
             .WithIdentity(triggerKey)
             .StartNow()
             .WithCronSchedule(
-                appConfig.CommandConfig.LikeConfig.DailyTopLikersGiftCronUtc,
+                appConfig.CommandAssistanceConfig.LikeJobConfig.DailyTopLikersGiftCronUtc,
                 x => x.InTimeZone(TimeZoneInfo.Utc))
             .Build();
 
@@ -125,7 +125,7 @@ public class DailyTopLikersGiftJob(
 
     private async Task<Arr<TopLiker>> GetTopLikers(long chatId, IMongoSession session)
     {
-        var likersCount = appConfig.CommandConfig.LikeConfig.DailyTopLikersCount;
+        var likersCount = appConfig.CommandAssistanceConfig.LikeJobConfig.DailyTopLikersCount;
         var maybeTopLikers = (await memberLikeRepository.GetTopLikeMembers(chatId, likersCount, session))
             .Where(liker => liker.Count > 1)
             .Select((liker, idx) =>
@@ -139,12 +139,12 @@ public class DailyTopLikersGiftJob(
 
     private async Task<bool> SendTopLikersGiftMessage(long chatId, IEnumerable<TopLiker> topLikers)
     {
-        var likersCount = appConfig.CommandConfig.LikeConfig.DailyTopLikersCount;
+        var likersCount = appConfig.CommandAssistanceConfig.LikeJobConfig.DailyTopLikersCount;
         var builder = new StringBuilder();
         builder.AppendLine("#  Username - Likes");
         var likersText = topLikers.Fold(builder, (acc, liker) =>
             acc.AppendLine($"#{liker.Position}. {liker.Username} - {liker.LikesCount}"))!;
-        var giftMessage = appConfig.CommandConfig.LikeConfig.TopLikersGiftMessage;
+        var giftMessage = appConfig.CommandAssistanceConfig.LikeJobConfig.TopLikersGiftMessage;
         var message = string.Format(giftMessage, likersText, likersCount);
 
         return await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token)

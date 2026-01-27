@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
@@ -19,7 +20,8 @@ public class FastReplyCommandHandler(
     MemberItemService memberItemService,
     BotClient botClient,
     MessageAssistance messageAssistance,
-    ExpiredMessageRepository expiredMessageRepository
+    ExpiredMessageRepository expiredMessageRepository,
+    ChatConfigService chatConfigService
 ) : ICommandHandler
 {
     public const string CommandKey = "/fastreply";
@@ -29,7 +31,7 @@ public class FastReplyCommandHandler(
 
     public string Command => CommandKey;
 
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
         "Creates new fast reply option '/fastreply' for help");
 
     public CommandLevel CommandLevel => CommandLevel.Item;
@@ -37,6 +39,9 @@ public class FastReplyCommandHandler(
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
+        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
+        if (!maybeConfig.TryGetSome(out var commandConfig))
+            return chatConfigService.LogNonExistConfig(unit, nameof(CommandConfig));
 
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
         var maybeReplyFileId = parameters.ReplyFileId;
@@ -44,17 +49,19 @@ public class FastReplyCommandHandler(
         var type = parameters.MessageType;
         if (type == MessageType.Unknown)
         {
-            return await HandleFastReply(text, chatId, messageId, telegramId);
+            return await HandleFastReply(text, chatId, messageId, telegramId, commandConfig);
         }
 
         if (type == MessageType.Text && maybeReplyText.IsSome)
         {
-            return await HandleFastReplyNew(chatId, telegramId, text, messageId, maybeReplyText.ValueUnsafe(), type);
+            return await HandleFastReplyNew(chatId, telegramId, text, messageId, maybeReplyText.ValueUnsafe(), type,
+                commandConfig);
         }
 
         if (maybeReplyFileId.IsSome)
         {
-            return await HandleFastReplyNew(chatId, telegramId, text, messageId, maybeReplyFileId.ValueUnsafe(), type);
+            return await HandleFastReplyNew(chatId, telegramId, text, messageId, maybeReplyFileId.ValueUnsafe(), type,
+                commandConfig);
         }
 
         return unit;
@@ -62,13 +69,14 @@ public class FastReplyCommandHandler(
 
     private async Task<Unit> HandleFastReplyNew(long chatId, long telegramId, string textMessage, int messageId,
         string textReply,
-        MessageType type)
+        MessageType type,
+        CommandConfig commandConfig)
     {
         var maybeMessageAndReply = ParseMessageAndReplyNew(textMessage, textReply);
 
         if (maybeMessageAndReply.IsNone)
         {
-            return await Array(SendFastReplyHelp(chatId),
+            return await Array(SendFastReplyHelp(chatId, commandConfig),
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
 
@@ -79,7 +87,8 @@ public class FastReplyCommandHandler(
             return await DeleteFastReply(chatId, reply, messageId);
         }
 
-        var maybeFastReply = await CreateFastReplyNew(chatId, telegramId, message, reply, messageId, type);
+        var maybeFastReply =
+            await CreateFastReplyNew(chatId, telegramId, message, reply, messageId, type, commandConfig);
 
         var taskFastReply = maybeFastReply.MapAsync(async fastReply =>
         {
@@ -87,23 +96,24 @@ public class FastReplyCommandHandler(
             return result switch
             {
                 UseFastReplyResult.NoItems => await messageAssistance.SendNoItems(chatId),
-                UseFastReplyResult.Blocked => await SendBlocked(chatId),
-                UseFastReplyResult.Duplicate => await SendDuplicateMessage(chatId, fastReply.Id.Message),
-                UseFastReplyResult.Success => await SendNewFastReply(chatId, fastReply.Id.Message, fastReply.Reply),
+                UseFastReplyResult.Blocked => await SendBlocked(chatId, commandConfig),
+                UseFastReplyResult.Duplicate => await SendDuplicateMessage(chatId, fastReply.Id.Message, commandConfig),
+                UseFastReplyResult.Success => await SendNewFastReply(chatId, fastReply.Id.Message, fastReply.Reply, commandConfig),
                 _ => unit
             };
         }).IfSome(identity);
         return await Array(taskFastReply, expiredMessageRepository.QueueMessage(chatId, messageId)).WhenAll();
     }
 
-    private async Task<Unit> HandleFastReply(string text, long chatId, int messageId, long telegramId)
+    private async Task<Unit> HandleFastReply(string text, long chatId, int messageId, long telegramId,
+        CommandConfig commandConfig)
     {
         var args = text.Trim().Split(ArgSeparator).Skip(1).ToArray();
         var maybeMessageAndReply = ParseMessageAndReply(args);
         if (maybeMessageAndReply.IsNone)
         {
             return await Array(
-                SendFastReplyHelp(chatId),
+                SendFastReplyHelp(chatId, commandConfig),
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
 
@@ -116,7 +126,7 @@ public class FastReplyCommandHandler(
             return await DeleteFastReply(chatId, reply, messageId);
         }
 
-        var maybeFastReply = await CreateFastReply(chatId, telegramId, message, reply, messageId);
+        var maybeFastReply = await CreateFastReply(chatId, telegramId, message, reply, messageId, commandConfig);
 
         return await maybeFastReply.MapAsync(async fastReply =>
         {
@@ -124,11 +134,11 @@ public class FastReplyCommandHandler(
             return result switch
             {
                 UseFastReplyResult.NoItems => await messageAssistance.SendNoItems(chatId),
-                UseFastReplyResult.Blocked => await SendBlocked(chatId),
+                UseFastReplyResult.Blocked => await SendBlocked(chatId, commandConfig),
                 UseFastReplyResult.Duplicate => await Array(
                     expiredMessageRepository.QueueMessage(chatId, messageId),
-                    SendDuplicateMessage(chatId, fastReply.Id.Message)).WhenAll(),
-                UseFastReplyResult.Success => await SendNewFastReply(chatId, fastReply.Id.Message, fastReply.Reply),
+                    SendDuplicateMessage(chatId, fastReply.Id.Message, commandConfig)).WhenAll(),
+                UseFastReplyResult.Success => await SendNewFastReply(chatId, fastReply.Id.Message, fastReply.Reply, commandConfig),
                 _ => unit
             };
         }).IfSome(identity);
@@ -150,7 +160,7 @@ public class FastReplyCommandHandler(
     }
 
     private async Task<Option<FastReply>> CreateFastReply(
-        long chatId, long telegramId, string message, string reply, int messageId)
+        long chatId, long telegramId, string message, string reply, int messageId, CommandConfig commandConfig)
     {
         var messageType = FastReplyType.Text;
         if (message.StartsWith(FastReplyHandler.StickerPrefix))
@@ -173,13 +183,14 @@ public class FastReplyCommandHandler(
             replyType = FastReplyType.Sticker;
         }
 
-        var expireAt = DateTime.UtcNow.AddDays(appConfig.CommandConfig.FastReplyDaysDuration);
+        var expireAt = DateTime.UtcNow.AddDays(commandConfig.FastReplyDaysDuration);
 
         return new FastReply((chatId, message), telegramId, reply, expireAt, messageType, replyType);
     }
 
     private async Task<Option<FastReply>> CreateFastReplyNew(
-        long chatId, long telegramId, string message, string reply, int messageId, MessageType type)
+        long chatId, long telegramId, string message, string reply, int messageId, MessageType type,
+        CommandConfig commandConfig)
     {
         var messageType = FastReplyType.Text;
         if (message.StartsWith(FastReplyHandler.StickerPrefix))
@@ -205,7 +216,7 @@ public class FastReplyCommandHandler(
             if (!await CheckFile(chatId, reply, messageId, replyType)) return None;
         }
 
-        var expireAt = DateTime.UtcNow.AddDays(appConfig.CommandConfig.FastReplyDaysDuration);
+        var expireAt = DateTime.UtcNow.AddDays(commandConfig.FastReplyDaysDuration);
 
         return new FastReply((chatId, message), telegramId, reply, expireAt, messageType, replyType);
     }
@@ -238,31 +249,31 @@ public class FastReplyCommandHandler(
         return false;
     }
 
-    private async Task<Unit> SendNewFastReply(long chatId, string message, string reply)
+    private async Task<Unit> SendNewFastReply(long chatId, string message, string reply, CommandConfig commandConfig)
     {
         Log.Information("New fast reply {0} -> {1} in chat {2}", message, reply, chatId);
 
-        var replyMessage = string.Format(appConfig.CommandConfig.NewFastReplyMessage, message, reply);
+        var replyMessage = string.Format(commandConfig.NewFastReplyMessage, message, reply);
         var expireAt = DateTime.UtcNow.AddMinutes(ExpirationMinutesSuccess);
         return await messageAssistance.SendCommandResponse(chatId, replyMessage, Command, expireAt);
     }
 
-    private async Task<Unit> SendFastReplyHelp(long chatId)
+    private async Task<Unit> SendFastReplyHelp(long chatId, CommandConfig commandConfig)
     {
-        var message = appConfig.CommandConfig.FastReplyHelpMessage;
+        var message = commandConfig.FastReplyHelpMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
 
-    private async Task<Unit> SendDuplicateMessage(long chatId, string text)
+    private async Task<Unit> SendDuplicateMessage(long chatId, string text, CommandConfig commandConfig)
     {
-        var message = string.Format(appConfig.CommandConfig.FastReplyDuplicateMessage, text);
+        var message = string.Format(commandConfig.FastReplyDuplicateMessage, text);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendBlocked(long chatId)
+    private async Task<Unit> SendBlocked(long chatId, CommandConfig commandConfig)
     {
-        var message = string.Format(appConfig.CommandConfig.FastReplyBlockedMessage);
+        var message = string.Format(commandConfig.FastReplyBlockedMessage);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 

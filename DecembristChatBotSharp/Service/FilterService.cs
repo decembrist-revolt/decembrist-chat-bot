@@ -10,9 +10,9 @@ namespace DecembristChatBotSharp.Service;
 public class FilterService(
     MongoDatabase db,
     FilterRecordRepository filterRecordRepository,
-    AppConfig appConfig,
     CancellationTokenSource cancelToken)
 {
+    private const int ExpiredAddMinutes = 15;
     public async Task<FilterCreateResult> HandleFilterRecord(string messageText, long targetChatId, DateTime date)
     {
         if (IsExpired(date)) return FilterCreateResult.Expire;
@@ -49,7 +49,7 @@ public class FilterService(
     }
 
     private bool IsExpired(DateTime date) =>
-        (DateTime.UtcNow - date).TotalMinutes > appConfig.FilterConfig.ExpiredAddMinutes;
+        (DateTime.UtcNow - date).TotalMinutes > ExpiredAddMinutes;
 
     public void LogFilter(byte result,
         long telegramId,

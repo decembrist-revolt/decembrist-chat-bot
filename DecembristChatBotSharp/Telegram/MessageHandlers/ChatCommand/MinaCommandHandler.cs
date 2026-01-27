@@ -34,7 +34,7 @@ public class MinaCommandHandler(
     private static readonly string EmojisString = string.Join(", ", Emojis);
     public string Command => CommandKey;
 
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
         "Set a mine that will curse anyone who writes the trigger phrase");
 
     public CommandLevel CommandLevel => CommandLevel.Item;
@@ -54,7 +54,7 @@ public class MinaCommandHandler(
             taskResult).WhenAll();
     }
 
-    private async Task<Unit> HandleMina(long telegramId, long chatId, string text, MinaConfig2 minaConfig)
+    private async Task<Unit> HandleMina(long telegramId, long chatId, string text, MinaConfig minaConfig)
     {
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
 
@@ -84,7 +84,7 @@ public class MinaCommandHandler(
             });
     }
 
-    private async Task<Unit> HandleDelete(long telegramId, long chatId, string text, MinaConfig2 minaConfig)
+    private async Task<Unit> HandleDelete(long telegramId, long chatId, string text, MinaConfig minaConfig)
     {
         var triggerText = text.Replace(ChatCommandHandler.DeleteSubcommand, "", StringComparison.OrdinalIgnoreCase)
             .Replace(CommandKey, "", StringComparison.OrdinalIgnoreCase)
@@ -100,13 +100,13 @@ public class MinaCommandHandler(
         return LogAssistant.LogDeleteResult(isDelete, telegramId, chatId, 0, Command);
     }
 
-    private async Task<Unit> SendDuplicateMessage(long chatId, MinaConfig2 minaConfig)
+    private async Task<Unit> SendDuplicateMessage(long chatId, MinaConfig minaConfig)
     {
         var message = minaConfig.DuplicateMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendHelpMessageWithLock(long chatId, MinaConfig2 minaConfig)
+    private async Task<Unit> SendHelpMessageWithLock(long chatId, MinaConfig minaConfig)
     {
         if (!await lockRepository.TryAcquire(chatId, Command))
         {
@@ -117,7 +117,7 @@ public class MinaCommandHandler(
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendSuccessMessage(long chatId, string trigger, string emoji, MinaConfig2 minaConfig)
+    private async Task<Unit> SendSuccessMessage(long chatId, string trigger, string emoji, MinaConfig minaConfig)
     {
         var expireAt = minaConfig.DurationMinutes;
         var message = string.Format(minaConfig.SuccessMessage, trigger, emoji);
@@ -132,7 +132,7 @@ public class MinaCommandHandler(
             cancelToken.Token);
     }
 
-    private Option<(ReactionTypeEmoji emoji, string trigger)> ParseEmojiAndTrigger(string text, MinaConfig2 minaConfig)
+    private Option<(ReactionTypeEmoji emoji, string trigger)> ParseEmojiAndTrigger(string text, MinaConfig minaConfig)
     {
         var argsPosition = text.IndexOf(' ');
         if (argsPosition == -1) return None;

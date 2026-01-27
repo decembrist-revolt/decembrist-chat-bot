@@ -53,7 +53,7 @@ public class CommandLockRepository(
         var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
         if (maybeCommandConfig.TryGetSome(out var commandConfig))
         {
-            return chatConfigService.LogNonExistConfig(false, nameof(CommandConfig2));
+            return chatConfigService.LogNonExistConfig(false, nameof(CommandConfig));
         }
 
         var collection = GetCollection();

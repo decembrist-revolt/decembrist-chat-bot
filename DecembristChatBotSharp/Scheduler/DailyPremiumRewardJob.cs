@@ -31,7 +31,7 @@ public class DailyPremiumRewardJob(
             .WithIdentity(triggerKey)
             .StartNow()
             .WithCronSchedule(
-                appConfig.CommandConfig.PremiumConfig.DailyPremiumRewardCronUtc,
+                appConfig.CommandAssistanceConfig.PremiumConfig.DailyPremiumRewardCronUtc,
                 x => x.InTimeZone(TimeZoneInfo.Utc))
             .Build();
 
@@ -107,7 +107,7 @@ public class DailyPremiumRewardJob(
                 .IfNone(telegramId.ToString);
         var usernamesString = (await usernames.Traverse(identity)).Map(username => username.EscapeMarkdown()).ToFullString();
 
-        var message = string.Format(appConfig.CommandConfig.PremiumConfig.DailyPremiumRewardMessage, usernamesString);
+        var message = string.Format(appConfig.CommandAssistanceConfig.PremiumConfig.DailyPremiumRewardMessage, usernamesString);
         return await botClient.SendMessage(
                 chatId, message, parseMode: ParseMode.MarkdownV2, cancellationToken: cancelToken.Token)
             .ToTryAsync()

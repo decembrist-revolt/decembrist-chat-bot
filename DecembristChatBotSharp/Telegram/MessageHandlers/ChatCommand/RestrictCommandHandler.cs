@@ -23,7 +23,7 @@ public partial class RestrictCommandHandler(
     public string Command => "/restrict";
 
     public string Description =>
-        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Restrict user in reply");
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command, "Restrict user in reply");
 
     public CommandLevel CommandLevel => CommandLevel.Admin;
 
@@ -51,7 +51,7 @@ public partial class RestrictCommandHandler(
     }
 
     private async Task<Unit> HandleRestrict(string text, long receiverId, long chatId, long telegramId, int messageId,
-        RestrictConfig2 restrictConfig)
+        RestrictConfig restrictConfig)
     {
         if (telegramId == receiverId)
         {
@@ -104,7 +104,7 @@ public partial class RestrictCommandHandler(
     }
 
     private async Task<Unit> RemoveSpecificRestrict(CompositeId id, long adminId, RestrictType restrictTypeToRemove,
-        RestrictConfig2 restrictConfig)
+        RestrictConfig restrictConfig)
     {
         var (telegramId, chatId) = id;
         var username = await botClient.GetUsername(chatId, telegramId, cancelToken.Token)
@@ -159,7 +159,7 @@ public partial class RestrictCommandHandler(
     }
 
     private string GetRestrictionDescription(RestrictType restrictType, int timeoutMinutes,
-        RestrictConfig2 restrictConfig)
+        RestrictConfig restrictConfig)
     {
         var restrictions = new List<string>();
         if ((restrictType & RestrictType.Link) == RestrictType.Link)
@@ -198,7 +198,7 @@ public partial class RestrictCommandHandler(
             : (result, timeoutMinutes);
     }
 
-    private async Task<Unit> DeleteRestrictAndLog(CompositeId id, long adminId, RestrictConfig2 restrictConfig)
+    private async Task<Unit> DeleteRestrictAndLog(CompositeId id, long adminId, RestrictConfig restrictConfig)
     {
         var (telegramId, chatId) = id;
         var username = await botClient.GetUsername(chatId, telegramId, cancelToken.Token)
@@ -243,7 +243,7 @@ public partial class RestrictCommandHandler(
             );
     }
 
-    private async Task<Unit> AddRestrictAndLog(RestrictMember member, long adminId, RestrictConfig2 restrictConfig)
+    private async Task<Unit> AddRestrictAndLog(RestrictMember member, long adminId, RestrictConfig restrictConfig)
     {
         var (telegramId, chatId) = member.Id;
 
@@ -264,7 +264,7 @@ public partial class RestrictCommandHandler(
         return unit;
     }
 
-    private async Task<Unit> SendRestrictClearMessage(long chatId, string username, RestrictConfig2 restrictConfig)
+    private async Task<Unit> SendRestrictClearMessage(long chatId, string username, RestrictConfig restrictConfig)
     {
         var message = string.Format(restrictConfig.RestrictClearMessage, username);
         return await botClient.SendMessageAndLog(chatId, message,
@@ -274,7 +274,7 @@ public partial class RestrictCommandHandler(
 
     private async Task<Unit> SendRestrictMessage(
         long chatId, long telegramId, string username, RestrictType restrictType, int timeoutMinutes,
-        RestrictConfig2 restrictConfig)
+        RestrictConfig restrictConfig)
     {
         var message = GetRestrictMessage(username, restrictType, timeoutMinutes, restrictConfig);
         return await botClient.SendMessageAndLog(chatId, message,
@@ -286,7 +286,7 @@ public partial class RestrictCommandHandler(
     }
 
     private string GetRestrictMessage(string username, RestrictType restrictType, int timeoutMinutes,
-        RestrictConfig2 restrictConfig)
+        RestrictConfig restrictConfig)
     {
         // Check if multiple flags are set
         var flagCount = 0;

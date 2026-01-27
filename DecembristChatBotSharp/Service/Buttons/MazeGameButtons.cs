@@ -8,7 +8,7 @@ using static DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback.Ma
 namespace DecembristChatBotSharp.Service.Buttons;
 
 [Singleton]
-public class MazeGameButtons(AppConfig appConfig)
+public class MazeGameButtons()
 {
     public InlineKeyboardMarkup GetMazeKeyboard(long chatId)
     {

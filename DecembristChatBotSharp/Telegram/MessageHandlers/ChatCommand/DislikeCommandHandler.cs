@@ -21,7 +21,7 @@ public class DislikeCommandHandler(
     public string Command => "/dislike";
 
     public string Description =>
-        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command,
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command,
             "Reply with this command to give the user a dislike");
 
     public CommandLevel CommandLevel => CommandLevel.User;
@@ -53,7 +53,7 @@ public class DislikeCommandHandler(
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
     }
 
-    private async Task<Unit> SendExistDislike(long chatId, DislikeConfig2 dislikeConfig)
+    private async Task<Unit> SendExistDislike(long chatId, DislikeConfig dislikeConfig)
     {
         var message = dislikeConfig.ExistDislikeMessage;
         return await botClient.SendMessageAndLog(chatId, message,
@@ -66,7 +66,7 @@ public class DislikeCommandHandler(
             cancelToken.Token);
     }
 
-    private async Task<Unit> SendReceiverNotSet(long chatId, DislikeConfig2 dislikeConfig)
+    private async Task<Unit> SendReceiverNotSet(long chatId, DislikeConfig dislikeConfig)
     {
         var message = dislikeConfig.ReceiverNotSetMessage;
         return await botClient.SendMessageAndLog(chatId, message,
@@ -79,7 +79,7 @@ public class DislikeCommandHandler(
             cancelToken.Token);
     }
 
-    private async Task<Unit> SendSelfMessage(long chatId, DislikeConfig2 dislikeConfig)
+    private async Task<Unit> SendSelfMessage(long chatId, DislikeConfig dislikeConfig)
     {
         var message = dislikeConfig.SelfMessage;
         return await botClient.SendMessageAndLog(chatId, message,
@@ -92,7 +92,7 @@ public class DislikeCommandHandler(
             cancelToken.Token);
     }
 
-    private async Task<Unit> SendSuccessMessage(long chatId, DislikeConfig2 dislikeConfig)
+    private async Task<Unit> SendSuccessMessage(long chatId, DislikeConfig dislikeConfig)
     {
         var message = dislikeConfig.SuccessMessage;
         return await botClient.SendMessageAndLog(chatId, message, ParseMode.MarkdownV2,

@@ -1,4 +1,6 @@
 ﻿using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
+using DecembristChatBotSharp.Entity.Configs;
 using Lamar;
 using LanguageExt.UnsafeValueAccess;
 using Serilog;
@@ -15,11 +17,12 @@ public class LikeCommandHandler(
     BotClient botClient,
     MessageAssistance messageAssistance,
     ExpiredMessageRepository expiredMessageRepository,
+    ChatConfigService chatConfigService,
     CancellationTokenSource cancelToken
 ) : ICommandHandler
 {
     public string Command => "/like";
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Reply with this command to give the user a like");
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command, "Reply with this command to give the user a like");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
@@ -29,10 +32,14 @@ public class LikeCommandHandler(
         var likeToTelegramId = parameters.ReplyToTelegramId;
         var messageId = parameters.MessageId;
 
+        var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.LikeConfig);
+        if (!maybeCommandConfig.TryGetSome(out var likeConfig))
+            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+
         if (likeToTelegramId.IsNone)
         {
             return await Array(
-                SendLikeReceiverNotSet(chatId),
+                SendLikeReceiverNotSet(chatId, likeConfig),
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
 
@@ -40,7 +47,7 @@ public class LikeCommandHandler(
         if (telegramId == receiverTelegramId)
         {
             return await Array(
-                SendSelfLikeMessage(chatId),
+                SendSelfLikeMessage(chatId, likeConfig),
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
         }
 
@@ -51,7 +58,7 @@ public class LikeCommandHandler(
 
         var sendLikeMessageTask = botClient.GetChatMember(chatId, receiverTelegramId, cancelToken.Token)
             .ToTryAsync()
-            .Bind(chatMember => SendLikeMessage(chatId, chatMember).ToTryAsync())
+            .Bind(chatMember => SendLikeMessage(chatId, chatMember, likeConfig).ToTryAsync())
             .Match(
                 _ => Log.Information("Sent like message to chat {0}", chatId),
                 ex => Log.Error(ex, "Failed to send like message to chat {0}", chatId)
@@ -81,9 +88,9 @@ public class LikeCommandHandler(
         return true;
     }
 
-    private async Task<Unit> SendLikeReceiverNotSet(long chatId)
+    private async Task<Unit> SendLikeReceiverNotSet(long chatId, LikeConfig likeConfig)
     {
-        var message = appConfig.CommandConfig.LikeConfig.LikeReceiverNotSet;
+        var message = likeConfig.LikeReceiverNotSet;
         return await botClient.SendMessageAndLog(chatId, message,
             message =>
             {
@@ -94,9 +101,9 @@ public class LikeCommandHandler(
             cancelToken.Token);
     }
 
-    private async Task<Unit> SendSelfLikeMessage(long chatId)
+    private async Task<Unit> SendSelfLikeMessage(long chatId, LikeConfig likeConfig)
     {
-        var message = appConfig.CommandConfig.LikeConfig.SelfLikeMessage;
+        var message = likeConfig.SelfLikeMessage;
         return await botClient.SendMessageAndLog(chatId, message,
             message =>
             {
@@ -107,10 +114,10 @@ public class LikeCommandHandler(
             cancelToken.Token);
     }
 
-    private async Task<Unit> SendLikeMessage(long chatId, ChatMember chatMember)
+    private async Task<Unit> SendLikeMessage(long chatId, ChatMember chatMember, LikeConfig likeConfig)
     {
         var username = chatMember.GetUsername();
-        var message = string.Format(appConfig.CommandConfig.LikeConfig.LikeMessage, username);
+        var message = string.Format(likeConfig.LikeMessage, username);
         await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token);
 
         return unit;

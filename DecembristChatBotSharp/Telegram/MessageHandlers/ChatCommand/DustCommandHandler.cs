@@ -18,7 +18,7 @@ public partial class DustCommandHandler(
     public string Command => CommandKey;
 
     public string Description =>
-        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
             "Dust an item, Dust and its varieties appear from other items, Used as crafting ingredients");
 
     public CommandLevel CommandLevel => CommandLevel.User;
@@ -52,7 +52,7 @@ public partial class DustCommandHandler(
             .Bind(x => Enum.TryParse(x, true, out MemberItemType item) ? Some(item) : None);
     }
 
-    private async Task<Unit> HandleDust(MemberItemType item, long chatId, long telegramId, DustConfig2 dustConfig)
+    private async Task<Unit> HandleDust(MemberItemType item, long chatId, long telegramId, DustConfig dustConfig)
     {
         var result = await dustService.HandleDust(item, chatId, telegramId);
         result.LogDustResult(telegramId, chatId);
@@ -69,7 +69,7 @@ public partial class DustCommandHandler(
     }
 
     private Task<Unit> SendPremiumSuccess(long chatId, DustOperationResult result, MemberItemType recipeItem,
-        DustConfig2 dustConfig)
+        DustConfig dustConfig)
     {
         var (dustItem, dustQuantity) = result.DustReward!;
         var (premiumItem, premiumQuantity) = result.PremiumReward!;
@@ -81,7 +81,7 @@ public partial class DustCommandHandler(
     }
 
     private Task<Unit> SendSuccess(
-        long chatId, ItemQuantity dustReward, MemberItemType recipeItem, DustConfig2 dustConfig)
+        long chatId, ItemQuantity dustReward, MemberItemType recipeItem, DustConfig dustConfig)
     {
         var message = string.Format(
             dustConfig.SuccessMessage, recipeItem, dustReward.Quantity, dustReward.Item);
@@ -89,19 +89,19 @@ public partial class DustCommandHandler(
         return messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
     }
 
-    private Task<Unit> SendHelp(long chatId, DustConfig2 dustConfig)
+    private Task<Unit> SendHelp(long chatId, DustConfig dustConfig)
     {
         var message = string.Format(dustConfig.HelpMessage, Command);
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private Task<Unit> SendNoRecipe(long chatId, DustConfig2 dustConfig)
+    private Task<Unit> SendNoRecipe(long chatId, DustConfig dustConfig)
     {
         var message = dustConfig.NoRecipeMessage;
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private Task<Unit> SendFailed(long chatId, DustConfig2 dustConfig)
+    private Task<Unit> SendFailed(long chatId, DustConfig dustConfig)
     {
         var message = dustConfig.FailedMessage;
         return messageAssistance.SendCommandResponse(chatId, message, Command);

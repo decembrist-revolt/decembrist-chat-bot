@@ -7,7 +7,7 @@ using static DecembristChatBotSharp.Service.CallbackService;
 namespace DecembristChatBotSharp.Service.Buttons;
 
 [Singleton]
-public class LoreButtons(AppConfig appConfig)
+public class LoreButtons()
 {
     public InlineKeyboardMarkup GetLoreMarkup(long chatId)
     {

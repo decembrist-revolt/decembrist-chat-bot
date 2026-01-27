@@ -17,7 +17,7 @@ public class InventoryCommandHandler(
     public string Command => "/inventory";
 
     public string Description =>
-        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Show users items");
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command, "Show users items");
 
     public CommandLevel CommandLevel => CommandLevel.User;
 

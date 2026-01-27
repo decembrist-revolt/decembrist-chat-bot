@@ -1,4 +1,5 @@
-﻿using Lamar;
+﻿using DecembristChatBotSharp.Entity.Configs;
+using Lamar;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
@@ -6,32 +7,35 @@ namespace DecembristChatBotSharp.Telegram.LoreHandlers;
 
 [Singleton]
 public class LoreMessageAssistant(
-    AppConfig appConfig,
     BotClient botClient,
     CancellationTokenSource cancelToken)
 {
-    public async Task<Message> SendNotFoundMessage(string key, long telegramId)
+    public async Task<Message> SendNotFoundMessage(string key, long telegramId, LoreConfig loreConfig)
     {
-        var message = string.Format(appConfig.LoreConfig.KeyNotFound, key);
+        var message = string.Format(loreConfig.KeyNotFound, key);
         return await botClient.SendMessage(telegramId, message, cancellationToken: cancelToken.Token);
     }
 
-    public async Task<Message> SendFailedMessage(long chatId)
+    public async Task<Message> SendFailedMessage(long chatId, LoreConfig loreConfig)
     {
-        var message = appConfig.LoreConfig.PrivateFailed;
+        var message = loreConfig.PrivateFailed;
         return await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token);
     }
 
-    public async Task<Message> SendExpiredMessage(string key, long chatId)
+    public async Task<Message> SendExpiredMessage(string key, long chatId, LoreConfig loreConfig)
     {
-        var message = string.Format(appConfig.LoreConfig.MessageExpired, key);
+        var message = string.Format(loreConfig.MessageExpired, key);
         return await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token);
     }
 
-    public async Task<Message> SendHelpMessage(long chatId)
+    public async Task<Message> SendHelpMessage(long chatId, LoreConfig loreConfig)
     {
-        var loreConfig = appConfig.LoreConfig;
         var message = string.Format(loreConfig.LoreHelp, loreConfig.KeyLimit, loreConfig.ContentLimit);
         return await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token);
     }
+
+    public async Task<Message> SendNotAvailableMessage(long chatId) => await botClient.SendMessage(
+        chatId,
+        "Лор не доступен в текущий момент попробуйте позжме",
+        cancellationToken: cancelToken.Token);
 }

@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Service.Buttons;
@@ -15,23 +16,28 @@ public class MazeGameJoinCommandHandler(
     MazeGameButtons mazeGameButtons,
     MazeGameViewService mazeGameViewService,
     MessageAssistance messageAssistance,
-    AppConfig appConfig,
     PremiumMemberService premiumMemberService,
-    CancellationTokenSource cancelToken)
+    CancellationTokenSource cancelToken,
+    ChatConfigService chatConfigService
+)
 {
     public const string PrefixKey = "MazeJoin";
     public string Prefix => PrefixKey;
 
     public async Task<Unit> Do(long chatId, long telegramId)
     {
+        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.MazeConfig);
+        if (!maybeConfig.TryGetSome(out var mazeConfig))
+            return chatConfigService.LogNonExistConfig(unit, nameof(Entity.Configs.MazeConfig));
+
         var isPlayerExist =
             await mazeGameRepository.GetPlayer(new MazeGamePlayer.CompositeId(chatId, telegramId));
 
-        return await isPlayerExist.Match(p => SendGameControls(p.Id.TelegramId, chatId, p),
-            () => TryJoinPlayer(chatId, telegramId));
+        return await isPlayerExist.Match(p => SendGameControls(p.Id.TelegramId, chatId, p, mazeConfig),
+            () => TryJoinPlayer(chatId, telegramId, mazeConfig));
     }
 
-    private async Task<Unit> TryJoinPlayer(long chatId, long telegramId)
+    private async Task<Unit> TryJoinPlayer(long chatId, long telegramId, Entity.Configs.MazeConfig mazeConfig)
     {
         var joinResult = await mazeGameService.JoinGame(chatId, telegramId);
         return await joinResult.MatchAsync(
@@ -60,21 +66,21 @@ public class MazeGameJoinCommandHandler(
                     Log.Information("Premium player {0} received bonus items in maze game", telegramId);
                 }
 
-                return await SendGameControls(telegramId, chatId, player);
+                return await SendGameControls(telegramId, chatId, player, mazeConfig);
             },
             async () =>
             {
                 Log.Warning("Failed to join maze game for player {0} in chat {1}", telegramId, chatId);
-                return await SendGameNotFound(telegramId);
+                return await SendGameNotFound(telegramId, mazeConfig);
             });
     }
 
-    private Task<Unit> SendGameNotFound(long telegramId) => messageAssistance.SendMessage(telegramId,
-        appConfig.MazeConfig.GameNotFoundMessage, nameof(MazeGameJoinCommandHandler));
+    private Task<Unit> SendGameNotFound(long telegramId, Entity.Configs.MazeConfig mazeConfig) => messageAssistance.SendMessage(telegramId,
+        mazeConfig.GameNotFoundMessage, nameof(MazeGameJoinCommandHandler));
 
-    private async Task<Unit> SendGameControls(long telegramId, long chatId, MazeGamePlayer player)
+    private async Task<Unit> SendGameControls(long telegramId, long chatId, MazeGamePlayer player, Entity.Configs.MazeConfig mazeConfig)
     {
-        await SendWelcomeMessage(player);
+        await SendWelcomeMessage(player, mazeConfig);
         await SendPlayerView(telegramId, chatId, player);
         return unit;
     }
@@ -110,10 +116,10 @@ public class MazeGameJoinCommandHandler(
         return unit;
     }
 
-    private Task<Unit> SendWelcomeMessage(MazeGamePlayer player)
+    private Task<Unit> SendWelcomeMessage(MazeGamePlayer player, Entity.Configs.MazeConfig mazeConfig)
     {
         var telegramId = player.Id.TelegramId;
-        var welcomeMessage = string.Format(appConfig.MazeConfig.WelcomeMessage, player.Color, player.ViewRadius);
+        var welcomeMessage = string.Format(mazeConfig.WelcomeMessage, player.Color, player.ViewRadius);
         return messageAssistance.SendMessage(telegramId, welcomeMessage, nameof(MazeGameJoinCommandHandler));
     }
 }

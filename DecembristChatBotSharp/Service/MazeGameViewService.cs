@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service.Buttons;
 using DecembristChatBotSharp.Telegram;
@@ -12,7 +13,6 @@ namespace DecembristChatBotSharp.Service;
 
 [Singleton]
 public class MazeGameViewService(
-    AppConfig appConfig,
     BotClient botClient,
     MessageAssistance messageAssistance,
     MazeGameService mazeGameService,
@@ -20,9 +20,10 @@ public class MazeGameViewService(
     MazeGameButtons mazeGameButtons,
     CancellationTokenSource cancelToken)
 {
+    private const string InventoryTextTemplate = "🎒 Инвентарь: 🗡️ {0} 🛡️ {1} ⛏️ {2} 🔭 {3}";
     private readonly ConcurrentDictionary<MazeGamePlayer.CompositeId, Timer> _pendingUpdates = new();
 
-    public void ScheduleViewUpdate(long chatId, long telegramId)
+    public void ScheduleViewUpdate(long chatId, long telegramId, Entity.Configs.MazeConfig mazeConfig)
     {
         var key = (chatId, telegramId);
 
@@ -34,16 +35,16 @@ public class MazeGameViewService(
 
         // Создаём новый таймер на 3 секунды
         var timer = new Timer(
-            _ => SendViewUpdate(chatId, telegramId),
+            _ => SendViewUpdate(chatId, telegramId, mazeConfig),
             null,
-            TimeSpan.FromSeconds(appConfig.MazeConfig.MoveDelaySeconds),
+            TimeSpan.FromSeconds(mazeConfig.MoveDelaySeconds),
             Timeout.InfiniteTimeSpan
         );
 
         _pendingUpdates[key] = timer;
     }
 
-    private async Task SendViewUpdate(long chatId, long telegramId)
+    private async Task SendViewUpdate(long chatId, long telegramId, Entity.Configs.MazeConfig mazeConfig)
     {
         var key = (chatId, telegramId);
 
@@ -73,18 +74,19 @@ public class MazeGameViewService(
 
                 return await SendMazeKeyboardPhoto(chatId, telegramId, stream, inventoryText, keyboard);
             },
-            () => messageAssistance.SendMessage(telegramId, appConfig.MazeConfig.GameNotFoundMessage,
+            () => messageAssistance.SendMessage(telegramId, mazeConfig.GameNotFoundMessage,
                 nameof(MazeGameViewService)));
     }
 
     public string FormatInventoryText(MazePlayerInventory inventory) =>
         string.Format(
-            appConfig.MazeConfig.InventoryTextTemplate,
+            InventoryTextTemplate,
             inventory.Swords,
             inventory.Shields,
             inventory.Shovels,
             inventory.ViewExpanders
         );
+
 
     private async Task<Unit> SendMazeKeyboardPhoto(
         long chatId, long telegramId, MemoryStream stream, string inventoryText, InlineKeyboardMarkup keyboard) =>

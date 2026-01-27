@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
@@ -12,43 +13,42 @@ namespace DecembristChatBotSharp.Telegram.LoreHandlers;
 public class LoreKeyHandler(
     LoreService loreService,
     BotClient botClient,
-    AppConfig appConfig,
     CancellationTokenSource cancelToken,
     LoreRecordRepository loreRecordRepository,
     LoreMessageAssistant loreMessageAssistant)
 {
-    public async Task<Message> Do(string key, long lorChatId, long telegramId)
+    public async Task<Message> Do(string key, long lorChatId, long telegramId, LoreConfig loreConfig)
     {
         key = key.ToLowerInvariant();
         var result = await loreService.AddLoreKey(key, lorChatId, telegramId);
         loreService.LogLore((uint) result, telegramId, lorChatId, key);
         return result switch
         {
-            AddLoreKeyResult.Success => await SendRequestContent(key, lorChatId, telegramId),
-            AddLoreKeyResult.Duplicate => await RetrieveAndSendLoreRecord((lorChatId, key), telegramId),
-            AddLoreKeyResult.Limit => await loreMessageAssistant.SendHelpMessage(telegramId),
-            AddLoreKeyResult.Failed => await loreMessageAssistant.SendFailedMessage(telegramId),
+            AddLoreKeyResult.Success => await SendRequestContent(key, lorChatId, telegramId, loreConfig),
+            AddLoreKeyResult.Duplicate => await RetrieveAndSendLoreRecord((lorChatId, key), telegramId, loreConfig),
+            AddLoreKeyResult.Limit => await loreMessageAssistant.SendHelpMessage(telegramId, loreConfig),
+            AddLoreKeyResult.Failed => await loreMessageAssistant.SendFailedMessage(telegramId, loreConfig),
             _ => throw new ArgumentOutOfRangeException()
         };
     }
 
-    private async Task<Message> SendRequestContent(string key, long lorChatId, long telegramId)
+    private async Task<Message> SendRequestContent(string key, long lorChatId, long telegramId, LoreConfig loreConfig)
     {
-        var message = string.Format(appConfig.LoreConfig.ContentRequest,
+        var message = string.Format(loreConfig.ContentRequest,
             LoreService.GetLoreTag(ContentSuffix, lorChatId, key));
         return await botClient.SendMessage(telegramId, message, replyMarkup: loreService.GetContentTip());
     }
 
-    private async Task<Message> RetrieveAndSendLoreRecord(LoreRecord.CompositeId id, long telegramId)
+    private async Task<Message> RetrieveAndSendLoreRecord(LoreRecord.CompositeId id, long telegramId, LoreConfig loreConfig)
     {
         var record = await loreRecordRepository.GetLoreRecord(id);
-        return await record.MatchAsync(loreRecord => SendEditContentRequest(loreRecord, telegramId),
-            () => loreMessageAssistant.SendFailedMessage(telegramId));
+        return await record.MatchAsync(loreRecord => SendEditContentRequest(loreRecord, telegramId, loreConfig),
+            () => loreMessageAssistant.SendFailedMessage(telegramId, loreConfig));
     }
 
-    private async Task<Message> SendEditContentRequest(LoreRecord loreRecord, long telegramId)
+    private async Task<Message> SendEditContentRequest(LoreRecord loreRecord, long telegramId, LoreConfig loreConfig)
     {
-        var message = string.Format(appConfig.LoreConfig.EditTemplate, loreRecord.Id.Key, loreRecord.Content) +
+        var message = string.Format(loreConfig.EditTemplate, loreRecord.Id.Key, loreRecord.Content) +
                       LoreService.GetLoreTag(ContentSuffix, loreRecord.Id.ChatId, loreRecord.Id.Key);
         return await botClient.SendMessage(telegramId, message, replyMarkup: loreService.GetContentTip(),
             cancellationToken: cancelToken.Token);

@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Service;
+﻿using DecembristChatBotSharp.Entity.Configs;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -10,29 +11,28 @@ public class LoreContentHandler(
     LoreMessageAssistant loreMessageAssistant,
     LoreService loreService,
     BotClient botClient,
-    AppConfig appConfig,
     CancellationTokenSource cancelToken)
 {
     public async Task<Message> Do(
-        string key, string content, long lorChatId, long telegramId, DateTime date)
+        string key, string content, long lorChatId, long telegramId, DateTime date, LoreConfig loreConfig)
     {
         key = key.ToLowerInvariant();
         var result = await loreService.ChangeLoreContent(key, content, lorChatId, telegramId, date);
         loreService.LogLore((uint)result, telegramId, lorChatId, key, content);
         return result switch
         {
-            ChangeLoreContentResult.Success => await SendSuccessContent(key, content, telegramId),
-            ChangeLoreContentResult.NotFound => await loreMessageAssistant.SendNotFoundMessage(key, telegramId),
-            ChangeLoreContentResult.Limit => await loreMessageAssistant.SendHelpMessage(telegramId),
-            ChangeLoreContentResult.Failed => await loreMessageAssistant.SendFailedMessage(telegramId),
-            ChangeLoreContentResult.Expire => await loreMessageAssistant.SendExpiredMessage(key, telegramId),
+            ChangeLoreContentResult.Success => await SendSuccessContent(key, content, telegramId, loreConfig),
+            ChangeLoreContentResult.NotFound => await loreMessageAssistant.SendNotFoundMessage(key, telegramId, loreConfig),
+            ChangeLoreContentResult.Limit => await loreMessageAssistant.SendHelpMessage(telegramId, loreConfig),
+            ChangeLoreContentResult.Failed => await loreMessageAssistant.SendFailedMessage(telegramId, loreConfig),
+            ChangeLoreContentResult.Expire => await loreMessageAssistant.SendExpiredMessage(key, telegramId, loreConfig),
             _ => throw new ArgumentOutOfRangeException()
         };
     }
 
-    private async Task<Message> SendSuccessContent(string key, string content, long telegramId)
+    private async Task<Message> SendSuccessContent(string key, string content, long telegramId, LoreConfig loreConfig)
     {
-        var text = string.Format(appConfig.LoreConfig.ContentSuccess, key, content);
+        var text = string.Format(loreConfig.ContentSuccess, key, content);
         return await botClient.SendMessage(telegramId, text, cancellationToken: cancelToken.Token);
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using DecembristChatBotSharp.Entity.Configs;
 using HtmlAgilityPack;
 using JasperFx.Core;
 using Lamar;
@@ -10,22 +11,26 @@ public record TelegramRandomMeme(string PhotoLink);
 
 [Singleton]
 public class TelegramPostService(
-    AppConfig appConfig, 
     IHttpClientFactory httpClientFactory,
-    Random random)
+    Random random,
+    ChatConfigService chatConfigService)
 {
     private const string TelegramChannelUrlFormat = "https://t.me/s/{0}";
     private const string TelegramPostUrlFormat = "https://t.me/{0}/{1}?embed=1&mode=tme";
 
     private readonly Regex _backgroundImageRegex = new(@"background-image:url\('(?<url>.*?)'\)");
 
-    private readonly int _maxGetPostRetries = appConfig.CommandConfig.TelegramPostConfig.MaxGetPostRetries;
-    private readonly string[] _channelNames = appConfig.CommandConfig.TelegramPostConfig.ChannelNames;
-    private readonly int _scanPostCount = appConfig.CommandConfig.TelegramPostConfig.ScanPostCount;
 
-    public async Task<Option<TelegramRandomMeme>> GetRandomPostPicture()
+    public async Task<Option<TelegramRandomMeme>> GetRandomPostPicture(long chatId)
     {
-        var randomChannel = _channelNames[random.Next(0, _channelNames.Length)];
+        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.TelegramPostConfig);
+        if (maybeConfig.TryGetSome(out var telegramPostConfig))
+            return chatConfigService.LogNonExistConfig(None, nameof(Entity.Configs.TelegramPostConfig));
+
+        var maxGetPostRetries = telegramPostConfig.MaxGetPostRetries;
+        var channelNames = telegramPostConfig.ChannelNames;
+        var scanPostCount = telegramPostConfig.ScanPostCount;
+        var randomChannel = channelNames[random.Next(0, channelNames.Length)];
 
         var postId = await GetLastPostId(randomChannel);
         if (postId.IsNone)
@@ -33,10 +38,10 @@ public class TelegramPostService(
             Log.Error("Failed to get last post id for channel {0}", randomChannel);
             return None;
         }
-        
-        for (var i = 0; i < _maxGetPostRetries; i++)
+
+        for (var i = 0; i < maxGetPostRetries; i++)
         {
-            var maybeMeme = await GetPostPicture(postId, randomChannel);
+            var maybeMeme = await GetPostPicture(postId, randomChannel, scanPostCount);
 
             if (maybeMeme.IsSome()) return maybeMeme.ToOption();
             maybeMeme.IfFail(ex =>
@@ -46,11 +51,12 @@ public class TelegramPostService(
         return None;
     }
 
-    private async Task<TryOption<TelegramRandomMeme>> GetPostPicture(Option<int> postId, string randomChannel)
+    private async Task<TryOption<TelegramRandomMeme>> GetPostPicture(Option<int> postId, string randomChannel,
+        int scanPostCount)
     {
         var maybePostUrl =
             from id in postId
-            let firstPostId = Math.Max(1, id - _scanPostCount)
+            let firstPostId = Math.Max(1, id - scanPostCount)
             let randomId = random.Next(firstPostId, id + 1)
             let postUrl = string.Format(TelegramPostUrlFormat, randomChannel, randomId)
             select postUrl;
@@ -71,7 +77,7 @@ public class TelegramPostService(
             let imageUrl = match.Groups["url"].Value
             where !string.IsNullOrEmpty(imageUrl)
             select new TelegramRandomMeme(imageUrl);
-        
+
         return maybeMeme;
     }
 

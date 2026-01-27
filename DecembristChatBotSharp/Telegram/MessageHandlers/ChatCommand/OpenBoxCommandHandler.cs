@@ -22,7 +22,7 @@ public class OpenBoxCommandHandler(
     public string Command => CommandKey;
 
     public string Description =>
-        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Open surprise box if you have one");
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Open surprise box if you have one");
 
     public CommandLevel CommandLevel => CommandLevel.User;
 
@@ -61,7 +61,7 @@ public class OpenBoxCommandHandler(
         return maybeSend.IfSome(identity);
     }
 
-    private async Task<Unit> SendFailedToOpenBox(long chatId, long telegramId, ItemConfig2 itemConfig) =>
+    private async Task<Unit> SendFailedToOpenBox(long chatId, long telegramId, ItemConfig itemConfig) =>
         await botClient.SendMessageAndLog(chatId, itemConfig.FailedToOpenBoxMessage,
             message =>
             {

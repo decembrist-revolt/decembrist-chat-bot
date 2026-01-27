@@ -24,7 +24,7 @@ public partial class GiveawayCommandHandler(
     public string Command => "/giveaway";
 
     public string Description =>
-        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command,
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command,
             "Start a giveaway with prizes for users");
 
     public CommandLevel CommandLevel => CommandLevel.Admin;
@@ -61,7 +61,7 @@ public partial class GiveawayCommandHandler(
         );
     }
 
-    private Option<GiveawayData> ParseGiveawayArgs(string text, GiveawayConfig2 giveawayConfig)
+    private Option<GiveawayData> ParseGiveawayArgs(string text, GiveawayConfig giveawayConfig)
     {
         var parts = text.Split(' ', 2);
         if (parts.Length < 2) return None;
@@ -91,7 +91,7 @@ public partial class GiveawayCommandHandler(
     }
 
     private async Task<Unit> HandleGiveaway(long chatId, int commandMessageId, GiveawayData data,
-        GiveawayConfig2 giveawayConfig)
+        GiveawayConfig giveawayConfig)
     {
         var (item, quantity, audience, durationMinutes) = data;
 
@@ -139,7 +139,7 @@ public partial class GiveawayCommandHandler(
         return await messageAssistance.DeleteCommandMessage(chatId, commandMessageId, Command);
     }
 
-    private async Task<Unit> HandleInvalidArgs(long chatId, int commandMessageId, GiveawayConfig2 giveawayConfig)
+    private async Task<Unit> HandleInvalidArgs(long chatId, int commandMessageId, GiveawayConfig giveawayConfig)
     {
         var helpMessage = string.Format(
             giveawayConfig.HelpMessage,

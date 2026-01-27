@@ -28,7 +28,7 @@ public partial class ListCommandHandler(
     public const string CommandKey = "/list";
     public string Command => CommandKey;
 
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
         "Shows a list of available content from the chat, options: " + _listOptions);
 
     public CommandLevel CommandLevel => CommandLevel.User;
@@ -66,7 +66,7 @@ public partial class ListCommandHandler(
             .Bind(x => Enum.TryParse<ListType>(x, true, out var type) ? Some(type) : None);
 
 
-    private async Task<Unit> HandleList(long chatId, long telegramId, ListType listType, ListConfig2 listConfig)
+    private async Task<Unit> HandleList(long chatId, long telegramId, ListType listType, ListConfig listConfig)
     {
         var isLock = await lockRepository.TryAcquire(chatId, Command, listType.ToString());
         if (!isLock)
@@ -80,14 +80,14 @@ public partial class ListCommandHandler(
             Some: tuple => SendListSuccess(chatId, telegramId, listType, tuple.Item1, tuple.Item2, listConfig));
     }
 
-    private Task<Unit> SendNotFound(long chatId, ListType listType, ListConfig2 listConfig)
+    private Task<Unit> SendNotFound(long chatId, ListType listType, ListConfig listConfig)
     {
         var message = string.Format(listConfig.NotFound, listType);
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
     private Task<Unit> SendListSuccess(long chatId, long telegramId, ListType listType, string keys, int totalCount,
-        ListConfig2 listConfig)
+        ListConfig listConfig)
     {
         var keyboard = listButtons.GetListChatMarkup(totalCount, listType);
         var message = string.Format(listConfig.SuccessTemplate, listType, totalCount, keys);
@@ -101,7 +101,7 @@ public partial class ListCommandHandler(
         return Array(taskPermission.ToUnit() ?? Task.CompletedTask, taskSent).WhenAll();
     }
 
-    private Task HandleOnSentSuccess(Message message, long chatId, long telegramId, ListConfig2 listConfig)
+    private Task HandleOnSentSuccess(Message message, long chatId, long telegramId, ListConfig listConfig)
     {
         Log.Information(
             "Sent response to command:'{0}' from {1} to chat {2}", Command, nameof(HandleOnSentSuccess), chatId);
@@ -114,7 +114,7 @@ public partial class ListCommandHandler(
         return callbackRepository.AddCallbackPermission(permission);
     }
 
-    private Task<Unit> SendHelpMessage(long chatId, ListConfig2 listConfig) => messageAssistance
+    private Task<Unit> SendHelpMessage(long chatId, ListConfig listConfig) => messageAssistance
         .SendCommandResponse(chatId, string.Format(listConfig.HelpMessage, Command, _listOptions), Command);
 }
 

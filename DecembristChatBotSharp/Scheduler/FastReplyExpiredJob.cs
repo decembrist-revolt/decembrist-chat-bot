@@ -27,7 +27,7 @@ public class FastReplyExpiredJob(
             .WithIdentity(nameof(FastReplyExpiredJob))
             .StartNow()
             .WithCronSchedule(
-                appConfig.CommandConfig.FastReplyCheckExpireCronUtc,
+                appConfig.CommandAssistanceConfig.FastReplyCheckExpireCronUtc,
                 x => x.InTimeZone(TimeZoneInfo.Utc))
             .Build();
 
@@ -77,7 +77,7 @@ public class FastReplyExpiredJob(
         var fastReplyCommand =
             FastReplyCommandHandler.CommandKey + separator + reply.Id.Message.EscapeMarkdown() + separator + replyText.EscapeMarkdown();
         var username = await botClient.GetUsernameOrId(reply.TelegramId, reply.Id.ChatId, cancelToken.Token);
-        var message = string.Format(appConfig.CommandConfig.FastReplyExpiredMessage, reply.Id.Message, username,
+        var message = string.Format(appConfig.CommandAssistanceConfig.FastReplyExpiredMessage, reply.Id.Message, username,
             fastReplyCommand);
         var chatId = reply.Id.ChatId;
         await botClient.SendMessageAndLog(chatId, message, parseMode: ParseMode.MarkdownV2,

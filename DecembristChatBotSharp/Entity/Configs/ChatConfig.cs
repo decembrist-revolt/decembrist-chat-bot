@@ -10,33 +10,44 @@ public interface IConfig
 
 public record ChatConfig(
     [property: BsonId] long ChatId,
-    int UpdateExpirationSeconds,
-    CaptchaConfig2 CaptchaConfig,
-    CommandConfig2 CommandConfig,
-    MenuConfig2 MenuConfig,
-    LoreConfig2 LoreConfig,
-    ListConfig2 ListConfig,
-    FilterConfig2 FilterConfig,
-    RestrictConfig2 RestrictConfig,
-    CurseConfig2 CurseConfig,
-    MinaConfig2 MinaConfig,
-    SlotMachineConfig2 SlotMachineConfig,
-    DislikeConfig2 DislikeConfig,
-    CharmConfig2 CharmConfig,
-    AmuletConfig2 AmuletConfig,
-    ItemConfig2 ItemConfig,
-    HelpConfig2 HelpConfig,
-    GiveConfig2 GiveConfig,
-    GiveawayConfig2 GiveawayConfig,
-    DustConfig2 DustConfig,
-    CraftConfig2 CraftConfig,
-    MazeConfig2 MazeConfig,
-    QuizConfig? QuizConfig = null,
-    DeepSeekConfig? DeepSeekConfig = null,
-    List<long>? WhiteListIds = null
+    CaptchaConfig CaptchaConfig,
+    CommandConfig CommandConfig,
+    LikeConfig LikeConfig,
+    BanConfig BanConfig,
+    TelegramPostConfig TelegramPostConfig,
+    MenuConfig MenuConfig,
+    LoreConfig LoreConfig,
+    ListConfig ListConfig,
+    FilterConfig FilterConfig,
+    RestrictConfig RestrictConfig,
+    CurseConfig CurseConfig,
+    MinaConfig MinaConfig,
+    SlotMachineConfig SlotMachineConfig,
+    DislikeConfig DislikeConfig,
+    CharmConfig CharmConfig,
+    ItemConfig ItemConfig,
+    HelpConfig HelpConfig,
+    GiveConfig GiveConfig,
+    GiveawayConfig GiveawayConfig,
+    DustConfig DustConfig,
+    CraftConfig CraftConfig,
+    MazeConfig MazeConfig
 );
 
-public record CurseConfig2(
+public record LikeConfig(
+    int TopLikeMemberCount,
+    [property: Required(AllowEmptyStrings = false)]
+    string LikeMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string LikeReceiverNotSet,
+    [property: Required(AllowEmptyStrings = false)]
+    string SelfLikeMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string NoLikesMessage,
+    bool Enabled = false
+) : IConfig;
+
+public record CurseConfig(
     [property: Required(AllowEmptyStrings = false)]
     string HelpMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -49,7 +60,7 @@ public record CurseConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record CharmConfig2(
+public record CharmConfig(
     [property: Required(AllowEmptyStrings = false)]
     string HelpMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -65,7 +76,7 @@ public record CharmConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record CaptchaConfig2(
+public record CaptchaConfig(
     [property: Required(AllowEmptyStrings = false)]
     string WelcomeMessage,
     [property: Range(1, int.MaxValue)] int WelcomeMessageExpiration,
@@ -82,12 +93,34 @@ public record CaptchaConfig2(
     [property: Range(1, int.MaxValue)] int CaptchaRetryCount,
     bool Enabled = false) : IConfig;
 
-public record CommandConfig2(
+public record BanConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string BanMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string BanNoReasonMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string BanAmuletMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string BanReceiverNotSetMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string BanAdditionMessage,
+    int ReasonLengthLimit,
+    [property: Required(AllowEmptyStrings = false)]
+    string ReasonLengthErrorMessage,
+    bool Enabled = false
+) : IConfig;
+
+public record TelegramPostConfig(
+    string[] ChannelNames,
+    [property: Range(1, int.MaxValue)] int ScanPostCount,
+    [property: Range(1, int.MaxValue)] int MaxGetPostRetries,
+    [property: Required(AllowEmptyStrings = false)]
+    string TelegramErrorMessage,
+    bool Enabled = false
+) : IConfig;
+
+public record CommandConfig(
     [property: Range(1, int.MaxValue)] int CommandIntervalSeconds,
-    LikeConfig LikeConfig,
-    BanConfig BanConfig,
-    TelegramPostConfig TelegramPostConfig,
-    PremiumConfig PremiumConfig,
     [property: Required(AllowEmptyStrings = false)]
     string CommandNotReady,
     [property: Required(AllowEmptyStrings = false)]
@@ -115,7 +148,7 @@ public record CommandConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record MenuConfig2(
+public record MenuConfig(
     [property: Required(AllowEmptyStrings = false)]
     string WelcomeMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -133,7 +166,7 @@ public record MenuConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record LoreConfig2(
+public record LoreConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ChatTemplate,
     [property: Required(AllowEmptyStrings = false)]
@@ -176,7 +209,7 @@ public record LoreConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record ListConfig2(
+public record ListConfig(
     [property: Required(AllowEmptyStrings = false)]
     string NotFound,
     [property: Required(AllowEmptyStrings = false)]
@@ -190,7 +223,7 @@ public record ListConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record FilterConfig2(
+public record FilterConfig(
     [property: Required(AllowEmptyStrings = false)]
     string CaptchaMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -223,7 +256,7 @@ public record FilterConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record RestrictConfig2(
+public record RestrictConfig(
     [property: Required(AllowEmptyStrings = false)]
     string RestrictClearMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -239,7 +272,7 @@ public record RestrictConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record MinaConfig2(
+public record MinaConfig(
     [property: Required(AllowEmptyStrings = false)]
     string HelpMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -253,7 +286,7 @@ public record MinaConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record SlotMachineConfig2(
+public record SlotMachineConfig(
     [property: Required(AllowEmptyStrings = false)]
     string LaunchMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -269,7 +302,7 @@ public record SlotMachineConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record DislikeConfig2(
+public record DislikeConfig(
     [property: Required(AllowEmptyStrings = false)]
     string SuccessMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -278,56 +311,24 @@ public record DislikeConfig2(
     string ReceiverNotSetMessage,
     [property: Required(AllowEmptyStrings = false)]
     string SelfMessage,
-    [property: Required(AllowEmptyStrings = false)]
-    string DailyResultMessage,
-    [property: Required(AllowEmptyStrings = false)]
-    string CurseSuccess,
-    [property: Required(AllowEmptyStrings = false)]
-    string CurseBlocked,
-    [property: Required(AllowEmptyStrings = false)]
-    string DailyResultCronUtc,
-    [property: Required(AllowEmptyStrings = false)]
-    string DailyResultEmoji,
-    [property: Range(1, int.MaxValue)] int EmojiDurationMinutes,
     bool Enabled = false
 ) : IConfig;
 
-public record AmuletConfig2(
-    [property: Required(AllowEmptyStrings = false)]
-    string AmuletBreaksMessage,
-    [property: Required(AllowEmptyStrings = false)]
-    string AmuletDescription,
-    [property: Range(1, int.MaxValue)] int MessageExpirationMinutes,
-    bool Enabled = false
-) : IConfig;
-
-public record ItemConfig2(
+public record ItemConfig(
     Dictionary<MemberItemType, ItemDropConfig> ItemChance,
-    [property: Required(AllowEmptyStrings = false)]
-    string NoItemsMessage,
-    [property: Required(AllowEmptyStrings = false)]
-    string GetItemMessage,
-    [property: Required(AllowEmptyStrings = false)]
-    string MultipleItemMessage,
     [property: Required(AllowEmptyStrings = false)]
     string AmuletBrokenMessage,
     [property: Required(AllowEmptyStrings = false)]
-    string EmptyInventoryMessage,
-    [property: Required(AllowEmptyStrings = false)]
     string InviteInventoryMessage,
     [property: Required(AllowEmptyStrings = false)]
-    string SuccessInventoryMessage,
-    [property: Required(AllowEmptyStrings = false)]
     string FailedToOpenBoxMessage,
-    [property: Required(AllowEmptyStrings = false)]
-    string StoneDescription,
     MemberItemType CompensationItem,
     [property: Range(1, int.MaxValue)] int UniqueItemGiveExpirationMinutes,
     [property: Range(1, int.MaxValue)] int BoxMessageExpiration,
     bool Enabled = false
 ) : IConfig;
 
-public record HelpConfig2(
+public record HelpConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ItemHelpTemplate,
     [property: Required(AllowEmptyStrings = false)]
@@ -339,7 +340,7 @@ public record HelpConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record GiveConfig2(
+public record GiveConfig(
     [property: Required(AllowEmptyStrings = false)]
     string SuccessMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -358,7 +359,7 @@ public record GiveConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record GiveawayConfig2(
+public record GiveawayConfig(
     [property: Required(AllowEmptyStrings = false)]
     string AnnouncementMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -377,7 +378,7 @@ public record GiveawayConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record DustConfig2(
+public record DustConfig(
     IReadOnlyDictionary<MemberItemType, DustRecipe> DustRecipes,
     [property: Required(AllowEmptyStrings = false)]
     string SuccessMessage,
@@ -397,7 +398,7 @@ public record DustConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record CraftConfig2(
+public record CraftConfig(
     IReadOnlyList<CraftRecipe> Recipes,
     [property: Required(AllowEmptyStrings = false)]
     string SuccessMessage,
@@ -415,7 +416,7 @@ public record CraftConfig2(
     bool Enabled = false
 ) : IConfig;
 
-public record MazeConfig2(
+public record MazeConfig(
     [property: Range(1, int.MaxValue)] int ChestFrequency = 50,
     [property: Range(1, 10)] int DefaultViewRadius = 3,
     [property: Range(0, int.MaxValue)] int MoveDelaySeconds = 3,
