@@ -24,8 +24,10 @@ public class TelegramPostService(
     public async Task<Option<TelegramRandomMeme>> GetRandomPostPicture(long chatId)
     {
         var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.TelegramPostConfig);
-        if (maybeConfig.TryGetSome(out var telegramPostConfig))
-            return chatConfigService.LogNonExistConfig(None, nameof(Entity.Configs.TelegramPostConfig));
+        if (!maybeConfig.TryGetSome(out var telegramPostConfig))
+        {
+            return chatConfigService.LogNonExistConfig(None, nameof(TelegramPostConfig));
+        }
 
         var maxGetPostRetries = telegramPostConfig.MaxGetPostRetries;
         var channelNames = telegramPostConfig.ChannelNames;

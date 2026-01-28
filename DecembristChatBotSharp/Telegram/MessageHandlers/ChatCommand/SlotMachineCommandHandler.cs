@@ -36,9 +36,12 @@ public class SlotMachineCommandHandler(
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
-        var maybeSlotMachineConfig = await chatConfigService.GetConfig(chatId, config => config.SlotMachineConfig);
+        var maybeSlotMachineConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.SlotMachineConfig);
         if (!maybeSlotMachineConfig.TryGetSome(out var slotMachineConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(SlotMachineConfig), Command);
+        }
 
         var isAdmin = await adminUserRepository.IsAdmin(new(telegramId, chatId));
 

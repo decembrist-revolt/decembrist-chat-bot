@@ -34,10 +34,12 @@ public class CaptchaHandler(
     public async Task<Result> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
-        
-        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.CaptchaConfig);
+
+        var maybeConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CaptchaConfig);
         if (!maybeConfig.TryGetSome(out var captchaConfig))
+        {
             return chatConfigService.LogNonExistConfig(Result.JustMessage, nameof(Entity.Configs.CaptchaConfig));
+        }
 
         var payload = parameters.Payload;
 
@@ -83,7 +85,8 @@ public class CaptchaHandler(
             ).WhenAll());
     }
 
-    private async Task<Unit> OnCaptchaFailed(long chatId, int messageId, NewMember newMember, Entity.Configs.CaptchaConfig captchaConfig)
+    private async Task<Unit> OnCaptchaFailed(long chatId, int messageId, NewMember newMember,
+        Entity.Configs.CaptchaConfig captchaConfig)
     {
         Log.Information("User {0} failed captcha in chat {1}", newMember.Id.TelegramId, chatId);
         var retryCount = newMember.CaptchaRetryCount;
@@ -91,7 +94,8 @@ public class CaptchaHandler(
         var captchaTask = retryCount switch
         {
             _ when retryCount >= _captchaJobConfig.CaptchaRetryCount => KickCaptchaFailedUser(chatId, newMember),
-            _ when retryCount % _captchaJobConfig.CaptchaRequestAgainCount == 0 => SendCaptchaMessage(chatId, newMember, captchaConfig),
+            _ when retryCount % _captchaJobConfig.CaptchaRequestAgainCount == 0 => SendCaptchaMessage(chatId, newMember,
+                captchaConfig),
             _ => newMemberRepository.AddMemberItem(newMember with { CaptchaRetryCount = retryCount + 1 }).ToUnit()
         };
         return await Array(captchaTask,
@@ -104,7 +108,8 @@ public class CaptchaHandler(
             newMemberRepository.RemoveNewMember(newMember.Id).ToUnit()
         ).WhenAll();
 
-    private async Task<Unit> SendCaptchaMessage(long chatId, NewMember newMember, Entity.Configs.CaptchaConfig captchaConfig)
+    private async Task<Unit> SendCaptchaMessage(long chatId, NewMember newMember,
+        Entity.Configs.CaptchaConfig captchaConfig)
     {
         var username = newMember.Username;
         var text = string.Format(captchaConfig.CaptchaRequestAgainText, username, captchaConfig.CaptchaAnswer);

@@ -43,9 +43,12 @@ public class MinaCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeMinaConfig = await chatConfigService.GetConfig(chatId, config => config.MinaConfig);
+        var maybeMinaConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.MinaConfig);
         if (!maybeMinaConfig.TryGetSome(out var minaConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(MinaConfig), Command);
+        }
 
         var taskResult = HandleMina(telegramId, chatId, text, minaConfig);
 

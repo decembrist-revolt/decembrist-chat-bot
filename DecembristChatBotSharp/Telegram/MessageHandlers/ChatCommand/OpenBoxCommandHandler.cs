@@ -30,9 +30,12 @@ public class OpenBoxCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload) return unit;
-        var maybeItemConfig = await chatConfigService.GetConfig(chatId, config => config.ItemConfig);
+        var maybeItemConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.ItemConfig);
         if (!maybeItemConfig.TryGetSome(out var itemConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(ItemConfig), Command);
+        }
 
         var boxResult = await openBoxService.OpenBox(chatId, telegramId);
         boxResult.Result.LogOpenBoxResult(boxResult.ItemType, telegramId, chatId);

@@ -39,9 +39,12 @@ public class FastReplyCommandHandler(
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
-        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
+        var maybeConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CommandConfig);
         if (!maybeConfig.TryGetSome(out var commandConfig))
-            return chatConfigService.LogNonExistConfig(unit, nameof(CommandConfig));
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(CommandConfig), Command);
+        }
 
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
         var maybeReplyFileId = parameters.ReplyFileId;

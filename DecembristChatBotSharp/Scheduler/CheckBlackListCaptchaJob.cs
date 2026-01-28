@@ -26,7 +26,7 @@ public class CheckBlackListCaptchaJob(
             .WithIdentity(nameof(CheckBlackListCaptchaJob))
             .StartNow()
             .WithSimpleSchedule(x => x
-                .WithIntervalInSeconds(appConfig.FilterSchedulerConfig.CheckCaptchaIntervalSeconds)
+                .WithIntervalInSeconds(appConfig.FilterJobConfig.CheckCaptchaIntervalSeconds)
                 .RepeatForever())
             .Build();
 
@@ -35,7 +35,7 @@ public class CheckBlackListCaptchaJob(
 
     public async Task Execute(IJobExecutionContext context)
     {
-        var olderThanUtc = DateTime.UtcNow.AddSeconds(-appConfig.FilterSchedulerConfig.CaptchaTimeSeconds);
+        var olderThanUtc = DateTime.UtcNow.AddSeconds(-appConfig.FilterJobConfig.CaptchaTimeSeconds);
         var members = await db.GetExpiredMessages(olderThanUtc);
 
         await members.Select(HandleExpiredMember).WhenAll();

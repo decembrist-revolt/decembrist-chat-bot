@@ -16,6 +16,7 @@ public class BotHandler(
     User botUser,
     BotClient botClient,
     AppConfig appConfig,
+    ChatConfigService chatConfigService,
     NewMemberHandler newMemberHandler,
     PrivateMessageHandler privateMessageHandler,
     ChatMessageHandler chatMessageHandler,
@@ -82,13 +83,17 @@ public class BotHandler(
         };
     }
 
-    private Task HandleChatEditedMessage(Message message) => message switch
+    private async Task HandleChatEditedMessage(Message message)
     {
+        var completedTask = message switch
         {
-            From.Id: { },
-        } => chatEditedHandler.Do(GetChatMessageHandlerParams(message)),
-        _ => Task.CompletedTask
-    };
+            {
+                From.Id: { },
+            } => chatEditedHandler.Do(await GetChatMessageHandlerParams(message)),
+            _ => Task.CompletedTask
+        };
+        await completedTask;
+    }
 
     private Task HandlePrivateMessageUpdateAsync(Message message) => message switch
     {
@@ -118,10 +123,10 @@ public class BotHandler(
     private async Task HandleChatMessage(Message message)
     {
         var parameters = GetChatMessageHandlerParams(message);
-        await chatMessageHandler.Do(parameters);
+        await chatMessageHandler.Do(await parameters);
     }
 
-    private ChatMessageHandlerParams GetChatMessageHandlerParams(Message message)
+    private async Task<ChatMessageHandlerParams> GetChatMessageHandlerParams(Message message)
     {
         IMessagePayload payload = message switch
         {
@@ -149,6 +154,7 @@ public class BotHandler(
         var replyToMessageText = Optional(message.ReplyToMessage?.Text ?? message.ReplyToMessage?.Caption);
         var replyToMessageId = Optional(message.ReplyToMessage?.MessageId);
         var replyToTelegramId = Optional(message.ReplyToMessage?.From?.Id);
+        var chatConfig = await chatConfigService.GetChatConfig(chatId);
 
         Option<string> replyToFileId = None;
         var type = MessageType.Unknown;
@@ -160,7 +166,7 @@ public class BotHandler(
         var parameters = new ChatMessageHandlerParams(
             payload, messageId, telegramId, chatId,
             replyToTelegramId, replyToMessageId,
-            botMentioned, replyToBotMessage, replyToMessageText, replyToFileId, type);
+            botMentioned, replyToBotMessage, replyToMessageText, replyToFileId, chatConfig, type);
         return parameters;
     }
 
@@ -194,7 +200,8 @@ public class BotHandler(
         );
     }
 
-    private CallbackQueryParameters GetQueryParameters(CallbackQuery query, (string, string, string[]) parameters)
+    private CallbackQueryParameters GetQueryParameters(CallbackQuery query,
+        (string, string, string[]) parameters)
     {
         var (prefix, suffix, keysAndValue) = parameters;
         var queryParameters = CallbackService.GetQueryParameters(keysAndValue);

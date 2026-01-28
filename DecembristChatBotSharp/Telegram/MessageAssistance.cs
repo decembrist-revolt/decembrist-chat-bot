@@ -86,7 +86,8 @@ public class MessageAssistance(
         message += count switch
         {
             > 1 => "\n\n" + string.Format(appConfig.ItemAssistanceConfig.MultipleItemMessage, count),
-            0 when item == MemberItemType.Amulet => "\n\n" + string.Format(appConfig.ItemAssistanceConfig.AmuletBrokenMessage),
+            0 when item == MemberItemType.Amulet => "\n\n" +
+                                                    string.Format(appConfig.ItemAssistanceConfig.AmuletBrokenMessage),
             _ => string.Empty
         };
 
@@ -125,6 +126,12 @@ public class MessageAssistance(
         return await SendCommandResponse(chatId, message, commandName,
             DateTime.UtcNow.AddMinutes(appConfig.AmuletConfig.MessageExpirationMinutes));
     }
+
+    public Task<Unit> SendNotConfigured(long chatId, int messageId, string commandName) =>
+        Array(
+            SendMessage(chatId, "Эта функция не доступна в этом чате", commandName),
+            DeleteCommandMessage(chatId, messageId, commandName)
+        ).WhenAll();
 
     public async Task<Unit> SendMessage(
         long chatId,

@@ -30,9 +30,12 @@ public class FilterCallbackHandler(
             Some: async parameters =>
             {
                 if (!callbackService.HasChatIdKey(parameters, out var targetChatId)) return unit;
+                
                 var maybeFilterConfig = await chatConfigService.GetConfig(targetChatId, config => config.FilterConfig);
                 if (!maybeFilterConfig.TryGetSome(out var filterConfig))
-                    return chatConfigService.LogNonExistConfig(unit, nameof(FilterConfig));
+                {
+                    return chatConfigService.LogNonExistConfig(unit, nameof(FilterConfig), Prefix);
+                }
 
                 return filterSuffix switch
                 {

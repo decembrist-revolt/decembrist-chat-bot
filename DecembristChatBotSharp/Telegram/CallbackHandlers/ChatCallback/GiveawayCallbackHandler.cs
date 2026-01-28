@@ -28,13 +28,18 @@ public class GiveawayCallbackHandler(
     {
         var (_, suffix, chatId, telegramId, messageId, queryId, _) = queryParameters;
 
-        var maybeGiveawayConfig = await chatConfigService.GetConfig(chatId, config => config.GiveawayConfig);
+        var chatConfig = await chatConfigService.GetChatConfig(chatId);
+        var maybeGiveawayConfig = chatConfigService.GetConfig(chatConfig, config => config.GiveawayConfig);
         if (!maybeGiveawayConfig.TryGetSome(out var giveawayConfig))
+        {
             return chatConfigService.LogNonExistConfig(unit, nameof(GiveawayConfig));
+        }
 
-        var maybeItemConfig = await chatConfigService.GetConfig(chatId, config => config.ItemConfig);
+        var maybeItemConfig = chatConfigService.GetConfig(chatConfig, config => config.ItemConfig);
         if (!maybeItemConfig.TryGetSome(out var itemConfig))
+        {
             return chatConfigService.LogNonExistConfig(unit, nameof(ItemConfig));
+        }
 
         if (!TryParseGiveawayData(suffix, out var item, out var quantity, out var targetAudience))
         {

@@ -82,12 +82,14 @@ public class PrivateMessageHandler(
 
     private async Task<TryAsync<Message>> SendProfile(long chatId, long privateChatId)
     {
-        var maybeMenuConfig = await chatConfigService.GetConfig(chatId, config => config.MenuConfig);
+        var maybeMenuConfig = await chatConfigService.GetConfig(chatId, config => config.ProfileConfig);
         if (!maybeMenuConfig.TryGetSome(out var menuConfig))
         {
             Log.Warning("MenuConfig not found for chat {ChatId}", chatId);
-            return TryAsync<Message>(new Exception("Config not found"));
+            return TryAsync(botClient.SendMessage(privateChatId, "Меню для этого чата не настроено",
+                cancellationToken: cancelToken.Token));
         }
+
         if (!messageAssistance.IsAllowedChat(chatId)) return SendChatNotAllowed(privateChatId, menuConfig);
         var message = menuConfig.WelcomeMessage;
         var markup = await profileButtons.GetProfileMarkup(privateChatId, chatId);
@@ -96,9 +98,9 @@ public class PrivateMessageHandler(
             cancellationToken: cancelToken.Token));
     }
 
-    private TryAsync<Message> SendChatNotAllowed(long privateChatId, MenuConfig menuConfig)
+    private TryAsync<Message> SendChatNotAllowed(long privateChatId, ProfileConfig profileConfig)
     {
-        var message = menuConfig.ChatNotAllowed;
+        var message = profileConfig.ChatNotAllowed;
         return botClient.SendMessage(privateChatId, message, cancellationToken: cancelToken.Token).ToTryAsync();
     }
 

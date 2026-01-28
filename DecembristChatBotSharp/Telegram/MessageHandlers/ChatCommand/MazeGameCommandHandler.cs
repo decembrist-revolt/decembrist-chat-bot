@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.Entity.Configs;
+using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
@@ -40,13 +41,19 @@ public class MazeGameCommandHandler(
             ).WhenAll();
         }
 
-        var maybeMazeConfig = await chatConfigService.GetConfig(chatId, config => config.MazeConfig);
+        var maybeMazeConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.MazeConfig);
         if (!maybeMazeConfig.TryGetSome(out var mazeConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(MazeConfig), Command);
+        }
 
-        var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
+        var maybeCommandConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CommandConfig);
         if (!maybeCommandConfig.TryGetSome(out var commandConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(CommandConfig), Command);
+        }
 
         var url = await botClient.GetBotStartLink(
             PrivateMessageHandler.GetCommandForChat(PrivateMessageHandler.MazeGameCommandSuffix, chatId));

@@ -30,9 +30,12 @@ public partial class DustCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeDustConfig = await chatConfigService.GetConfig(chatId, config => config.DustConfig);
+        var maybeDustConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.DustConfig);
         if (!maybeDustConfig.TryGetSome(out var dustConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(DustConfig), Command);
+        }
 
         var taskResult = ParseText(text.Trim()).Match(
             item => HandleDust(item, chatId, telegramId, dustConfig),

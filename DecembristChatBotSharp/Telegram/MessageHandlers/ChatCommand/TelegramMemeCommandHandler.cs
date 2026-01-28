@@ -34,9 +34,12 @@ public class TelegramMemeCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
 
-        var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.TelegramPostConfig);
+        var maybeCommandConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.TelegramPostConfig);
         if (!maybeCommandConfig.TryGetSome(out var telegramPostConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(TelegramPostConfig), Command);
+        }
 
         var isAdmin = await adminUserRepository.IsAdmin(new(telegramId, chatId));
 

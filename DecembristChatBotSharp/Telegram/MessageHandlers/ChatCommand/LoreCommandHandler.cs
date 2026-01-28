@@ -29,9 +29,12 @@ public partial class LoreCommandHandler(
     {
         var (messageId, _, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeLoreConfig = await chatConfigService.GetConfig(chatId, config => config.LoreConfig);
+        var maybeLoreConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.LoreConfig);
         if (!maybeLoreConfig.TryGetSome(out var loreConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(LoreConfig), Command);
+        }
 
         var maybeKey = ParseText(text.Trim(), chatId, loreConfig);
         var taskResult = maybeKey

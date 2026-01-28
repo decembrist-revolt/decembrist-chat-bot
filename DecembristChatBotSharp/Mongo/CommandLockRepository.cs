@@ -51,7 +51,7 @@ public class CommandLockRepository(
     public async Task<bool> AcquireLock(long chatId, string command, string? arguments = null, long? telegramId = null)
     {
         var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
-        if (maybeCommandConfig.TryGetSome(out var commandConfig))
+        if (!maybeCommandConfig.TryGetSome(out var commandConfig))
         {
             return chatConfigService.LogNonExistConfig(false, nameof(CommandConfig));
         }

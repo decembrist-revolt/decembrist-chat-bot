@@ -28,18 +28,20 @@ public class ProfilePrivateCallbackHandler(
     public async Task<Unit> Do(CallbackQueryParameters queryParameters)
     {
         var (_, suffix, chatId, telegramId, messageId, queryId, maybeParameters) = queryParameters;
-
         if (!Enum.TryParse(suffix, true, out ProfileSuffix profileSuffix)) return unit;
 
-        var maybeMenuConfig = await chatConfigService.GetConfig(chatId, config => config.MenuConfig);
-        if (!maybeMenuConfig.TryGetSome(out var menuConfig))
-            return chatConfigService.LogNonExistConfig(unit, nameof(MenuConfig));
 
         var taskResult = maybeParameters.MatchAsync(
             None: () => messageAssistance.SendCommandResponse(chatId, "OK", nameof(ProfilePrivateCallbackHandler)),
             Some: async parameters =>
             {
                 if (!callbackService.HasChatIdKey(parameters, out var targetChatId)) return unit;
+                var chatConfig = await chatConfigService.GetChatConfig(targetChatId);
+                var maybeConfig = chatConfigService.GetConfig(chatConfig, config => config.ProfileConfig);
+                if (!maybeConfig.TryGetSome(out var menuConfig))
+                {
+                    return chatConfigService.LogNonExistConfig(unit, nameof(ProfileConfig), Prefix);
+                }
 
                 return profileSuffix switch
                 {
@@ -58,18 +60,19 @@ public class ProfilePrivateCallbackHandler(
         return await Array(taskResult, messageAssistance.AnswerCallbackQuery(queryId, chatId, Prefix)).WhenAll();
     }
 
-    private async Task<Unit> SwitchToWelcome(int messageId, long telegramId, long chatId, MenuConfig menuConfig)
+    private async Task<Unit> SwitchToWelcome(int messageId, long telegramId, long chatId, ProfileConfig profileConfig)
     {
         var markup = await profileButtons.GetProfileMarkup(telegramId, chatId);
-        var message = menuConfig.WelcomeMessage;
+        var message = profileConfig.WelcomeMessage;
         return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
     }
 
-    private async Task<Unit> SendProfileMessage(int messageId, long telegramId, long chatId, MenuConfig menuConfig)
+    private async Task<Unit> SendProfileMessage(int messageId, long telegramId, long chatId,
+        ProfileConfig profileConfig)
     {
         await messageAssistance.DeleteCommandMessage(telegramId, messageId, Prefix);
         var markup = await profileButtons.GetProfileMarkup(telegramId, chatId);
-        var message = menuConfig.WelcomeMessage;
+        var message = profileConfig.WelcomeMessage;
         return await messageAssistance.SendMessage(telegramId, message, Prefix, markup);
     }
 
@@ -81,28 +84,29 @@ public class ProfilePrivateCallbackHandler(
             ParseMode.MarkdownV2);
     }
 
-    private async Task<Unit> SwitchToLore(int messageId, long telegramId, long chatId, MenuConfig menuConfig)
+    private async Task<Unit> SwitchToLore(int messageId, long telegramId, long chatId, ProfileConfig profileConfig)
     {
         var markup = loreButtons.GetLoreMarkup(chatId);
-        var message = menuConfig.LoreDescription;
+        var message = profileConfig.LoreDescription;
         return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
     }
 
-    private async Task<Unit> SwitchToAdminPanel(int messageId, long telegramId, long chatId, MenuConfig menuConfig)
+    private async Task<Unit> SwitchToAdminPanel(int messageId, long telegramId, long chatId,
+        ProfileConfig profileConfig)
     {
         var markup = adminPanelButton.GetMarkup(chatId);
-        var message = menuConfig.FilterDescription;
+        var message = profileConfig.FilterDescription;
         return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
     }
 
-    private async Task<Unit> SwitchNonMazeView(int messageId, long telegramId, long chatId, MenuConfig menuConfig)
+    private async Task<Unit> SwitchNonMazeView(int messageId, long telegramId, long chatId, ProfileConfig profileConfig)
     {
         var markup = await profileButtons.GetProfileMarkup(telegramId, chatId);
-        var message = menuConfig.NonMazeDescription;
+        var message = profileConfig.NonMazeDescription;
         return await messageAssistance.EditProfileMessage(telegramId, chatId, messageId, markup, message, Prefix);
     }
 
-    private async Task<Unit> SwitchToMazeMap(int messageId, long telegramId, long chatId, MenuConfig menuConfig)
+    private async Task<Unit> SwitchToMazeMap(int messageId, long telegramId, long chatId, ProfileConfig profileConfig)
     {
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
         if (!isAdmin) return await messageAssistance.SendAdminOnlyMessage(telegramId, telegramId);
@@ -118,7 +122,7 @@ public class ProfilePrivateCallbackHandler(
                     markup
                 );
             },
-            () => SwitchNonMazeView(messageId, telegramId, chatId, menuConfig));
+            () => SwitchNonMazeView(messageId, telegramId, chatId, profileConfig));
     }
 }
 

@@ -48,9 +48,12 @@ public partial class CurseCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeCurseConfig = await chatConfigService.GetConfig(chatId, config => config.CurseConfig);
+        var maybeCurseConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CurseConfig);
         if (!maybeCurseConfig.TryGetSome(out var curseConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(CurseConfig), Command);
+        }
 
         var taskResult = parameters.ReplyToTelegramId.Match(
             async receiverId => await HandleCurse(telegramId, chatId, receiverId, text, messageId, curseConfig),

@@ -17,7 +17,7 @@ public class ExpiredMessageRepository(
     {
         var collection = GetCollection();
         var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
-        if (maybeCommandConfig.TryGetSome(out var commandConfig))
+        if (!maybeCommandConfig.TryGetSome(out var commandConfig))
         {
             return chatConfigService.LogNonExistConfig(unit, nameof(CommandConfig));
         }

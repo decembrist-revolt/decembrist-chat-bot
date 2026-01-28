@@ -50,9 +50,12 @@ public partial class GiveawayCommandHandler(
             ).WhenAll();
         }
 
-        var maybeGiveawayConfig = await chatConfigService.GetConfig(chatId, config => config.GiveawayConfig);
+        var maybeGiveawayConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.GiveawayConfig);
         if (!maybeGiveawayConfig.TryGetSome(out var giveawayConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(GiveawayConfig), Command);
+        }
 
         var parseResult = ParseGiveawayArgs(text, giveawayConfig);
         return await parseResult.MatchAsync(

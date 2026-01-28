@@ -28,7 +28,9 @@ public class MazeGameJoinCommandHandler(
     {
         var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.MazeConfig);
         if (!maybeConfig.TryGetSome(out var mazeConfig))
-            return chatConfigService.LogNonExistConfig(unit, nameof(Entity.Configs.MazeConfig));
+        {
+            return chatConfigService.LogNonExistConfig(unit, nameof(MazeConfig));
+        }
 
         var isPlayerExist =
             await mazeGameRepository.GetPlayer(new MazeGamePlayer.CompositeId(chatId, telegramId));
@@ -37,7 +39,7 @@ public class MazeGameJoinCommandHandler(
             () => TryJoinPlayer(chatId, telegramId, mazeConfig));
     }
 
-    private async Task<Unit> TryJoinPlayer(long chatId, long telegramId, Entity.Configs.MazeConfig mazeConfig)
+    private async Task<Unit> TryJoinPlayer(long chatId, long telegramId, MazeConfig mazeConfig)
     {
         var joinResult = await mazeGameService.JoinGame(chatId, telegramId);
         return await joinResult.MatchAsync(
@@ -55,13 +57,13 @@ public class MazeGameJoinCommandHandler(
                         player.Inventory.Shovels + 1,
                         player.Inventory.ViewExpanders + 1
                     );
-                    
+
                     var updatedPlayer = player with { Inventory = bonusInventory };
                     await mazeGameRepository.UpdatePlayerInventory(
                         new MazeGamePlayer.CompositeId(chatId, telegramId),
                         bonusInventory
                     );
-                    
+
                     player = updatedPlayer;
                     Log.Information("Premium player {0} received bonus items in maze game", telegramId);
                 }
@@ -75,10 +77,12 @@ public class MazeGameJoinCommandHandler(
             });
     }
 
-    private Task<Unit> SendGameNotFound(long telegramId, Entity.Configs.MazeConfig mazeConfig) => messageAssistance.SendMessage(telegramId,
-        mazeConfig.GameNotFoundMessage, nameof(MazeGameJoinCommandHandler));
+    private Task<Unit> SendGameNotFound(long telegramId, MazeConfig mazeConfig) =>
+        messageAssistance.SendMessage(telegramId,
+            mazeConfig.GameNotFoundMessage, nameof(MazeGameJoinCommandHandler));
 
-    private async Task<Unit> SendGameControls(long telegramId, long chatId, MazeGamePlayer player, Entity.Configs.MazeConfig mazeConfig)
+    private async Task<Unit> SendGameControls(long telegramId, long chatId, MazeGamePlayer player,
+        MazeConfig mazeConfig)
     {
         await SendWelcomeMessage(player, mazeConfig);
         await SendPlayerView(telegramId, chatId, player);

@@ -42,9 +42,12 @@ public partial class ListCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeListConfig = await chatConfigService.GetConfig(chatId, config => config.ListConfig);
+        var maybeListConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.ListConfig);
         if (!maybeListConfig.TryGetSome(out var listConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(ListConfig), Command);
+        }
 
         var taskResult = ParseText(text.Trim()).MatchAsync(
             listType => HandleList(chatId, telegramId, listType, listConfig), () =>

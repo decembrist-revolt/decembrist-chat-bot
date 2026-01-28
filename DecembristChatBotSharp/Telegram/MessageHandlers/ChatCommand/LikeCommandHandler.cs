@@ -32,9 +32,12 @@ public class LikeCommandHandler(
         var likeToTelegramId = parameters.ReplyToTelegramId;
         var messageId = parameters.MessageId;
 
-        var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.LikeConfig);
+        var maybeCommandConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.LikeConfig);
         if (!maybeCommandConfig.TryGetSome(out var likeConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(LikeConfig), Command);
+        }
 
         if (likeToTelegramId.IsNone)
         {

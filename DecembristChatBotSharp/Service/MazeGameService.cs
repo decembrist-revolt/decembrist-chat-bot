@@ -173,8 +173,10 @@ public class MazeGameService(
     {
         var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId));
         var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.MazeConfig);
-        if (maybeConfig.TryGetSome(out var mazeConfig))
+        if (!maybeConfig.TryGetSome(out var mazeConfig))
+        {
             return chatConfigService.LogNonExistConfig(None, nameof(Entity.Configs.MazeConfig));
+        }
 
         return await gameOpt.MatchAsync(
             async game =>

@@ -15,7 +15,10 @@ public partial class CraftCommandHandler(
     ChatConfigService chatConfigService) : ICommandHandler
 {
     public string Command => "/craft";
-    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command, "Craft items");
+
+    public string Description =>
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command, "Craft items");
+
     public CommandLevel CommandLevel => CommandLevel.User;
 
     [GeneratedRegex(@"\s+")]
@@ -25,9 +28,12 @@ public partial class CraftCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeCraftConfig = await chatConfigService.GetConfig(chatId, config => config.CraftConfig);
+        var maybeCraftConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CraftConfig);
         if (!maybeCraftConfig.TryGetSome(out var craftConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(CraftConfig), Command);
+        }
 
         var items = GetCraftItems(text.Trim());
         var resultTask = items.Count > 0

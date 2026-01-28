@@ -41,14 +41,16 @@ public class MazeGameMoveCallbackHandler(
                 "Ошибка обработки хода", showAlert: true);
         }
 
-        var maybeConfig = await chatConfigService.GetConfig(targetChatId, config => config.MazeConfig);
-        if (!maybeConfig.TryGetSome(out var mazeConfig))
-            return chatConfigService.LogNonExistConfig(unit, nameof(Entity.Configs.MazeConfig));
-
-        if (suffix == ExitSuffix) return await SendGameExit(privateChatId, telegramId, messageId, mazeConfig);
+        if (suffix == ExitSuffix) return await SendGameExit(privateChatId, telegramId, messageId);
         var steps = callbackService.HasStepsCountKey(parameters, out var stepsCount)
             ? stepsCount
             : 1;
+
+        var maybeConfig = await chatConfigService.GetConfig(targetChatId, config => config.MazeConfig);
+        if (!maybeConfig.TryGetSome(out var mazeConfig))
+        {
+            return chatConfigService.LogNonExistConfig(unit, nameof(MazeConfig), Prefix);
+        }
 
         var moved = await mazeGameService.MovePlayer(targetChatId, messageId, telegramId, direction, steps);
         var answer = moved switch
@@ -87,14 +89,16 @@ public class MazeGameMoveCallbackHandler(
             () => unit);
     }
 
-    private async Task<Unit> SendGameExit(long privateChatId, long telegramId, int messageId, Entity.Configs.MazeConfig mazeConfig)
+    private async Task<Unit> SendGameExit(long privateChatId, long telegramId, int messageId)
     {
         await messageAssistance.DeleteCommandMessage(privateChatId, messageId, Prefix);
         Log.Information("Player {0} exited maze game", telegramId);
-        return await messageAssistance.SendMessage(privateChatId, mazeConfig.GameExitMessage, Prefix);
+        return await messageAssistance.SendMessage(privateChatId, "Вы вышли из игры, вы можете перезайти из чата",
+            Prefix);
     }
 
-    private async Task<Unit> HandleWinner(long chatId, long telegramId, long privateChatId, Entity.Configs.MazeConfig mazeConfig)
+    private async Task<Unit> HandleWinner(long chatId, long telegramId, long privateChatId,
+        Entity.Configs.MazeConfig mazeConfig)
     {
         Log.Information("Player {0} won maze game in chat {1}", telegramId, chatId);
 

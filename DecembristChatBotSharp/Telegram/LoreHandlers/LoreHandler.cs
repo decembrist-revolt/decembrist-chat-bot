@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.Entity.Configs;
+using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
 using Telegram.Bot;
@@ -42,7 +43,10 @@ public class LoreHandler(
 
                 var maybeLoreConfig = await chatConfigService.GetConfig(lorChatId, config => config.LoreConfig);
                 if (!maybeLoreConfig.TryGetSome(out var loreConfig))
-                    return await SendNotLoreUser(telegramId, "Lore config not found");
+                {
+                    var sendNotLoreUser = await SendNotLoreUser(telegramId, "Lore config not found");
+                    return chatConfigService.LogNonExistConfig(sendNotLoreUser, nameof(LoreConfig));
+                }
 
                 return suffix switch
                 {

@@ -20,7 +20,7 @@ public record AppConfig(
     MongoConfig MongoConfig,
     CommandAssistanceConfig CommandAssistanceConfig,
     LoreServiceConfig LoreServiceConfig,
-    FilterSchedulerConfig FilterSchedulerConfig,
+    FilterJobConfig FilterJobConfig,
     RedditConfig RedditConfig,
     DislikeJobConfig DislikeJobConfig,
     AmuletConfig AmuletConfig,
@@ -91,12 +91,6 @@ public record AppConfig(
     }
 }
 
-public record CaptchaJobConfig(
-    [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalHours,
-    [property: Range(1, long.MaxValue)] long CaptchaTimeHours,
-    [property: Range(1, int.MaxValue)] int CaptchaRequestAgainCount,
-    [property: Range(1, int.MaxValue)] int CaptchaRetryCount);
-
 public record AllowedChatConfig(
     System.Collections.Generic.HashSet<long>? AllowedChatIds,
     [property: Required(AllowEmptyStrings = false)]
@@ -104,6 +98,12 @@ public record AllowedChatConfig(
     [property: Required(AllowEmptyStrings = false)]
     string RightChatText
 );
+
+public record CaptchaJobConfig(
+    [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalHours,
+    [property: Range(1, long.MaxValue)] long CaptchaTimeHours,
+    [property: Range(1, int.MaxValue)] int CaptchaRequestAgainCount,
+    [property: Range(1, int.MaxValue)] int CaptchaRetryCount);
 
 public record MongoConfig(
     [property: Required(AllowEmptyStrings = false)]
@@ -143,7 +143,7 @@ public record LoreServiceConfig(
     [property: Range(1, int.MaxValue)] int KeyLimit
 );
 
-public record FilterSchedulerConfig(
+public record FilterJobConfig(
     [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalSeconds,
     [property: Range(1, int.MaxValue)] int CaptchaTimeSeconds
 );

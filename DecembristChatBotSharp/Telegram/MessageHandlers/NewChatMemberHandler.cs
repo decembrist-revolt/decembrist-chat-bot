@@ -48,7 +48,7 @@ public class NewMemberHandler(
         var maybeCaptchaConfig = await chatConfigService.GetConfig(chatId, config => config.CaptchaConfig);
         if (!maybeCaptchaConfig.TryGetSome(out var captchaConfig))
         {
-            return unit;
+            return chatConfigService.LogNonExistConfig(unit, nameof(CaptchaConfig), nameof(NewMemberHandler));
         }
 
         var sendWelcomeTask = await SendWelcomeMessageForUser(chatId, user, captchaConfig);
@@ -60,7 +60,8 @@ public class NewMemberHandler(
         );
     }
 
-    private async Task<Either<UsernameEx, string>> SendWelcomeMessageForUser(long chatId, User user, Entity.Configs.CaptchaConfig captchaConfig)
+    private async Task<Either<UsernameEx, string>> SendWelcomeMessageForUser(long chatId, User user,
+        Entity.Configs.CaptchaConfig captchaConfig)
     {
         var username = Optional(user.Username).Match(
             Some: username => $"@{username}",

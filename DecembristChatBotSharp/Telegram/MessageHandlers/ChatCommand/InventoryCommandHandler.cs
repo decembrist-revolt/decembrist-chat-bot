@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.Entity.Configs;
+using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
 using static DecembristChatBotSharp.Telegram.MessageHandlers.PrivateMessageHandler;
@@ -24,9 +25,12 @@ public class InventoryCommandHandler(
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, _, chatId) = parameters;
-        var maybeItemConfig = await chatConfigService.GetConfig(chatId, config => config.ItemConfig);
+        var maybeItemConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.ItemConfig);
         if (!maybeItemConfig.TryGetSome(out var itemConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(ItemConfig), Command);
+        }
 
         var lockSuccess = await lockRepository.TryAcquire(chatId, Command);
         if (!lockSuccess) return await messageAssistance.CommandNotReady(chatId, messageId, Command);

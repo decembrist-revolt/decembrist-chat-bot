@@ -38,9 +38,12 @@ public partial class GiveItemCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeGiveConfig = await chatConfigService.GetConfig(chatId, config => config.GiveConfig);
+        var maybeGiveConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.GiveConfig);
         if (!maybeGiveConfig.TryGetSome(out var giveConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(GiveConfig), Command);
+        }
         var maybeItemConfig = await chatConfigService.GetConfig(chatId, config => config.ItemConfig);
         if (!maybeItemConfig.TryGetSome(out var itemConfig))
             return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);

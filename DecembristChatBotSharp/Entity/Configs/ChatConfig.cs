@@ -15,7 +15,7 @@ public record ChatConfig(
     LikeConfig LikeConfig,
     BanConfig BanConfig,
     TelegramPostConfig TelegramPostConfig,
-    MenuConfig MenuConfig,
+    ProfileConfig ProfileConfig,
     LoreConfig LoreConfig,
     ListConfig ListConfig,
     FilterConfig FilterConfig,
@@ -144,11 +144,10 @@ public record CommandConfig(
     string FastReplyExpiredMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FastReplyCheckExpireCronUtc,
-    Dictionary<string, string> CommandDescriptions,
     bool Enabled = false
 ) : IConfig;
 
-public record MenuConfig(
+public record ProfileConfig(
     [property: Required(AllowEmptyStrings = false)]
     string WelcomeMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -182,8 +181,6 @@ public record LoreConfig(
     [property: Required(AllowEmptyStrings = false)]
     string DeleteRequest,
     [property: Required(AllowEmptyStrings = false)]
-    string MessageExpired,
-    [property: Required(AllowEmptyStrings = false)]
     string DeleteSuccess,
     [property: Required(AllowEmptyStrings = false)]
     string LoreHelp,
@@ -201,6 +198,8 @@ public record LoreConfig(
     string Tip,
     [property: Required(AllowEmptyStrings = false)]
     string PrivateFailed,
+    [property: Required(AllowEmptyStrings = false)]
+    string MessageExpired,
     [property: Range(1, int.MaxValue)] int ContentEditExpiration,
     [property: Range(1, int.MaxValue)] int DeleteExpiration,
     [property: Range(1, int.MaxValue)] int ChatLoreExpiration,
@@ -218,7 +217,6 @@ public record ListConfig(
     string HelpMessage,
     [property: Required(AllowEmptyStrings = false)]
     string NotAccess,
-    [property: Range(1, int.MaxValue)] int RowLimit,
     [property: Range(1, int.MaxValue)] int ExpirationMinutes,
     bool Enabled = false
 ) : IConfig;
@@ -295,10 +293,10 @@ public record SlotMachineConfig(
     string LoseMessage,
     [property: Required(AllowEmptyStrings = false)]
     string ErrorMessage,
-    [property: Required(AllowEmptyStrings = false)]
-    string Premium777Message,
     [property: Range(1, int.MaxValue)] int PremiumAttempts,
     [property: Range(1, int.MaxValue)] int PremiumDaysFor777,
+    [property: Required(AllowEmptyStrings = false)]
+    string Premium777Message,
     bool Enabled = false
 ) : IConfig;
 
@@ -311,6 +309,17 @@ public record DislikeConfig(
     string ReceiverNotSetMessage,
     [property: Required(AllowEmptyStrings = false)]
     string SelfMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string DailyResultMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string CurseSuccess,
+    [property: Required(AllowEmptyStrings = false)]
+    string CurseBlocked,
+    [property: Required(AllowEmptyStrings = false)]
+    string DailyResultCronUtc,
+    [property: Required(AllowEmptyStrings = false)]
+    string DailyResultEmoji,
+    [property: Range(1, int.MaxValue)] int EmojiDurationMinutes,
     bool Enabled = false
 ) : IConfig;
 
@@ -319,9 +328,21 @@ public record ItemConfig(
     [property: Required(AllowEmptyStrings = false)]
     string AmuletBrokenMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string NoItemsMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string GetItemMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string MultipleItemMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string EmptyInventoryMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessInventoryMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string InviteInventoryMessage,
     [property: Required(AllowEmptyStrings = false)]
     string FailedToOpenBoxMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string StoneDescription,
     MemberItemType CompensationItem,
     [property: Range(1, int.MaxValue)] int UniqueItemGiveExpirationMinutes,
     [property: Range(1, int.MaxValue)] int BoxMessageExpiration,
@@ -379,7 +400,6 @@ public record GiveawayConfig(
 ) : IConfig;
 
 public record DustConfig(
-    IReadOnlyDictionary<MemberItemType, DustRecipe> DustRecipes,
     [property: Required(AllowEmptyStrings = false)]
     string SuccessMessage,
     [property: Required(AllowEmptyStrings = false)]
@@ -399,7 +419,6 @@ public record DustConfig(
 ) : IConfig;
 
 public record CraftConfig(
-    IReadOnlyList<CraftRecipe> Recipes,
     [property: Required(AllowEmptyStrings = false)]
     string SuccessMessage,
     [property: Required(AllowEmptyStrings = false)]

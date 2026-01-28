@@ -35,7 +35,9 @@ public class LorePrivateCallbackHandler(
                 if (!callbackService.HasChatIdKey(parameters, out var targetChatId)) return unit;
                 var maybeLoreConfig = await chatConfigService.GetConfig(targetChatId, config => config.LoreConfig);
                 if (!maybeLoreConfig.TryGetSome(out var loreConfig))
-                    return chatConfigService.LogNonExistConfig(unit, nameof(LoreConfig));
+                {
+                    return chatConfigService.LogNonExistConfig(unit, nameof(LoreConfig), Prefix);
+                }
 
                 return loreSuffix switch
                 {

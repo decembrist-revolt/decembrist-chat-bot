@@ -1,4 +1,5 @@
-﻿using Lamar;
+﻿using DecembristChatBotSharp.Entity.Configs;
+using Lamar;
 using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
@@ -14,6 +15,7 @@ public readonly record struct ChatMessageHandlerParams(
     bool ReplyToBotMessage,
     Option<string> ReplyToMessageText,
     Option<string> ReplyFileId,
+    Option<ChatConfig> ChatConfig,
     MessageType MessageType = MessageType.Unknown
 )
 {
@@ -80,7 +82,7 @@ public class ChatMessageHandler(
                 return unit;
             }
         }
-        
+
         // Try fast reply first
         if (await fastReplyHandler.Do(parameters)) return unit;
 

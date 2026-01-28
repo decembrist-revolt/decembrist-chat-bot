@@ -20,7 +20,7 @@ public class OpenBoxService(
     public async Task<OpenBoxResultData> OpenBox(long chatId, long telegramId)
     {
         var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.ItemConfig);
-        if (maybeConfig.TryGetSome(out var itemConfig))
+        if (!maybeConfig.TryGetSome(out var itemConfig))
         {
             return chatConfigService.LogNonExistConfig(
                 new OpenBoxResultData(MemberItemType.TelegramMeme, 0, OpenBoxResult.Failed), nameof(ItemConfig));

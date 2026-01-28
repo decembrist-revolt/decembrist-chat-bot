@@ -14,7 +14,11 @@ public class ChatConfigRepository(MongoDatabase db, CancellationTokenSource canc
             .Find(c => c.ChatId == chatId)
             .FirstAsync()
             .ToTryAsync()
-            .Match(Some, ex =>
+            .Match(x =>
+            {
+                Log.Information("Successfully got config from chatId: {chatId}", chatId);
+                return Some(x);
+            }, ex =>
             {
                 Log.Error("Failed to get config from chatId: {chatId}", chatId);
                 return Option<ChatConfig>.None;

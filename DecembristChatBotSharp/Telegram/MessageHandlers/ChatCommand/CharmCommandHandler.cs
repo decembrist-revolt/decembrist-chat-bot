@@ -33,9 +33,12 @@ public partial class CharmCommandHandler(
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
-        var maybeCharmConfig = await chatConfigService.GetConfig(chatId, config => config.CharmConfig);
-        if (maybeCharmConfig.TryGetSome(out var charmConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        var maybeCharmConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CharmConfig);
+        if (!maybeCharmConfig.TryGetSome(out var charmConfig))
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(CharmConfig), Command);
+        }
 
         var taskResult = parameters.ReplyToTelegramId.MatchAsync(
             async receiverId => await HandleCharm(text, receiverId, chatId, telegramId, charmConfig),

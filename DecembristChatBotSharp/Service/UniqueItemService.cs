@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
 
@@ -13,7 +14,10 @@ public class UniqueItemService(
         long chatId, long telegramId, MemberItemType itemType, IMongoSession session)
     {
         var maybeItemConfig = await chatConfigService.GetConfig(chatId, config => config.ItemConfig);
-        if (maybeItemConfig.TryGetSome(out var itemConfig)) return false;
+        if (!maybeItemConfig.TryGetSome(out var itemConfig))
+        {
+            return chatConfigService.LogNonExistConfig(false, nameof(ItemConfig));
+        }
 
         var expiredAt = itemType switch
         {

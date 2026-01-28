@@ -21,7 +21,10 @@ public class ShowLikesCommandHandler(
 ) : ICommandHandler
 {
     public string Command => "/likes";
-    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command, "Show top like users");
+
+    public string Description =>
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command, "Show top like users");
+
     public CommandLevel CommandLevel => CommandLevel.User;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
@@ -29,9 +32,12 @@ public class ShowLikesCommandHandler(
         var chatId = parameters.ChatId;
         var messageId = parameters.MessageId;
 
-        var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.LikeConfig);
+        var maybeCommandConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.LikeConfig);
         if (!maybeCommandConfig.TryGetSome(out var likeConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(LikeConfig), Command);
+        }
 
         var lockSuccess = await lockRepository.TryAcquire(chatId, Command);
         if (!lockSuccess) return await messageAssistance.CommandNotReady(chatId, messageId, Command);

@@ -22,8 +22,12 @@ public class FilteredMessageHandler(
         if (parameters.Payload is not TextPayload { Text: var text }) return false;
         var (messageId, telegramId, chatId) = parameters;
 
-        var maybeFilterConfig = await chatConfigService.GetConfig(chatId, config => config.FilterConfig);
-        if (!maybeFilterConfig.TryGetSome(out var filterConfig)) return false;
+        var maybeFilterConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.FilterConfig);
+        if (!maybeFilterConfig.TryGetSome(out var filterConfig))
+        {
+            return chatConfigService.LogNonExistConfig(false, nameof(Entity.Configs.FilterConfig),
+                nameof(FilteredMessageHandler));
+        }
 
         if (!await IsFiltered(text, chatId) || await whiteListRepository.IsWhiteListMember((telegramId, chatId)))
             return false;

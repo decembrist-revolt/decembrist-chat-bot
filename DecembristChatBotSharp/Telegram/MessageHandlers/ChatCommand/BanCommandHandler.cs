@@ -29,9 +29,12 @@ public partial class BanCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.BanConfig);
+        var maybeConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.BanConfig);
         if (!maybeConfig.TryGetSome(out var banConfig))
-            return chatConfigService.LogNonExistConfig(unit, nameof(CommandConfig));
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(BanConfig), Command);
+        }
 
         if (!await lockRepository.TryAcquire(chatId, Command, telegramId: telegramId))
         {

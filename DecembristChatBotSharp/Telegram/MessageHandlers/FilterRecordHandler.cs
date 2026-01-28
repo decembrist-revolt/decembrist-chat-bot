@@ -26,11 +26,10 @@ public class FilterRecordHandler(
         var chatId = message.Chat.Id;
         var maybeFilterConfig = await chatConfigService.GetConfig(chatId, config => config.FilterConfig);
         if (!maybeFilterConfig.TryGetSome(out var filterConfig))
-            return await chatConfigService.LogNonExistConfig(SendHelpMessage(telegramId, filterConfig), nameof(FilterConfig));
-
-        var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
-        if (!maybeCommandConfig.TryGetSome(out var commandConfig))
-            return await chatConfigService.LogNonExistConfig(SendHelpMessage(telegramId, filterConfig), nameof(CommandConfig));
+        {
+            return await chatConfigService.LogNonExistConfig(SendHelpMessage(telegramId, filterConfig),
+                nameof(FilterConfig));
+        }
 
         var replyText = message.ReplyToMessage!.Text;
         var messageText = message.Text!;
@@ -45,9 +44,11 @@ public class FilterRecordHandler(
                 var (suffix, lorChatId) = tuple;
                 return suffix switch
                 {
-                    _ when !await IsAdmin(telegramId, lorChatId) => SendNotAdmin(telegramId, commandConfig),
-                    RecordSuffix => HandleCreateFilterRecord(messageText, lorChatId, telegramId, dateReply, filterConfig),
-                    DeleteSuffix => HandleDeleteFilterRecord(messageText, lorChatId, telegramId, dateReply,filterConfig),
+                    _ when !await IsAdmin(telegramId, lorChatId) => SendNotAdmin(telegramId),
+                    RecordSuffix => HandleCreateFilterRecord(messageText, lorChatId, telegramId, dateReply,
+                        filterConfig),
+                    DeleteSuffix => HandleDeleteFilterRecord(messageText, lorChatId, telegramId, dateReply,
+                        filterConfig),
                     _ => SendHelpMessage(telegramId, filterConfig)
                 };
             }).Flatten();
@@ -127,7 +128,7 @@ public class FilterRecordHandler(
     private async Task<bool> IsAdmin(long telegramId, long lorChatId) =>
         await adminUserRepository.IsAdmin((telegramId, lorChatId));
 
-    private Task<Message> SendNotAdmin(long telegramId, CommandConfig commandConfig) =>
-        botClient.SendMessage(telegramId, commandConfig.AdminOnlyMessage,
-            cancellationToken: cancelToken.Token);
+    private Task<Message> SendNotAdmin(long telegramId) => botClient.SendMessage(telegramId,
+        "Только администраторы могут использовать эту команду.",
+        cancellationToken: cancelToken.Token);
 }

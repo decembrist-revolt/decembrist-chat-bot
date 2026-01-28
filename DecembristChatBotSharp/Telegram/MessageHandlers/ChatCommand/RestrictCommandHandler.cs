@@ -34,9 +34,12 @@ public partial class RestrictCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeRestrictConfig = await chatConfigService.GetConfig(chatId, config => config.RestrictConfig);
+        var maybeRestrictConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.RestrictConfig);
         if (!maybeRestrictConfig.TryGetSome(out var restrictConfig))
-            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(RestrictConfig), Command);
+        }
 
         var taskResult = parameters.ReplyToTelegramId.Match(
             async receiverId => await HandleRestrict(text, receiverId, chatId, telegramId, messageId, restrictConfig),

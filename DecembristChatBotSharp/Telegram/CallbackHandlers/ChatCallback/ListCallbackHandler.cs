@@ -39,7 +39,7 @@ public class ListCallbackHandler(
         var maybeListConfig = await chatConfigService.GetConfig(chatId, config => config.ListConfig);
         if (!maybeListConfig.TryGetSome(out var listConfig))
         {
-            return chatConfigService.LogNonExistConfig(unit, nameof(ListConfig));
+            return chatConfigService.LogNonExistConfig(unit, nameof(ListConfig), Prefix);
         }
 
         var hasPermission = await callbackRepository.HasPermission(id);

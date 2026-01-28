@@ -22,9 +22,11 @@ public class MazeGameMapService(
     {
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, targetChatId));
         if (!isAdmin) return None;
-        var maybeCharmConfig = await chatConfigService.GetConfig(targetChatId, config => config.MenuConfig);
-        if (maybeCharmConfig.TryGetSome(out var menuConfig))
-            return chatConfigService.LogNonExistConfig(None, nameof(MenuConfig));
+        var maybeCharmConfig = await chatConfigService.GetConfig(targetChatId, config => config.ProfileConfig);
+        if (!maybeCharmConfig.TryGetSome(out var menuConfig))
+        {
+            return chatConfigService.LogNonExistConfig(None, nameof(ProfileConfig));
+        }
 
         var activeGameOpt = mazeGameService.FindActiveGameForChat(targetChatId);
 
