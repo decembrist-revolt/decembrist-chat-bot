@@ -56,15 +56,15 @@ public partial class CurseCommandHandler(
         }
 
         var taskResult = parameters.ReplyToTelegramId.Match(
-            async receiverId => await HandleCurse(telegramId, chatId, receiverId, text, messageId, curseConfig),
+            async receiverId => await HandleCurse(telegramId, chatId, receiverId, text, curseConfig),
             async () => await SendReceiverNotSet(chatId, curseConfig));
 
         return await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, Command),
             taskResult).WhenAll();
     }
 
-    private async Task<Unit> HandleCurse(long telegramId, long chatId, long receiverId, string text,
-        int messageId, CurseConfig curseConfig)
+    private async Task<Unit> HandleCurse(
+        long telegramId, long chatId, long receiverId, string text, CurseConfig curseConfig)
     {
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
         var compositeId = (receiverId, chatId);

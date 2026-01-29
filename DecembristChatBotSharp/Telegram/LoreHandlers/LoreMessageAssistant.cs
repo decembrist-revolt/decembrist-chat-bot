@@ -10,6 +10,8 @@ public class LoreMessageAssistant(
     BotClient botClient,
     CancellationTokenSource cancelToken)
 {
+    private const string LoreNotAvailable = "Лор не доступен в текущий момент попробуйте позже";
+    
     public async Task<Message> SendNotFoundMessage(string key, long telegramId, LoreConfig loreConfig)
     {
         var message = string.Format(loreConfig.KeyNotFound, key);
@@ -34,8 +36,6 @@ public class LoreMessageAssistant(
         return await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token);
     }
 
-    public async Task<Message> SendNotAvailableMessage(long chatId) => await botClient.SendMessage(
-        chatId,
-        "Лор не доступен в текущий момент попробуйте позжме",
-        cancellationToken: cancelToken.Token);
+    public async Task<Message> SendNotAvailableMessage(long chatId) => 
+        await botClient.SendMessage(chatId, LoreNotAvailable, cancellationToken: cancelToken.Token);
 }

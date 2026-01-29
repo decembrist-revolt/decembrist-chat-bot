@@ -35,6 +35,7 @@ public class PrivateMessageHandler(
     private const string StatusCommand = "/status";
     private const string InventoryCommand = StartCommand + " " + InventoryCommandSuffix + SplitSymbol;
     private const string MazeGameInviteCommand = StartCommand + " " + MazeGameCommandSuffix + SplitSymbol;
+    private const string GreetingsButtonText = "Добро пожаловать, нажмите на кнопку, чтобы продолжить";
     public static string GetCommandForChat(string command, long chatId) => command + SplitSymbol + chatId;
 
     public async Task<Unit> Do(Message message)
@@ -106,7 +107,6 @@ public class PrivateMessageHandler(
 
     private TryAsync<Message> SendMenuButton(long chatId)
     {
-        var message = "Добро пожаловать, нажмите на кнопку, чтобы продолжить";
         var buttons = new ReplyKeyboardMarkup(new[]
         {
             KeyboardButton.WithRequestChat("Check profile", 1, false),
@@ -115,7 +115,7 @@ public class PrivateMessageHandler(
             ResizeKeyboard = true,
             OneTimeKeyboard = true
         };
-        return TryAsync(botClient.SendMessage(chatId, message, replyMarkup: buttons,
+        return TryAsync(botClient.SendMessage(chatId, GreetingsButtonText, replyMarkup: buttons,
             cancellationToken: cancelToken.Token));
     }
 

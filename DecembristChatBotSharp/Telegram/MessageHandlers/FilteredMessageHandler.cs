@@ -31,9 +31,8 @@ public class FilteredMessageHandler(
 
         if (!await IsFiltered(text, chatId) || await whiteListRepository.IsWhiteListMember((telegramId, chatId)))
             return false;
-        var messageText = string.Format(filterConfig.CaptchaMessage,
-            filterConfig.CaptchaAnswer,
-            filterConfig.CaptchaTimeSeconds);
+        var messageText = string.Format(
+            filterConfig.CaptchaMessage, filterConfig.CaptchaAnswer, filterConfig.CaptchaTimeSeconds);
 
         return await botClient.SendMessage(chatId, messageText,
                 replyParameters: new ReplyParameters { MessageId = messageId },

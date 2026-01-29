@@ -78,8 +78,7 @@ public class MazeGameJoinCommandHandler(
     }
 
     private Task<Unit> SendGameNotFound(long telegramId, MazeConfig mazeConfig) =>
-        messageAssistance.SendMessage(telegramId,
-            mazeConfig.GameNotFoundMessage, nameof(MazeGameJoinCommandHandler));
+        messageAssistance.SendMessage(telegramId, mazeConfig.GameNotFoundMessage, nameof(MazeGameJoinCommandHandler));
 
     private async Task<Unit> SendGameControls(long telegramId, long chatId, MazeGamePlayer player,
         MazeConfig mazeConfig)

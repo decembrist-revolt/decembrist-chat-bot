@@ -21,6 +21,7 @@ public class TelegramMemeCommandHandler(
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public const string CommandKey = "/telegrammeme";
+    private const string StolenMemeCaption = "Украденный мем";
 
     public string Command => CommandKey;
 
@@ -92,7 +93,7 @@ public class TelegramMemeCommandHandler(
             await botClient.SendPhoto(
                 chatId,
                 InputFile.FromStream(memoryStream, fileName),
-                caption: "Украденный мем",
+                caption: StolenMemeCaption,
                 cancellationToken: cancelToken.Token);
 
             Log.Information("Sent random telegram meme to chat {0}", chatId);

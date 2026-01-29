@@ -2,7 +2,6 @@
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
-using MongoDB.Driver;
 using Quartz;
 using Serilog;
 using Telegram.Bot;

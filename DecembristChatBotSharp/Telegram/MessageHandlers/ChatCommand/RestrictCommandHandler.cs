@@ -42,7 +42,7 @@ public partial class RestrictCommandHandler(
         }
 
         var taskResult = parameters.ReplyToTelegramId.Match(
-            async receiverId => await HandleRestrict(text, receiverId, chatId, telegramId, messageId, restrictConfig),
+            async receiverId => await HandleRestrict(text, receiverId, chatId, telegramId, restrictConfig),
             () =>
             {
                 Log.Warning("Reply user for {0} not set in chat {1}", Command, chatId);
@@ -53,8 +53,8 @@ public partial class RestrictCommandHandler(
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
     }
 
-    private async Task<Unit> HandleRestrict(string text, long receiverId, long chatId, long telegramId, int messageId,
-        RestrictConfig restrictConfig)
+    private async Task<Unit> HandleRestrict(
+        string text, long receiverId, long chatId, long telegramId, RestrictConfig restrictConfig)
     {
         if (telegramId == receiverId)
         {
@@ -276,7 +276,7 @@ public partial class RestrictCommandHandler(
     }
 
     private async Task<Unit> SendRestrictMessage(
-        long chatId, long telegramId, string username, RestrictType restrictType, int timeoutMinutes,
+        long chatId, long telegramId, string username, RestrictType restrictType, int timeoutMinutes, 
         RestrictConfig restrictConfig)
     {
         var message = GetRestrictMessage(username, restrictType, timeoutMinutes, restrictConfig);
@@ -288,8 +288,8 @@ public partial class RestrictCommandHandler(
             cancelToken.Token);
     }
 
-    private string GetRestrictMessage(string username, RestrictType restrictType, int timeoutMinutes,
-        RestrictConfig restrictConfig)
+    private string GetRestrictMessage(
+        string username, RestrictType restrictType, int timeoutMinutes, RestrictConfig restrictConfig)
     {
         // Check if multiple flags are set
         var flagCount = 0;

@@ -13,8 +13,7 @@ public class MazeGameCommandHandler(
     MessageAssistance messageAssistance,
     AdminUserRepository adminUserRepository,
     MazeGameService mazeGameService,
-    ChatConfigService chatConfigService,
-    CancellationTokenSource cancelToken) : ICommandHandler
+    ChatConfigService chatConfigService) : ICommandHandler
 {
     public string Command => "/mazegame";
     public string Description => "Start a maze game (Admin only)";

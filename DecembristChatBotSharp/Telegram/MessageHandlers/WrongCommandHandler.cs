@@ -7,7 +7,7 @@ using Serilog;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
-public class WrongCommandHandler(
+public partial class WrongCommandHandler(
     BotClient botClient,
     MessageAssistance messageAssistance,
     ExpiredMessageRepository expiredMessageRepository,
@@ -15,11 +15,12 @@ public class WrongCommandHandler(
     CancellationTokenSource cancelToken
 )
 {
-    private const string Pattern = "^/([A-Za-z0-9].*)?$";
+    [GeneratedRegex("^/([A-Za-z0-9].*)?$")]
+    private static partial Regex CommandRegex();
 
     public async Task<bool> Do(long chatId, string text, int messageId)
     {
-        if (!Regex.IsMatch(text, Pattern)) return false;
+        if (!CommandRegex().IsMatch(text)) return false;
         
         var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
         if (!maybeCommandConfig.TryGetSome(out var commandConfig)) return false;
@@ -40,4 +41,5 @@ public class WrongCommandHandler(
             },
             ex => Log.Error(ex, "Failed to send wrong command message to chat {0}", chatId),
             cancelToken.Token);
+    
 }

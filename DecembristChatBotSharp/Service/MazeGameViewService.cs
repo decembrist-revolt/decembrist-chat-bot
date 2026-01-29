@@ -23,7 +23,7 @@ public class MazeGameViewService(
     private const string InventoryTextTemplate = "🎒 Инвентарь: 🗡️ {0} 🛡️ {1} ⛏️ {2} 🔭 {3}";
     private readonly ConcurrentDictionary<MazeGamePlayer.CompositeId, Timer> _pendingUpdates = new();
 
-    public void ScheduleViewUpdate(long chatId, long telegramId, Entity.Configs.MazeConfig mazeConfig)
+    public void ScheduleViewUpdate(long chatId, long telegramId, MazeConfig mazeConfig)
     {
         var key = (chatId, telegramId);
 
@@ -44,7 +44,7 @@ public class MazeGameViewService(
         _pendingUpdates[key] = timer;
     }
 
-    private async Task SendViewUpdate(long chatId, long telegramId, Entity.Configs.MazeConfig mazeConfig)
+    private async Task SendViewUpdate(long chatId, long telegramId, MazeConfig mazeConfig)
     {
         var key = (chatId, telegramId);
 

@@ -1,16 +1,13 @@
 ﻿using System.Runtime.CompilerServices;
 using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
-using DecembristChatBotSharp.Telegram;
 using Lamar;
 using Serilog;
 
 namespace DecembristChatBotSharp.Service;
 
 [Singleton]
-public class ChatConfigService(
-    ChatConfigRepository db
-)
+public class ChatConfigService(ChatConfigRepository db)
 {
     public async Task<Option<ChatConfig>> GetChatConfig(long chatId) => await db.GetChatConfig(chatId);
 

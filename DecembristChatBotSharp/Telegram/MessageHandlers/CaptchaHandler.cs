@@ -65,7 +65,7 @@ public class CaptchaHandler(
         return None;
     }
 
-    private bool IsCaptchaPassed(IMessagePayload payload, Entity.Configs.CaptchaConfig captchaConfig) =>
+    private bool IsCaptchaPassed(IMessagePayload payload, CaptchaConfig captchaConfig) =>
         payload is TextPayload { Text: var text } &&
         string.Equals(captchaConfig.CaptchaAnswer, text, StringComparison.CurrentCultureIgnoreCase);
 
@@ -74,7 +74,7 @@ public class CaptchaHandler(
         long chatId,
         int messageId,
         NewMember newMember,
-        Entity.Configs.CaptchaConfig captchaConfig)
+        CaptchaConfig captchaConfig)
     {
         var joinMessage = string.Format(captchaConfig.JoinText, newMember.Username);
         return await newMemberRepository.RemoveNewMember((telegramId, chatId))
@@ -85,8 +85,8 @@ public class CaptchaHandler(
             ).WhenAll());
     }
 
-    private async Task<Unit> OnCaptchaFailed(long chatId, int messageId, NewMember newMember,
-        Entity.Configs.CaptchaConfig captchaConfig)
+    private async Task<Unit> OnCaptchaFailed(
+        long chatId, int messageId, NewMember newMember, CaptchaConfig captchaConfig)
     {
         Log.Information("User {0} failed captcha in chat {1}", newMember.Id.TelegramId, chatId);
         var retryCount = newMember.CaptchaRetryCount;
@@ -108,8 +108,7 @@ public class CaptchaHandler(
             newMemberRepository.RemoveNewMember(newMember.Id).ToUnit()
         ).WhenAll();
 
-    private async Task<Unit> SendCaptchaMessage(long chatId, NewMember newMember,
-        Entity.Configs.CaptchaConfig captchaConfig)
+    private async Task<Unit> SendCaptchaMessage(long chatId, NewMember newMember, CaptchaConfig captchaConfig)
     {
         var username = newMember.Username;
         var text = string.Format(captchaConfig.CaptchaRequestAgainText, username, captchaConfig.CaptchaAnswer);

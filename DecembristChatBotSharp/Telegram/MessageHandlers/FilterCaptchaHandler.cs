@@ -44,10 +44,10 @@ public class FilterCaptchaHandler(
 
     private async Task<bool> SendSuccessCaptcha(long chatId, int messageId, FilterConfig filterConfig)
     {
-        await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, nameof(FilterCaptchaHandler)),
-                messageAssistance.SendCommandResponse(chatId, filterConfig.SuccessMessage,
-                    nameof(FilterCaptchaHandler)))
-            .WhenAll();
+        await Array(
+            messageAssistance.DeleteCommandMessage(chatId, messageId, nameof(FilterCaptchaHandler)),
+            messageAssistance.SendCommandResponse(chatId, filterConfig.SuccessMessage, nameof(FilterCaptchaHandler))
+        ).WhenAll();
         return true;
     }
 

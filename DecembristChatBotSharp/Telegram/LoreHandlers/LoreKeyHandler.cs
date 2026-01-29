@@ -34,8 +34,7 @@ public class LoreKeyHandler(
 
     private async Task<Message> SendRequestContent(string key, long lorChatId, long telegramId, LoreConfig loreConfig)
     {
-        var message = string.Format(loreConfig.ContentRequest,
-            LoreService.GetLoreTag(ContentSuffix, lorChatId, key));
+        var message = string.Format(loreConfig.ContentRequest, LoreService.GetLoreTag(ContentSuffix, lorChatId, key));
         return await botClient.SendMessage(telegramId, message, replyMarkup: loreService.GetContentTip());
     }
 
@@ -48,9 +47,9 @@ public class LoreKeyHandler(
 
     private async Task<Message> SendEditContentRequest(LoreRecord loreRecord, long telegramId, LoreConfig loreConfig)
     {
-        var message = string.Format(loreConfig.EditTemplate, loreRecord.Id.Key, loreRecord.Content) +
-                      LoreService.GetLoreTag(ContentSuffix, loreRecord.Id.ChatId, loreRecord.Id.Key);
-        return await botClient.SendMessage(telegramId, message, replyMarkup: loreService.GetContentTip(),
-            cancellationToken: cancelToken.Token);
+        var loreTag = LoreService.GetLoreTag(ContentSuffix, loreRecord.Id.ChatId, loreRecord.Id.Key);
+        var message = string.Format(loreConfig.EditTemplate, loreRecord.Id.Key, loreRecord.Content) + loreTag;
+        return await botClient.SendMessage(
+            telegramId, message, replyMarkup: loreService.GetContentTip(), cancellationToken: cancelToken.Token);
     }
 }

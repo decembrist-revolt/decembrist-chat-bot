@@ -7,7 +7,7 @@ using static DecembristChatBotSharp.Service.CallbackService;
 namespace DecembristChatBotSharp.Service.Buttons;
 
 [Singleton]
-public class LoreButtons()
+public class LoreButtons
 {
     public InlineKeyboardMarkup GetLoreMarkup(long chatId)
     {
@@ -26,7 +26,7 @@ public class LoreButtons()
     public InlineKeyboardMarkup GetLoreListPrivateMarkup(long chatId, int currentOffset, int totalCount)
     {
         var markup = new List<InlineKeyboardButton>();
-        var limit = ListService.ListRowLimit;
+        const int limit = ListService.ListRowLimit;
         if (currentOffset > 0)
         {
             markup.Add(GetLoreListButton("⬅️ Prev", chatId, currentOffset - limit));

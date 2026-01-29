@@ -175,7 +175,7 @@ public class MazeGameService(
         var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.MazeConfig);
         if (!maybeConfig.TryGetSome(out var mazeConfig))
         {
-            return chatConfigService.LogNonExistConfig(None, nameof(Entity.Configs.MazeConfig));
+            return chatConfigService.LogNonExistConfig(None, nameof(MazeConfig));
         }
 
         return await gameOpt.MatchAsync(

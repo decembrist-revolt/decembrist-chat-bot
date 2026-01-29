@@ -12,8 +12,7 @@ public class MazeGameMapService(
     ChatConfigService chatConfigService,
     MazeGameService mazeGameService,
     MazeGameRepository mazeGameRepository,
-    AdminUserRepository adminUserRepository,
-    CancellationTokenSource cancelToken)
+    AdminUserRepository adminUserRepository)
 {
     private const int CellSize = 10;
     private const int MazeSize = 128;

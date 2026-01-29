@@ -12,7 +12,7 @@ public class ChatConfigRepository(MongoDatabase db, CancellationTokenSource canc
 
         return collection
             .Find(c => c.ChatId == chatId)
-            .FirstAsync()
+            .FirstAsync(cancelToken.Token)
             .ToTryAsync()
             .Match(x =>
             {

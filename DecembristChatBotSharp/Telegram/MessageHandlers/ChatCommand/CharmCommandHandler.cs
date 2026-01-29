@@ -118,15 +118,13 @@ public partial class CharmCommandHandler(
         var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
             .ToAsync()
             .IfNone(receiverId.ToString);
-        var message = string.Format(charmConfig.SuccessMessage, username,
-            charmConfig.DurationMinutes, phrase);
+        var message = string.Format(charmConfig.SuccessMessage, username, charmConfig.DurationMinutes, phrase);
         const string logTemplate = "Charm success message sent {0} ChatId: {1}, Phrase:{2} Receiver: {3}";
-        return await botClient.SendMessageAndLog(chatId, message,
-            m =>
+        return await botClient.SendMessageAndLog(chatId, message, m =>
             {
                 Log.Information(logTemplate, "success", chatId, phrase, receiverId);
-                expiredMessageRepository.QueueMessage(chatId, m.MessageId,
-                    DateTime.UtcNow.AddMinutes(charmConfig.DurationMinutes));
+                var expirationDate = DateTime.UtcNow.AddMinutes(charmConfig.DurationMinutes);
+                expiredMessageRepository.QueueMessage(chatId, m.MessageId, expirationDate);
             },
             ex => Log.Error(ex, logTemplate, "failed", chatId, phrase, receiverId),
             cancelToken.Token);

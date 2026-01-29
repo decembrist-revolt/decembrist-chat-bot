@@ -166,7 +166,8 @@ public class BotHandler(
         var parameters = new ChatMessageHandlerParams(
             payload, messageId, telegramId, chatId,
             replyToTelegramId, replyToMessageId,
-            botMentioned, replyToBotMessage, replyToMessageText, replyToFileId, chatConfig, type);
+            botMentioned, replyToBotMessage, replyToMessageText, 
+            replyToFileId, chatConfig, type);
         return parameters;
     }
 
@@ -200,8 +201,7 @@ public class BotHandler(
         );
     }
 
-    private CallbackQueryParameters GetQueryParameters(CallbackQuery query,
-        (string, string, string[]) parameters)
+    private CallbackQueryParameters GetQueryParameters(CallbackQuery query, (string, string, string[]) parameters)
     {
         var (prefix, suffix, keysAndValue) = parameters;
         var queryParameters = CallbackService.GetQueryParameters(keysAndValue);

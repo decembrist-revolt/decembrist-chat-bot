@@ -19,6 +19,8 @@ public class FilterRecordHandler(
     public const string Tag = "#Filter";
     public const string RecordSuffix = "Record";
     public const string DeleteSuffix = "Delete";
+    
+    private const string AdminOnlyMessage = "Только администраторы могут использовать эту команду.";
 
     public async Task<Message> Do(Message message)
     {
@@ -45,17 +47,17 @@ public class FilterRecordHandler(
                 return suffix switch
                 {
                     _ when !await IsAdmin(telegramId, lorChatId) => SendNotAdmin(telegramId),
-                    RecordSuffix => HandleCreateFilterRecord(messageText, lorChatId, telegramId, dateReply,
-                        filterConfig),
-                    DeleteSuffix => HandleDeleteFilterRecord(messageText, lorChatId, telegramId, dateReply,
-                        filterConfig),
+                    RecordSuffix => 
+                        HandleCreateFilterRecord(messageText, lorChatId, telegramId, dateReply, filterConfig),
+                    DeleteSuffix => 
+                        HandleDeleteFilterRecord(messageText, lorChatId, telegramId, dateReply, filterConfig),
                     _ => SendHelpMessage(telegramId, filterConfig)
                 };
             }).Flatten();
     }
 
-    private async Task<Message> HandleDeleteFilterRecord(string messageText, long lorChatId, long telegramId,
-        DateTime dateReply, FilterConfig filterConfig)
+    private async Task<Message> HandleDeleteFilterRecord(
+        string messageText, long lorChatId, long telegramId, DateTime dateReply, FilterConfig filterConfig)
     {
         var record = messageText.ToLowerInvariant();
         var result = await filterService.DeleteFilterRecord(record, lorChatId, dateReply);
@@ -128,7 +130,6 @@ public class FilterRecordHandler(
     private async Task<bool> IsAdmin(long telegramId, long lorChatId) =>
         await adminUserRepository.IsAdmin((telegramId, lorChatId));
 
-    private Task<Message> SendNotAdmin(long telegramId) => botClient.SendMessage(telegramId,
-        "Только администраторы могут использовать эту команду.",
-        cancellationToken: cancelToken.Token);
+    private Task<Message> SendNotAdmin(long telegramId) => botClient.SendMessage(
+        telegramId, AdminOnlyMessage, cancellationToken: cancelToken.Token);
 }

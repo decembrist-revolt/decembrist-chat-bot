@@ -60,16 +60,15 @@ public class NewMemberHandler(
         );
     }
 
-    private async Task<Either<UsernameEx, string>> SendWelcomeMessageForUser(long chatId, User user,
-        Entity.Configs.CaptchaConfig captchaConfig)
+    private async Task<Either<UsernameEx, string>> SendWelcomeMessageForUser(
+        long chatId, User user, CaptchaConfig captchaConfig)
     {
         var username = Optional(user.Username).Match(
             Some: username => $"@{username}",
             None: () => user.FirstName
         );
 
-        var welcomeText = string.Format(
-            captchaConfig.WelcomeMessage, username, captchaConfig.CaptchaAnswer);
+        var welcomeText = string.Format(captchaConfig.WelcomeMessage, username, captchaConfig.CaptchaAnswer);
         var trySend = TryAsync(
             botClient.SendMessage(chatId: chatId, text: welcomeText, cancellationToken: cancelToken.Token));
 

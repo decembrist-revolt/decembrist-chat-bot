@@ -97,8 +97,7 @@ public class MazeGameMoveCallbackHandler(
             Prefix);
     }
 
-    private async Task<Unit> HandleWinner(long chatId, long telegramId, long privateChatId,
-        Entity.Configs.MazeConfig mazeConfig)
+    private async Task<Unit> HandleWinner(long chatId, long telegramId, long privateChatId, MazeConfig mazeConfig)
     {
         Log.Information("Player {0} won maze game in chat {1}", telegramId, chatId);
 

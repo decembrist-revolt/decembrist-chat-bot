@@ -50,13 +50,14 @@ public class LoreHandler(
 
                 return suffix switch
                 {
-                    _ when !await IsLorUser(telegramId, lorChatId) => await SendNotLoreUser(telegramId,
-                        loreConfig.NotLoreUser),
-                    DeleteSuffix when isEmpty => await loreDeleteHandler.Do(messageText, lorChatId, telegramId,
-                        dateReply, loreConfig),
-                    KeySuffix when isEmpty => await loreKeyHandler.Do(messageText, lorChatId, telegramId, loreConfig),
-                    ContentSuffix => await loreContentHandler.Do(key, messageText, lorChatId, telegramId, dateReply,
-                        loreConfig),
+                    _ when !await IsLorUser(telegramId, lorChatId) => 
+                        await SendNotLoreUser(telegramId, loreConfig.NotLoreUser),
+                    DeleteSuffix when isEmpty => 
+                        await loreDeleteHandler.Do(messageText, lorChatId, telegramId, dateReply, loreConfig),
+                    KeySuffix when isEmpty => 
+                        await loreKeyHandler.Do(messageText, lorChatId, telegramId, loreConfig),
+                    ContentSuffix => 
+                        await loreContentHandler.Do(key, messageText, lorChatId, telegramId, dateReply, loreConfig),
                     _ => await loreMessageAssistant.SendHelpMessage(telegramId, loreConfig)
                 };
             });
