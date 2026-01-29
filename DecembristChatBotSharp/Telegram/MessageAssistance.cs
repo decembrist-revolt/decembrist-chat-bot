@@ -129,7 +129,7 @@ public class MessageAssistance(
 
     public Task<Unit> SendNotConfigured(long chatId, int messageId, string commandName) =>
         Array(
-            SendMessage(chatId, "Эта функция не доступна в этом чате", commandName),
+            SendCommandResponse(chatId, "Эта функция не доступна в этом чате", commandName),
             DeleteCommandMessage(chatId, messageId, commandName)
         ).WhenAll();
 
