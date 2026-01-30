@@ -391,7 +391,8 @@ public class MemberItemService(
 public record OpenBoxResultData(
     Option<MemberItemType> ItemType,
     int Quantity,
-    OpenBoxResult Result
+    OpenBoxResult Result,
+    Option<(long MasterTelegramId, long MinionTelegramId)> MinionInfo = default
 );
 
 public enum OpenBoxResult
@@ -400,6 +401,8 @@ public enum OpenBoxResult
     Success,
     SuccessUnique,
     AmuletActivated,
+    MinionTransferred,
+    MasterTransferred,
     NoItems,
     Failed
 }

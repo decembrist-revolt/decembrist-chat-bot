@@ -43,9 +43,7 @@ public class MinionHandler(
         var inv = invitation.IfNone(() => new MinionInvitation((telegramId, chatId), 0, 0, DateTime.UtcNow));
 
         // Verify that the master name matches
-        var masterUsername = await botClient.GetUsername(chatId, inv.MasterTelegramId, cancelToken.Token)
-            .ToAsync()
-            .IfNone(inv.MasterTelegramId.ToString);
+        var masterUsername = await botClient.GetUsernameOrId(inv.MasterTelegramId, chatId, cancelToken.Token);
 
         if (!masterUsername.Equals(masterName, StringComparison.OrdinalIgnoreCase))
         {
@@ -109,12 +107,8 @@ public class MinionHandler(
 
     private async Task SendMinionCreatedMessage(long chatId, long minionId, long masterId)
     {
-        var minionUsername = await botClient.GetUsername(chatId, minionId, cancelToken.Token)
-            .ToAsync()
-            .IfNone(minionId.ToString);
-        var masterUsername = await botClient.GetUsername(chatId, masterId, cancelToken.Token)
-            .ToAsync()
-            .IfNone(masterId.ToString);
+        var minionUsername = await botClient.GetUsernameOrId(minionId, chatId, cancelToken.Token);
+        var masterUsername = await botClient.GetUsernameOrId(masterId, chatId, cancelToken.Token);
 
         var message = string.Format(appConfig.MinionConfig.MinionCreatedMessage, minionUsername, masterUsername);
         

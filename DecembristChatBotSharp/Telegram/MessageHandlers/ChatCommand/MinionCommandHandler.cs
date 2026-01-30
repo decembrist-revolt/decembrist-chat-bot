@@ -21,9 +21,8 @@ public class MinionCommandHandler(
     public const string CommandKey = "/minion";
     public string Command => CommandKey;
 
-    public string Description =>
-        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
-            "Make a chat member your minion (premium only)");
+    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+        "Make a chat member your minion (premium only)");
 
     public CommandLevel CommandLevel => CommandLevel.User;
 
@@ -56,9 +55,7 @@ public class MinionCommandHandler(
         {
             var invitation =
                 existingInvitation.IfNone(() => new MinionInvitation((0, chatId), telegramId, 0, DateTime.UtcNow));
-            var invitedUsername = await botClient.GetUsername(chatId, invitation.Id.TelegramId, cancelToken.Token)
-                .ToAsync()
-                .IfNone(invitation.Id.TelegramId.ToString);
+            var invitedUsername = await botClient.GetUsernameOrId(invitation.Id.TelegramId, chatId, cancelToken.Token);
             return await SendAlreadyHasInvitationMessage(chatId, invitedUsername);
         }
 
@@ -78,9 +75,7 @@ public class MinionCommandHandler(
         if (existingMinionRelation.IsSome)
         {
             // Already minion of someone else
-            var receiverUsername = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
-                .ToAsync()
-                .IfNone(receiverId.ToString);
+            var receiverUsername = await botClient.GetUsernameOrId(receiverId, chatId, cancelToken.Token);
             return await SendAlreadyIsMinionMessage(chatId, receiverUsername);
         }
 
@@ -90,7 +85,6 @@ public class MinionCommandHandler(
         {
             return await SendTargetIsPremiumMessage(chatId);
         }
-
 
         // Send invitation message
         return await SendInvitationMessage(chatId, telegramId, receiverId, replyToMessageId);
@@ -159,18 +153,15 @@ public class MinionCommandHandler(
     private async Task<Unit> ShowMinionStatus(long chatId, long masterTelegramId, long minionTelegramId,
         int? confirmationMessageId)
     {
-        var masterUsername = await botClient.GetUsername(chatId, masterTelegramId, cancelToken.Token)
-            .ToAsync()
-            .IfNone(masterTelegramId.ToString);
-        var minionUsername = await botClient.GetUsername(chatId, minionTelegramId, cancelToken.Token)
-            .ToAsync()
-            .IfNone(minionTelegramId.ToString);
+        var masterUsername = await botClient.GetUsernameOrId(masterTelegramId,chatId,  cancelToken.Token);
+        var minionUsername = await botClient.GetUsernameOrId(minionTelegramId,chatId,  cancelToken.Token);
 
         // Escape special characters for MarkdownV2
         var escapedMinionUsername = EscapeMarkdownV2(minionUsername);
         var escapedMasterUsername = EscapeMarkdownV2(masterUsername);
 
-        var message = string.Format(appConfig.MinionConfig.ShowMinionStatusMessage, escapedMinionUsername, escapedMasterUsername);
+        var message = string.Format(appConfig.MinionConfig.ShowMinionStatusMessage, escapedMinionUsername,
+            escapedMasterUsername);
 
         // If we have confirmation message ID, add a link to it
         if (confirmationMessageId.HasValue)
@@ -194,30 +185,26 @@ public class MinionCommandHandler(
     private static string EscapeMarkdownV2(string text)
     {
         // Escape special characters for MarkdownV2: _*[]()~`>#+-=|{}.!
-        var specialChars = new[] { '_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!' };
+        var specialChars = new[]
+            { '_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!' };
         foreach (var ch in specialChars)
         {
             text = text.Replace(ch.ToString(), $"\\{ch}");
         }
+
         return text;
     }
 
-    private async Task<Unit> SendNotPremiumMessage(long chatId)
+    private Task<Unit> SendNotPremiumMessage(long chatId)
     {
-        const string logTemplate = "Not premium message sent {0} ChatId: {1}";
-        return await botClient.SendMessageAndLog(chatId, appConfig.MinionConfig.NotPremiumMessage,
-            _ => Log.Information(logTemplate, "success", chatId),
-            ex => Log.Error(ex, logTemplate, "failed", chatId),
-            cancelToken.Token);
+        Log.Information("Not premium message sent ChatId: {chatId}", chatId);
+        return messageAssistance.SendCommandResponse(chatId, appConfig.MinionConfig.NotPremiumMessage, Command);
     }
 
-    private async Task<Unit> SendTargetIsPremiumMessage(long chatId)
+    private Task<Unit> SendTargetIsPremiumMessage(long chatId)
     {
-        const string logTemplate = "Target is premium message sent {0} ChatId: {1}";
-        return await botClient.SendMessageAndLog(chatId, appConfig.MinionConfig.TargetIsPremiumMessage,
-            _ => Log.Information(logTemplate, "success", chatId),
-            ex => Log.Error(ex, logTemplate, "failed", chatId),
-            cancelToken.Token);
+        Log.Information("Target is premium message sent ChatId: {0}", chatId);
+        return messageAssistance.SendCommandResponse(chatId, appConfig.MinionConfig.TargetIsPremiumMessage, Command);
     }
 
     private async Task<Unit> SendAlreadyHasMinionMessage(long chatId)
@@ -234,29 +221,15 @@ public class MinionCommandHandler(
         var expirationMinutes = appConfig.MinionConfig.InvitationExpirationMinutes;
         var message = string.Format(appConfig.MinionConfig.AlreadyHasInvitationMessage, invitedUsername,
             expirationMinutes);
-        const string logTemplate = "Already has invitation message sent {0} ChatId: {1}";
-        return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information(logTemplate, "success", chatId),
-            ex => Log.Error(ex, logTemplate, "failed", chatId),
-            cancelToken.Token);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
     private async Task<Unit> SendAlreadyIsMinionMessage(long chatId, string receiverUsername)
     {
         var message = string.Format(appConfig.MinionConfig.AlreadyIsMinionMessage, receiverUsername);
-        const string logTemplate = "Already is minion message sent {0} ChatId: {1}";
-        return await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information(logTemplate, "success", chatId),
-            ex => Log.Error(ex, logTemplate, "failed", chatId),
-            cancelToken.Token);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendReceiverNotSet(long chatId)
-    {
-        const string logTemplate = "Receiver not set message sent {0} ChatId: {1}";
-        return await botClient.SendMessageAndLog(chatId, appConfig.MinionConfig.ReceiverNotSetMessage,
-            _ => Log.Information(logTemplate, "success", chatId),
-            ex => Log.Error(ex, logTemplate, "failed", chatId),
-            cancelToken.Token);
-    }
+    private async Task<Unit> SendReceiverNotSet(long chatId) =>
+        await messageAssistance.SendCommandResponse(chatId, appConfig.MinionConfig.ReceiverNotSetMessage, Command);
 }

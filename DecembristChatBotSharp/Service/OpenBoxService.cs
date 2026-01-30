@@ -1,6 +1,7 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
+using LanguageExt.UnsafeValueAccess;
 using Serilog;
 
 namespace DecembristChatBotSharp.Service;
@@ -26,67 +27,84 @@ public class OpenBoxService(
         if (!hasBox) return await AbortWithResult(session, OpenBoxResult.NoItems);
 
         var (itemType, quantity) = GetRandomItemWithQuantity();
-        
-        // Check if user is a minion and handle amulet transfer
-        if (itemType == MemberItemType.Amulet)
-        {
-            var masterId = await minionService.GetMasterId(telegramId, chatId);
-            if (masterId.IsSome)
-            {
-                // Minion got amulet - transfer to master
-                var success = await memberItemService.HandleAmuletItem((telegramId, chatId), session);
-                if (success)
-                {
-                    await minionService.TransferAmuletToMaster(telegramId, chatId, session);
-                }
-                return await HandleItemType(chatId, telegramId, itemType, 0, OpenBoxResult.AmuletActivated, session);
-            }
 
-            if (await memberItemService.HandleAmuletItem((telegramId, chatId), session))
-            {
-                return await HandleItemType(chatId, telegramId, itemType, 0, OpenBoxResult.AmuletActivated, session);
-            }
-        }
-
-        // Check if user has a minion and handle stone transfer
-        if (itemType == MemberItemType.Stone)
-        {
-            var minionId = await minionService.GetMinionId(telegramId, chatId);
-            if (minionId.IsSome)
-            {
-                // Master got stone - transfer to minion
-                await minionService.TransferStoneToMinion(telegramId, chatId, session);
-                return await HandleUniqueItem(chatId, minionId.IfNone(telegramId), itemType, session);
-            }
-        }
-        
         return itemType switch
         {
-            MemberItemType.Stone => await HandleUniqueItem(chatId, telegramId, itemType, session),
+            MemberItemType.Stone => await HandleStone(chatId, telegramId, itemType, session),
+            MemberItemType.Amulet => await HandleAmulet(chatId, telegramId, itemType, quantity, session),
             MemberItemType.Box =>
                 await HandleItemType(chatId, telegramId, itemType, quantity, OpenBoxResult.SuccessX2, session),
-            MemberItemType.Amulet when await memberItemService.HandleAmuletItem((telegramId, chatId), session) =>
+            _ => await HandleItemType(chatId, telegramId, itemType, quantity, OpenBoxResult.Success, session)
+        };
+    }
+
+    private async Task<OpenBoxResultData> HandleStone(
+        long chatId, long telegramId, MemberItemType itemType, IMongoSession session)
+    {
+        var maybeMinion = await minionService.GetMinionId(telegramId, chatId);
+        return telegramId switch
+        {
+            _ when maybeMinion.TryGetSome(out var minionId) =>
+                await HandleStoneForMaster(chatId, telegramId, minionId, itemType, session),
+            _ => await HandleUniqueItem(chatId, telegramId, itemType, session)
+        };
+    }
+
+    private async Task<OpenBoxResultData> HandleAmulet(long chatId, long telegramId, MemberItemType itemType,
+        int quantity, IMongoSession session)
+    {
+        var maybeMaster = await minionService.GetMasterId(telegramId, chatId);
+        return telegramId switch
+        {
+            _ when maybeMaster.TryGetSome(out var masterId) =>
+                await HandleAmuletForMinion(chatId, telegramId, masterId, session, itemType),
+            _ when await memberItemService.HandleAmuletItem((telegramId, chatId), session) =>
                 await HandleItemType(chatId, telegramId, itemType, 0, OpenBoxResult.AmuletActivated, session),
             _ => await HandleItemType(chatId, telegramId, itemType, quantity, OpenBoxResult.Success, session)
         };
+    }
+
+    private async Task<OpenBoxResultData> HandleAmuletForMinion(
+        long chatId, long minionId, long masterId, IMongoSession session, MemberItemType itemType)
+    {
+        var success = await minionService.TransferAmuletToMaster(chatId, minionId, masterId, session);
+        return success
+            ? await HandleItemType(chatId, minionId, itemType, 0, OpenBoxResult.AmuletActivated, session)
+            : await AbortWithResult(session);
     }
 
     private async Task<OpenBoxResultData> HandleUniqueItem(
         long chatId, long telegramId, MemberItemType itemType, IMongoSession session)
     {
         var isHasUniqueItem = await memberItemRepository.IsUserHasItem(chatId, telegramId, itemType, session);
-        if (isHasUniqueItem)
-        {
-            var compensation = appConfig.ItemConfig.CompensationItem;
-            Log.Information("User has unique {0}, compensating item: {1} has been issued", itemType, compensation);
-            return await LogInHistoryAndCommit(chatId, telegramId, OpenBoxResult.Success, compensation, session, 1);
-        }
+        if (isHasUniqueItem) return await HandleCompensation(chatId, telegramId, itemType, session);
 
         var isChangeOwner = await memberItemRepository.RemoveAllItemsForChat(chatId, itemType, session)
                             && await uniqueItemService.ChangeOwnerUniqueItem(chatId, telegramId, itemType, session);
         return isChangeOwner
             ? await HandleItemType(chatId, telegramId, itemType, 1, OpenBoxResult.SuccessUnique, session)
             : await AbortWithResult(session);
+    }
+
+    private async Task<OpenBoxResultData> HandleStoneForMaster(
+        long chatId, long masterId, long minionId, MemberItemType itemType, IMongoSession session)
+    {
+        var isHasUniqueItem = await memberItemRepository.IsUserHasItem(chatId, minionId, itemType, session);
+        if (isHasUniqueItem) return await HandleCompensation(chatId, masterId, itemType, session);
+
+        var isChangeOwner = await memberItemRepository.RemoveAllItemsForChat(chatId, itemType, session)
+                            && await uniqueItemService.ChangeOwnerUniqueItem(chatId, minionId, itemType, session);
+        return isChangeOwner
+            ? await HandleItemType(chatId, minionId, itemType, 1, OpenBoxResult.MinionTransferred, session)
+            : await AbortWithResult(session);
+    }
+
+    private async Task<OpenBoxResultData> HandleCompensation(
+        long chatId, long masterId, MemberItemType itemType, IMongoSession session)
+    {
+        var compensation = appConfig.ItemConfig.CompensationItem;
+        Log.Information("User has unique {0}, compensating item: {1} has been issued", itemType, compensation);
+        return await LogInHistoryAndCommit(chatId, masterId, OpenBoxResult.Success, compensation, session, 1);
     }
 
     private async Task<OpenBoxResultData> HandleItemType(

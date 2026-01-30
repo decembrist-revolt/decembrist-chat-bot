@@ -12,7 +12,8 @@ public class MinionService(
     MemberItemRepository memberItemRepository,
     BotClient botClient,
     AppConfig appConfig,
-    CancellationTokenSource cancelToken)
+    CancellationTokenSource cancelToken,
+    MemberItemService memberItemService)
 {
     /// <summary>
     /// Checks if a user has a minion and returns the minion's ID
@@ -35,51 +36,28 @@ public class MinionService(
     /// <summary>
     /// Transfers an amulet from a minion to their master
     /// </summary>
-    public async Task<bool> TransferAmuletToMaster(long minionTelegramId, long chatId, IMongoSession session)
+    public async Task<bool> TransferAmuletToMaster(long minionTelegramId, long masterId, long chatId,
+        IMongoSession session)
     {
-        var masterIdOpt = await GetMasterId(minionTelegramId, chatId);
-        if (masterIdOpt.IsNone) return false;
+        var success = await memberItemService.HandleAmuletItem((masterId, chatId), session);
+        if (!success)
+        {
+            var added = await memberItemRepository.AddMemberItem(chatId, masterId, MemberItemType.Amulet, session);
+            if (!added) return false;
+        }
 
-        var masterId = masterIdOpt.IfNone(0);
-
-        // Remove amulet from minion and add to master
-        var removed = await memberItemRepository.RemoveMemberItem(chatId, minionTelegramId, MemberItemType.Amulet, session);
-        if (!removed) return false;
-
-        var added = await memberItemRepository.AddMemberItem(chatId, masterId, MemberItemType.Amulet, session);
-        if (!added) return false;
-
-        // Send notification message
         await SendAmuletTransferMessage(chatId, minionTelegramId, masterId);
 
-        Log.Information("Transferred amulet from minion {0} to master {1} in chat {2}", 
+        Log.Information("Transferred amulet from minion {minionId} to master {masterId} in chat {chatId}",
             minionTelegramId, masterId, chatId);
         return true;
     }
 
-    /// <summary>
-    /// Transfers a stone from a master to their minion
-    /// </summary>
-    public async Task<bool> TransferStoneToMinion(long masterTelegramId, long chatId, IMongoSession session)
+    public async Task<(string, string)> GetMasterMinionNames(long chatId, long masterId, long minionId)
     {
-        var minionIdOpt = await GetMinionId(masterTelegramId, chatId);
-        if (minionIdOpt.IsNone) return false;
-
-        var minionId = minionIdOpt.IfNone(0);
-
-        // Remove stone from master and add to minion
-        var removed = await memberItemRepository.RemoveMemberItem(chatId, masterTelegramId, MemberItemType.Stone, session);
-        if (!removed) return false;
-
-        var added = await memberItemRepository.AddMemberItem(chatId, minionId, MemberItemType.Stone, session);
-        if (!added) return false;
-
-        // Send notification message
-        await SendStoneTransferMessage(chatId, masterTelegramId, minionId);
-
-        Log.Information("Transferred stone from master {0} to minion {1} in chat {2}", 
-            masterTelegramId, minionId, chatId);
-        return true;
+        var masterUsername = await botClient.GetUsernameOrId(masterId, chatId, cancelToken.Token);
+        var minionUsername = await botClient.GetUsernameOrId(minionId, chatId, cancelToken.Token);
+        return (masterUsername, minionUsername);
     }
 
     /// <summary>
@@ -102,7 +80,7 @@ public class MinionService(
         var invitationRemoved = await minionInvitationRepository.RemoveInvitation((telegramId, chatId));
         if (invitationRemoved)
         {
-            Log.Information("Removed pending minion invitation for {0} in chat {1} - became premium", 
+            Log.Information("Removed pending minion invitation for {0} in chat {1} - became premium",
                 telegramId, chatId);
         }
     }
@@ -119,9 +97,10 @@ public class MinionService(
             var removed = await minionRepository.RemoveMinionByMaster(masterTelegramId, chatId);
             if (removed)
             {
-                var relation = minionRelation.IfNone(() => new MinionRelation((0, chatId), masterTelegramId, null, null));
+                var relation =
+                    minionRelation.IfNone(() => new MinionRelation((0, chatId), masterTelegramId, null, null));
                 await SendMinionRevokedByPremiumLossMessage(chatId, relation.Id.TelegramId, masterTelegramId);
-                Log.Information("Revoked minion {0} for master {1} in chat {2} - lost premium", 
+                Log.Information("Revoked minion {0} for master {1} in chat {2} - lost premium",
                     relation.Id.TelegramId, masterTelegramId, chatId);
             }
         }
@@ -130,7 +109,7 @@ public class MinionService(
         var invitationRemoved = await minionInvitationRepository.RemoveInvitationByMaster(masterTelegramId, chatId);
         if (invitationRemoved)
         {
-            Log.Information("Removed pending minion invitation for master {0} in chat {1} - lost premium", 
+            Log.Information("Removed pending minion invitation for master {0} in chat {1} - lost premium",
                 masterTelegramId, chatId);
         }
     }
@@ -176,7 +155,8 @@ public class MinionService(
             .ToAsync()
             .IfNone(masterId.ToString);
 
-        var message = string.Format(appConfig.MinionConfig.MinionRevokedByPremiumLossMessage, minionUsername, masterUsername);
+        var message = string.Format(appConfig.MinionConfig.MinionRevokedByPremiumLossMessage, minionUsername,
+            masterUsername);
         await botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Sent minion revoked by premium loss message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send minion revoked message to chat {0}", chatId),
@@ -212,7 +192,8 @@ public class MinionService(
             .ToAsync()
             .IfNone(minionTelegramId.ToString);
 
-        var message = string.Format(appConfig.MinionConfig.NegativeEffectRedirectMessage, masterUsername, minionUsername);
+        var message = string.Format(appConfig.MinionConfig.NegativeEffectRedirectMessage, masterUsername,
+            minionUsername);
         await botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Sent negative effect redirect message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send negative effect redirect message to chat {0}", chatId),
