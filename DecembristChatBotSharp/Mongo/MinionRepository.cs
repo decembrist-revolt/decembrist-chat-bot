@@ -82,28 +82,6 @@ public class MinionRepository(
                 });
     }
 
-    public async Task<bool> UpdateConfirmationMessageId(CompositeId minionId, int messageId, IMongoSession? session = null)
-    {
-        var collection = GetCollection();
-        var filter = Builders<MinionRelation>.Filter.Eq(m => m.Id, minionId);
-        var update = Builders<MinionRelation>.Update.Set(m => m.ConfirmationMessageId, messageId);
-        
-        var updateTask = session.IsNull()
-            ? collection.UpdateOneAsync(filter, update, cancellationToken: cancelToken.Token)
-            : collection.UpdateOneAsync(session, filter, update, cancellationToken: cancelToken.Token);
-        
-        return await updateTask
-            .ToTryAsync()
-            .Match(
-                result => result.IsAcknowledged && result.ModifiedCount > 0,
-                ex =>
-                {
-                    var (telegramId, chatId) = minionId;
-                    Log.Error(ex, "Failed to update confirmation message for minion {0} in chat {1}", telegramId, chatId);
-                    return false;
-                });
-    }
-
     public async Task<bool> RemoveMinionRelation(CompositeId minionId, IMongoSession? session = null)
     {
         var collection = GetCollection();

@@ -430,6 +430,8 @@ public record MinionConfig(
     [property: Required(AllowEmptyStrings = false)]
     string MinionRevokedByBecomingPremiumMessage,
     [property: Required(AllowEmptyStrings = false)]
+    string MinionRevokedByDeleteMessage,
+    [property: Required(AllowEmptyStrings = false)]
     string AmuletTransferMessage,
     [property: Required(AllowEmptyStrings = false)]
     string StoneTransferMessage,

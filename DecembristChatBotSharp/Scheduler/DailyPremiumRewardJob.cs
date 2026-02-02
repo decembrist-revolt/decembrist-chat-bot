@@ -90,12 +90,14 @@ public class DailyPremiumRewardJob(
 
         // Handle minion rewards - configurable chance for each minion
         var minionIds = await minionRepository.GetMinionIdsByChat(chatId);
-        var luckyMinions = Enumerable.ToList(minionIds.Where(_ => random.NextDouble() < appConfig.MinionConfig.DailyBoxChance));
+        var luckyMinions =
+            Enumerable.ToList(minionIds.Where(_ => random.NextDouble() < appConfig.MinionConfig.DailyBoxChance));
 
         if (luckyMinions.Count > 0)
         {
             var minionArr = luckyMinions.ToArr();
-            var minionAddCount = await memberItemRepository.AddMemberItems(chatId, minionArr, MemberItemType.Box, session);
+            var minionAddCount =
+                await memberItemRepository.AddMemberItems(chatId, minionArr, MemberItemType.Box, session);
             if (minionAddCount != minionArr.Length)
             {
                 await session.TryAbort(cancelToken.Token);
@@ -105,7 +107,7 @@ public class DailyPremiumRewardJob(
 
             await historyLogRepository.LogItems(
                 chatId, minionArr, MemberItemType.Box, 1, MemberItemSourceType.MinionDaily, session);
-            
+
             Log.Information("Gave boxes to {0} lucky minions in chat {1}", minionAddCount, chatId);
         }
 
@@ -126,28 +128,26 @@ public class DailyPremiumRewardJob(
         // Premium users message
         var premiumUsernames =
             from telegramId in premiumIds
-            select botClient.GetUsername(chatId, telegramId, cancelToken.Token)
-                .ToAsync()
-                .IfNone(telegramId.ToString);
+            select botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
         var premiumUsernamesString = (await premiumUsernames.Traverse(identity))
             .Map(username => username.EscapeMarkdown())
             .ToFullString();
 
-        var message = string.Format(appConfig.CommandConfig.PremiumConfig.DailyPremiumRewardMessage, premiumUsernamesString);
+        var message = string.Format(appConfig.CommandConfig.PremiumConfig.DailyPremiumRewardMessage,
+            premiumUsernamesString);
 
         // Add minions message if there are lucky minions
         if (minionIds.Length > 0)
         {
             var minionUsernames =
                 from telegramId in minionIds
-                select botClient.GetUsername(chatId, telegramId, cancelToken.Token)
-                    .ToAsync()
-                    .IfNone(telegramId.ToString);
+                select botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
             var minionUsernamesString = (await minionUsernames.Traverse(identity))
                 .Map(username => username.EscapeMarkdown())
                 .ToFullString();
 
-            message += string.Format(appConfig.CommandConfig.PremiumConfig.DailyMinionRewardMessage, minionUsernamesString);
+            message += string.Format(appConfig.CommandConfig.PremiumConfig.DailyMinionRewardMessage,
+                minionUsernamesString);
         }
 
         return await botClient.SendMessage(

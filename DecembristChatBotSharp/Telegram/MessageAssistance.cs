@@ -125,6 +125,9 @@ public class MessageAssistance(
             DateTime.UtcNow.AddMinutes(appConfig.AmuletConfig.MessageExpirationMinutes));
     }
 
+    /// <summary>
+    /// Send a message
+    /// </summary>
     public async Task<Unit> SendMessage(
         long chatId,
         string message,
@@ -139,6 +142,9 @@ public class MessageAssistance(
                 commandName, callerName, chatId),
             cancelToken.Token, replyMarkup);
 
+    /// <summary>
+    /// Send a message that will be deleted by timer
+    /// </summary>
     public async Task<Unit> SendCommandResponse(
         long chatId,
         string message,

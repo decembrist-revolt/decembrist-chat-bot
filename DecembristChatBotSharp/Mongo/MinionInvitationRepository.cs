@@ -164,30 +164,4 @@ public class MinionInvitationRepository(MongoDatabase db, CancellationTokenSourc
                     return false;
                 });
     }
-
-    /// <summary>
-    /// Removes expired invitations (cleanup job)
-    /// </summary>
-    public async Task<long> RemoveExpiredInvitations()
-    {
-        var collection = GetCollection();
-        return await collection
-            .DeleteManyAsync(inv => inv.ExpiresAt != null && inv.ExpiresAt < DateTime.UtcNow, cancelToken.Token)
-            .ToTryAsync()
-            .Match(
-                result =>
-                {
-                    if (result.DeletedCount > 0)
-                    {
-                        Log.Information("Removed {0} expired minion invitations", result.DeletedCount);
-                    }
-
-                    return result.DeletedCount;
-                },
-                ex =>
-                {
-                    Log.Error(ex, "Failed to remove expired minion invitations");
-                    return 0L;
-                });
-    }
 }

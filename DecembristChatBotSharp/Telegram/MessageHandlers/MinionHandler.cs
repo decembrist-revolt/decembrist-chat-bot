@@ -1,5 +1,6 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
@@ -14,7 +15,9 @@ public class MinionHandler(
     PremiumMemberRepository premiumMemberRepository,
     BotClient botClient,
     AppConfig appConfig,
-    CancellationTokenSource cancelToken)
+    CancellationTokenSource cancelToken,
+    MinionService minionService,
+    MessageAssistance messageAssistance)
 {
     /// <summary>
     /// Handles when user writes confirmation message "Я хочу служить {Name}"
@@ -34,20 +37,18 @@ public class MinionHandler(
 
         // Check if there's a pending invitation for this user
         var invitation = await minionInvitationRepository.GetInvitation((telegramId, chatId));
-        if (invitation.IsNone)
+        if (!invitation.TryGetSome(out var inv))
         {
             Log.Information("No pending invitation found for user {0} in chat {1}", telegramId, chatId);
             return false;
         }
-
-        var inv = invitation.IfNone(() => new MinionInvitation((telegramId, chatId), 0, 0, DateTime.UtcNow));
 
         // Verify that the master name matches
         var masterUsername = await botClient.GetUsernameOrId(inv.MasterTelegramId, chatId, cancelToken.Token);
 
         if (!masterUsername.Equals(masterName, StringComparison.OrdinalIgnoreCase))
         {
-            Log.Information("Master name mismatch for minion {0} in chat {1}: expected {2}, got {3}", 
+            Log.Information("Master name mismatch for minion {0} in chat {1}: expected {2}, got {3}",
                 telegramId, chatId, masterUsername, masterName);
             return false;
         }
@@ -83,39 +84,32 @@ public class MinionHandler(
         {
             // Remove the invitation
             await minionInvitationRepository.RemoveInvitation((telegramId, chatId));
-            
+
             // Delete the invitation message
-            await botClient.DeleteMessageAndLog(chatId, inv.InvitationMessageId,
-                () => Log.Information("Deleted invitation message {0} in chat {1}", inv.InvitationMessageId, chatId),
-                ex => Log.Error(ex, "Failed to delete invitation message {0} in chat {1}", inv.InvitationMessageId, chatId),
-                cancelToken.Token);
-            
+            Log.Information("Deleted invitation message {0} in chat {1}", inv.InvitationMessageId, chatId);
+            await messageAssistance.DeleteCommandMessage(chatId, inv.InvitationMessageId, nameof(MinionHandler));
+
             // Send notification to chat that minion relationship was created
             await SendMinionCreatedMessage(chatId, telegramId, inv.MasterTelegramId);
-            
-            Log.Information("Minion relationship created and invitation removed: {0} -> {1} in chat {2}", 
+
+            Log.Information("Minion relationship created and invitation removed: {0} -> {1} in chat {2}",
                 telegramId, inv.MasterTelegramId, chatId);
             return true;
         }
-        else
-        {
-            Log.Error("Failed to create minion relationship: {0} -> {1} in chat {2}", 
-                telegramId, inv.MasterTelegramId, chatId);
-            return false;
-        }
+
+        Log.Error("Failed to create minion relationship: {0} -> {1} in chat {2}",
+            telegramId, inv.MasterTelegramId, chatId);
+        return false;
     }
 
-    private async Task SendMinionCreatedMessage(long chatId, long minionId, long masterId)
+    private async Task<Unit> SendMinionCreatedMessage(long chatId, long minionId, long masterId)
     {
-        var minionUsername = await botClient.GetUsernameOrId(minionId, chatId, cancelToken.Token);
-        var masterUsername = await botClient.GetUsernameOrId(masterId, chatId, cancelToken.Token);
+        var (minionName, masterName) = await minionService.GetMasterMinionNames(chatId, masterId, minionId);
 
-        var message = string.Format(appConfig.MinionConfig.MinionCreatedMessage, minionUsername, masterUsername);
-        
-        await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information("Sent minion created message to chat {0}: {1} -> {2}", chatId, minionId, masterId),
-            ex => Log.Error(ex, "Failed to send minion created message to chat {0}", chatId),
-            cancelToken.Token);
+        var message = string.Format(appConfig.MinionConfig.MinionCreatedMessage, minionName, masterName);
+        var expirationMinutes = DateTime.UtcNow.AddMinutes(appConfig.MinionConfig.MessageExpirationMinutes);
+        Log.Information("Sending minion created message to chat {0}: {1} -> {2}", chatId, minionId, masterId);
+        return await messageAssistance.SendCommandResponse(chatId, message, nameof(MinionHandler), expirationMinutes);
     }
 
     /// <summary>
@@ -125,7 +119,7 @@ public class MinionHandler(
     {
         // Check if this message is a confirmation message for a minion relationship
         var minionRelation = await minionRepository.GetMinionRelation((telegramId, chatId));
-        
+
         return await minionRelation
             .Filter(relation => relation.ConfirmationMessageId == messageId)
             .MatchAsync(
@@ -134,9 +128,10 @@ public class MinionHandler(
                     var removed = await minionRepository.RemoveMinionRelation((telegramId, chatId));
                     if (removed)
                     {
-                        Log.Information("Minion relationship revoked by message deletion: {0} in chat {1}", 
+                        Log.Information("Minion relationship revoked by message deletion: {0} in chat {1}",
                             telegramId, chatId);
                     }
+
                     return removed;
                 },
                 None: () => Task.FromResult(false)
@@ -157,13 +152,13 @@ public class MinionHandler(
 
         // Try to set reaction on confirmation message to check if it exists
         var messageExists = await TrySetReaction(chatId, relation.ConfirmationMessageId.Value);
-        
+
         if (!messageExists)
         {
             // Message was deleted, revoke minion status
-            Log.Information("Confirmation message {0} deleted for minion {1} in chat {2}, revoking status", 
+            Log.Information("Confirmation message {0} deleted for minion {1} in chat {2}, revoking status",
                 relation.ConfirmationMessageId.Value, telegramId, chatId);
-            
+
             await minionRepository.RemoveMinionRelation((telegramId, chatId));
             return true; // Status was revoked
         }

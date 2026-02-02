@@ -67,9 +67,9 @@ public class OpenBoxService(
     private async Task<OpenBoxResultData> HandleAmuletForMinion(
         long chatId, long minionId, long masterId, IMongoSession session, MemberItemType itemType)
     {
-        var success = await minionService.TransferAmuletToMaster(chatId, minionId, masterId, session);
+        var success = await memberItemService.HandleAmuletItem((masterId, chatId), session);
         return success
-            ? await HandleItemType(chatId, minionId, itemType, 0, OpenBoxResult.AmuletActivated, session)
+            ? await HandleItemType(chatId, masterId, itemType, 0, OpenBoxResult.AmuletActivated, session)
             : await AbortWithResult(session);
     }
 

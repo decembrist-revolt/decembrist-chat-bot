@@ -35,7 +35,10 @@ public partial class CurseCommandHandler(
     private static readonly string EmojisString = string.Join(", ", Emojis);
     public string Command => CommandKey;
 
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "All user messages will be cursed by certain emoji");
+    public string Description =>
+        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+            "All user messages will be cursed by certain emoji");
+
     public CommandLevel CommandLevel => CommandLevel.Item;
 
     [GeneratedRegex(@"\s+")]
@@ -65,15 +68,11 @@ public partial class CurseCommandHandler(
             return LogAssistant.LogDeleteResult(isDelete, telegramId, chatId, receiverId, Command);
         }
 
-        // Check if target has minion - redirect to minion
-        var originalReceiverId = receiverId;
         var redirectTarget = await minionService.GetRedirectTarget(receiverId, chatId);
-        if (redirectTarget.IsSome)
+        if (redirectTarget.TryGetSome(out var redirectedId))
         {
-            receiverId = redirectTarget.IfNone(receiverId);
             compositeId = (receiverId, chatId);
-            // Send redirect message
-            await minionService.SendNegativeEffectRedirectMessage(chatId, originalReceiverId, receiverId);
+            await minionService.SendNegativeEffectRedirectMessage(chatId, receiverId, redirectedId);
         }
 
         return await ParseEmoji(text.Trim()).MatchAsync(

@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Quartz;
 using Serilog;
@@ -12,7 +13,9 @@ public class CheckMinionConfirmationJob(
     MinionRepository minionRepository,
     BotClient botClient,
     AppConfig appConfig,
-    CancellationTokenSource cancelToken) : IRegisterJob
+    CancellationTokenSource cancelToken,
+    MinionService minionService,
+    object messageAssistance) : IRegisterJob
 {
     public async Task Register(IScheduler scheduler)
     {
@@ -26,7 +29,7 @@ public class CheckMinionConfirmationJob(
             .StartNow()
             .WithCronSchedule(appConfig.MinionConfig.ConfirmationCheckCron)
             .Build();
-        
+
         var existingTrigger = await scheduler.GetTrigger(triggerKey);
 
         if (existingTrigger != null)
@@ -42,7 +45,7 @@ public class CheckMinionConfirmationJob(
     public async Task Execute(IJobExecutionContext context)
     {
         Log.Information("Starting CheckMinionConfirmationJob - checking all minion confirmation messages");
-        
+
         var allRelations = await minionRepository.GetAllMinionRelations();
         var revokedCount = 0;
         var checkedCount = 0;
@@ -51,7 +54,7 @@ public class CheckMinionConfirmationJob(
         {
             if (!relation.ConfirmationMessageId.HasValue)
             {
-                Log.Warning("Minion {0} in chat {1} has no confirmation message ID", 
+                Log.Warning("Minion {0} in chat {1} has no confirmation message ID",
                     relation.Id.TelegramId, relation.Id.ChatId);
                 continue;
             }
@@ -62,15 +65,16 @@ public class CheckMinionConfirmationJob(
             if (!messageExists)
             {
                 // Message was deleted, revoke minion status
-                Log.Information("Confirmation message {0} deleted for minion {1} in chat {2}, revoking status", 
+                Log.Information("Confirmation message {0} deleted for minion {1} in chat {2}, revoking status",
                     relation.ConfirmationMessageId.Value, relation.Id.TelegramId, relation.Id.ChatId);
 
                 var removed = await minionRepository.RemoveMinionRelation(relation.Id);
                 if (removed)
                 {
                     revokedCount++;
-                    Log.Information("Revoked minion status for {0} in chat {1} - message deleted", 
+                    Log.Information("Revoked minion status for {0} in chat {1} - message deleted",
                         relation.Id.TelegramId, relation.Id.ChatId);
+                    await minionService.SendMinionRevokedByDeleteMessage(relation.Id.ChatId, relation.Id.TelegramId);
                 }
             }
 
@@ -78,7 +82,7 @@ public class CheckMinionConfirmationJob(
             await Task.Delay(100, cancelToken.Token);
         }
 
-        Log.Information("CheckMinionConfirmationJob completed - checked {0} minions, revoked {1}", 
+        Log.Information("CheckMinionConfirmationJob completed - checked {0} minions, revoked {1}",
             checkedCount, revokedCount);
     }
 
@@ -86,7 +90,7 @@ public class CheckMinionConfirmationJob(
     {
         const string reaction = "✍";
         ReactionTypeEmoji emoji = new() { Emoji = reaction };
-        
+
         return await botClient.SetMessageReaction(chatId, messageId, [emoji], cancellationToken: cancelToken.Token)
             .ToTryAsync()
             .Map(_ => true)
