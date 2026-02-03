@@ -58,7 +58,8 @@ public partial class CharmCommandHandler(
             {
                 var redirectTarget = await minionService.GetRedirectTarget(receiverId, chatId);
                 var originalReceiverId = receiverId;
-                var isRedirected = redirectTarget.TryGetSome(out receiverId);
+                var isRedirected = redirectTarget.TryGetSome(out var redirectedId);
+                if (isRedirected) receiverId = redirectedId;
 
                 var expireAt = DateTime.UtcNow.AddMinutes(appConfig.CharmConfig.DurationMinutes);
                 var charmMember = new CharmMember((receiverId, chatId), phrase, expireAt);
@@ -67,6 +68,7 @@ public partial class CharmCommandHandler(
                 return result switch
                 {
                     CharmResult.NoItems => await messageAssistance.SendNoItems(chatId),
+                    CharmResult.Duplicate when isRedirected => await SendDuplicateRedirectedMessage(chatId),
                     CharmResult.Duplicate => await SendDuplicateMessage(chatId),
                     CharmResult.Blocked when isRedirected => await SendAmuletRedirected(chatId, receiverId,
                         originalReceiverId),
@@ -111,6 +113,12 @@ public partial class CharmCommandHandler(
     {
         var message = appConfig.CharmConfig.DuplicateMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private async Task<Unit> SendDuplicateRedirectedMessage(long chatId)
+    {
+        return await messageAssistance.SendCommandResponse(chatId,
+            "Миньон этого пользователя уже зачарован, попробуйте позже", Command);
     }
 
     private async Task<Unit> SendSuccessMessage(long chatId, long receiverId, string phrase)

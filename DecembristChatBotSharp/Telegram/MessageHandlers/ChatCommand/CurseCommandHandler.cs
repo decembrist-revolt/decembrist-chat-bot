@@ -64,7 +64,8 @@ public partial class CurseCommandHandler(
 
         var redirectTarget = await minionService.GetRedirectTarget(receiverId, chatId);
         var originalReceiverId = receiverId;
-        var isRedirected = redirectTarget.TryGetSome(out receiverId);
+        var isRedirected = redirectTarget.TryGetSome(out var redirectedId);
+        if (isRedirected) receiverId = redirectedId;
 
         var compositeId = (receiverId, chatId);
 
@@ -89,6 +90,7 @@ public partial class CurseCommandHandler(
                     CurseResult.Blocked when isRedirected =>
                         await SendAmuletRedirected(compositeId, originalReceiverId),
                     CurseResult.Blocked => await messageAssistance.SendAmuletMessage(chatId, receiverId, Command),
+                    CurseResult.Duplicate when isRedirected => await SendDuplicateRedirectedMessage(chatId),
                     CurseResult.Duplicate => await SendDuplicateMessage(chatId),
                     CurseResult.Success when isRedirected =>
                         await SendSuccessRedirectMessage(compositeId, originalReceiverId, emoji.Emoji),
@@ -108,6 +110,12 @@ public partial class CurseCommandHandler(
     {
         var message = appConfig.CurseConfig.DuplicateMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private async Task<Unit> SendDuplicateRedirectedMessage(long chatId)
+    {
+        return await messageAssistance.SendCommandResponse(chatId,
+            "Миньон этого пользователя уже проклят, попробуйте позже", Command);
     }
 
     private async Task<Unit> SendHelpMessageWithLock(long chatId)
