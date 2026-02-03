@@ -41,8 +41,8 @@ public class OpenBoxCommandHandler(
                 telegramId, boxResult.Quantity),
             OpenBoxResult.SuccessX2 => SendBoxResult(boxResult.ItemType, chatId, telegramId, boxResult.Quantity),
             OpenBoxResult.AmuletActivated => SendBoxResult(boxResult.ItemType, chatId, telegramId, 0),
-            OpenBoxResult.MasterTransferred => SendToMinionTransfer(chatId, telegramId),
-            OpenBoxResult.MinionTransferred => SendToMasterTransfer(chatId, telegramId),
+            OpenBoxResult.ToMinionTransferred => SendToMinionTransfer(chatId, telegramId),
+            OpenBoxResult.ToMasterTransferred => SendToMasterTransfer(chatId, telegramId),
             _ => throw new ArgumentOutOfRangeException()
         };
         return await Array(resultTask,

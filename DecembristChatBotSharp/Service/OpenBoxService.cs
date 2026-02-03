@@ -1,7 +1,6 @@
 ﻿using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
-using LanguageExt.UnsafeValueAccess;
 using Serilog;
 
 namespace DecembristChatBotSharp.Service;
@@ -57,7 +56,7 @@ public class OpenBoxService(
         return telegramId switch
         {
             _ when maybeMaster.TryGetSome(out var masterId) =>
-                await HandleAmuletForMinion(chatId, telegramId, masterId, session, itemType),
+                await HandleAmuletForMinion(chatId, masterId, session, itemType),
             _ when await memberItemService.HandleAmuletItem((telegramId, chatId), session) =>
                 await HandleItemType(chatId, telegramId, itemType, 0, OpenBoxResult.AmuletActivated, session),
             _ => await HandleItemType(chatId, telegramId, itemType, quantity, OpenBoxResult.Success, session)
@@ -65,12 +64,12 @@ public class OpenBoxService(
     }
 
     private async Task<OpenBoxResultData> HandleAmuletForMinion(
-        long chatId, long minionId, long masterId, IMongoSession session, MemberItemType itemType)
+        long chatId, long masterId, IMongoSession session, MemberItemType itemType)
     {
         var success = await memberItemService.HandleAmuletItem((masterId, chatId), session);
         return success
-            ? await HandleItemType(chatId, masterId, itemType, 0, OpenBoxResult.AmuletActivated, session)
-            : await AbortWithResult(session);
+            ? await HandleItemType(chatId, masterId, itemType, 0, OpenBoxResult.ToMasterTransferred, session)
+            : await HandleItemType(chatId, masterId, itemType, 1, OpenBoxResult.ToMasterTransferred, session);
     }
 
     private async Task<OpenBoxResultData> HandleUniqueItem(
@@ -95,7 +94,7 @@ public class OpenBoxService(
         var isChangeOwner = await memberItemRepository.RemoveAllItemsForChat(chatId, itemType, session)
                             && await uniqueItemService.ChangeOwnerUniqueItem(chatId, minionId, itemType, session);
         return isChangeOwner
-            ? await HandleItemType(chatId, minionId, itemType, 1, OpenBoxResult.MinionTransferred, session)
+            ? await HandleItemType(chatId, minionId, itemType, 1, OpenBoxResult.ToMinionTransferred, session)
             : await AbortWithResult(session);
     }
 
