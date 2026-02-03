@@ -1,4 +1,6 @@
-﻿using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.Entity.Configs;
+using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
@@ -23,11 +25,11 @@ internal readonly struct UsernameEx(string username, Exception ex)
 
 [Singleton]
 public class NewMemberHandler(
-    AppConfig appConfig,
     BotClient botClient,
     NewMemberRepository newMemberRepository,
     WhiteListRepository whiteListRepository,
     ExpiredMessageRepository expiredMessageRepository,
+    ChatConfigService chatConfigService,
     CancellationTokenSource cancelToken
 )
 {
@@ -43,7 +45,13 @@ public class NewMemberHandler(
             return unit;
         }
 
-        var sendWelcomeTask = await SendWelcomeMessageForUser(chatId, user);
+        var maybeCaptchaConfig = await chatConfigService.GetConfig(chatId, config => config.CaptchaConfig);
+        if (!maybeCaptchaConfig.TryGetSome(out var captchaConfig))
+        {
+            return chatConfigService.LogNonExistConfig(unit, nameof(CaptchaConfig), nameof(NewMemberHandler));
+        }
+
+        var sendWelcomeTask = await SendWelcomeMessageForUser(chatId, user, captchaConfig);
 
         return sendWelcomeTask.Match(
             username => Log.Information("Sent welcome message to {Username}", username),
@@ -52,22 +60,22 @@ public class NewMemberHandler(
         );
     }
 
-    private async Task<Either<UsernameEx, string>> SendWelcomeMessageForUser(long chatId, User user)
+    private async Task<Either<UsernameEx, string>> SendWelcomeMessageForUser(
+        long chatId, User user, CaptchaConfig captchaConfig)
     {
         var username = Optional(user.Username).Match(
             Some: username => $"@{username}",
             None: () => user.FirstName
         );
 
-        var welcomeText = string.Format(
-            appConfig.CaptchaConfig.WelcomeMessage, username, appConfig.CaptchaConfig.CaptchaAnswer);
+        var welcomeText = string.Format(captchaConfig.WelcomeMessage, username, captchaConfig.CaptchaAnswer);
         var trySend = TryAsync(
             botClient.SendMessage(chatId: chatId, text: welcomeText, cancellationToken: cancelToken.Token));
 
         return await trySend
             .Bind(message =>
             {
-                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.CaptchaConfig.WelcomeMessageExpiration);
+                var expireAt = DateTime.UtcNow.AddMinutes(captchaConfig.WelcomeMessageExpiration);
                 expiredMessageRepository.QueueMessage(chatId, message.MessageId, expireAt);
                 return newMemberRepository.AddNewMember(user.Id, username, chatId, message.MessageId);
             })

@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
@@ -17,6 +18,7 @@ public class MinaCommandHandler(
     CommandLockRepository lockRepository,
     MemberItemService itemService,
     ExpiredMessageRepository expiredMessageRepository,
+    ChatConfigService chatConfigService,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public const string CommandKey = "/mina";
@@ -31,36 +33,45 @@ public class MinaCommandHandler(
 
     private static readonly string EmojisString = string.Join(", ", Emojis);
     public string Command => CommandKey;
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Set a mine that will curse anyone who writes the trigger phrase");
+
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+        "Set a mine that will curse anyone who writes the trigger phrase");
+
     public CommandLevel CommandLevel => CommandLevel.Item;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
+        var maybeMinaConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.MinaConfig);
+        if (!maybeMinaConfig.TryGetSome(out var minaConfig))
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(MinaConfig), Command);
+        }
 
-        var taskResult = HandleMina(telegramId, chatId, text);
+        var taskResult = HandleMina(telegramId, chatId, text, minaConfig);
 
         return await Array(
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command),
             taskResult).WhenAll();
     }
 
-    private async Task<Unit> HandleMina(long telegramId, long chatId, string text)
+    private async Task<Unit> HandleMina(long telegramId, long chatId, string text, MinaConfig minaConfig)
     {
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
 
         if (isAdmin && text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
         {
-            return await HandleDelete(telegramId, chatId, text);
+            return await HandleDelete(telegramId, chatId, text, minaConfig);
         }
 
-        return await ParseEmojiAndTrigger(text.Trim()).MatchAsync(
-            None: async () => await SendHelpMessageWithLock(chatId),
+        return await ParseEmojiAndTrigger(text.Trim(), minaConfig).MatchAsync(
+            None: async () => await SendHelpMessageWithLock(chatId, minaConfig),
             Some: async data =>
             {
                 var (emoji, trigger) = data;
-                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.MinaConfig.DurationMinutes);
+                var expireAt = DateTime.UtcNow.AddMinutes(minaConfig.DurationMinutes);
                 var mineTrigger =
                     new MineTrigger(new MineTrigger.CompositeId(telegramId, chatId, trigger), emoji, expireAt);
 
@@ -68,15 +79,15 @@ public class MinaCommandHandler(
                 return result switch
                 {
                     MinaResult.NoItems => await messageAssistance.SendNoItems(chatId),
-                    MinaResult.Failed => await SendHelpMessageWithLock(chatId),
-                    MinaResult.Duplicate => await SendDuplicateMessage(chatId),
-                    MinaResult.Success => await SendSuccessMessage(chatId, trigger, emoji.Emoji),
+                    MinaResult.Failed => await SendHelpMessageWithLock(chatId, minaConfig),
+                    MinaResult.Duplicate => await SendDuplicateMessage(chatId, minaConfig),
+                    MinaResult.Success => await SendSuccessMessage(chatId, trigger, emoji.Emoji, minaConfig),
                     _ => unit
                 };
             });
     }
 
-    private async Task<Unit> HandleDelete(long telegramId, long chatId, string text)
+    private async Task<Unit> HandleDelete(long telegramId, long chatId, string text, MinaConfig minaConfig)
     {
         var triggerText = text.Replace(ChatCommandHandler.DeleteSubcommand, "", StringComparison.OrdinalIgnoreCase)
             .Replace(CommandKey, "", StringComparison.OrdinalIgnoreCase)
@@ -84,7 +95,7 @@ public class MinaCommandHandler(
 
         if (string.IsNullOrWhiteSpace(triggerText))
         {
-            return await SendHelpMessageWithLock(chatId);
+            return await SendHelpMessageWithLock(chatId, minaConfig);
         }
 
         var compositeId = new MineTrigger.CompositeId(telegramId, chatId, triggerText);
@@ -92,27 +103,27 @@ public class MinaCommandHandler(
         return LogAssistant.LogDeleteResult(isDelete, telegramId, chatId, 0, Command);
     }
 
-    private async Task<Unit> SendDuplicateMessage(long chatId)
+    private async Task<Unit> SendDuplicateMessage(long chatId, MinaConfig minaConfig)
     {
-        var message = appConfig.MinaConfig.DuplicateMessage;
+        var message = minaConfig.DuplicateMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendHelpMessageWithLock(long chatId)
+    private async Task<Unit> SendHelpMessageWithLock(long chatId, MinaConfig minaConfig)
     {
         if (!await lockRepository.TryAcquire(chatId, Command))
         {
             return await messageAssistance.SendCommandNotReady(chatId, Command);
         }
 
-        var message = string.Format(appConfig.MinaConfig.HelpMessage, Command, EmojisString);
+        var message = string.Format(minaConfig.HelpMessage, Command, EmojisString);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendSuccessMessage(long chatId, string trigger, string emoji)
+    private async Task<Unit> SendSuccessMessage(long chatId, string trigger, string emoji, MinaConfig minaConfig)
     {
-        var expireAt = appConfig.MinaConfig.DurationMinutes;
-        var message = string.Format(appConfig.MinaConfig.SuccessMessage, trigger, emoji);
+        var expireAt = minaConfig.DurationMinutes;
+        var message = string.Format(minaConfig.SuccessMessage, trigger, emoji);
         const string logTemplate = "Mina message sent {0} ChatId: {1}, Emoji:{2} Trigger: {3}";
         return await botClient.SendMessageAndLog(chatId, message,
             m =>
@@ -124,7 +135,7 @@ public class MinaCommandHandler(
             cancelToken.Token);
     }
 
-    private Option<(ReactionTypeEmoji emoji, string trigger)> ParseEmojiAndTrigger(string text)
+    private Option<(ReactionTypeEmoji emoji, string trigger)> ParseEmojiAndTrigger(string text, MinaConfig minaConfig)
     {
         var argsPosition = text.IndexOf(' ');
         if (argsPosition == -1) return None;
@@ -139,7 +150,7 @@ public class MinaCommandHandler(
 
         if (!Emojis.Contains(emoji)
             || string.IsNullOrWhiteSpace(trigger)
-            || trigger.Length > appConfig.MinaConfig.TriggerMaxLength) return None;
+            || trigger.Length > minaConfig.TriggerMaxLength) return None;
 
         return (new ReactionTypeEmoji { Emoji = emoji }, trigger);
     }

@@ -19,7 +19,7 @@ public class RedditMemeCommandHandler(
     public const string CommandKey = "/redditmeme";
 
     public string Command => CommandKey;
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Generate random reddit meme");
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Generate random reddit meme");
     public CommandLevel CommandLevel => CommandLevel.Item;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

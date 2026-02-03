@@ -20,7 +20,7 @@ public class DiContainer
 
         var appConfig = GetAppConfig();
         registry.AddSingleton(appConfig);
-        
+
         registry.AddHttpClients(appConfig);
         registry.AddTelegram();
 

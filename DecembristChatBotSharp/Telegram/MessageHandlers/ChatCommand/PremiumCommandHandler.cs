@@ -18,7 +18,7 @@ public partial class PremiumCommandHandler(
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public string Command => "/premium";
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Premium membership command");
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command, "Premium membership command");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     [GeneratedRegex(@"^days@(\d+)$", RegexOptions.Compiled)]
@@ -145,7 +145,7 @@ public partial class PremiumCommandHandler(
     {
         var maybeUsername = await botClient.GetUsername(chatId, telegramId, cancelToken.Token);
         var username = maybeUsername.IfNone("Anonymous");
-        var message = string.Format(appConfig.CommandConfig.PremiumConfig.RemovePremiumMessage, username);
+        var message = string.Format(appConfig.CommandAssistanceConfig.PremiumConfig.RemovePremiumMessage, username);
         return await botClient.SendMessageAndLog(chatId, message,
             _ => Log.Information("Sent remove premium message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send remove premium message to chat {0}", chatId),
@@ -154,7 +154,7 @@ public partial class PremiumCommandHandler(
 
     private async Task<Unit> SendImPremiumMessage(long chatId, int messageId)
     {
-        var message = appConfig.CommandConfig.PremiumConfig.ImPremiumMessage;
+        var message = appConfig.CommandAssistanceConfig.PremiumConfig.ImPremiumMessage;
         return await botClient.SendMessageAndLog(chatId, message, messageId,
             message =>
             {
@@ -167,7 +167,7 @@ public partial class PremiumCommandHandler(
 
     private async Task<Unit> SendNotPremiumMessage(long chatId, int messageId)
     {
-        var message = appConfig.CommandConfig.PremiumConfig.NotPremiumMessage;
+        var message = appConfig.CommandAssistanceConfig.PremiumConfig.NotPremiumMessage;
         return await botClient.SendMessageAndLog(chatId, message, messageId,
             message =>
             {

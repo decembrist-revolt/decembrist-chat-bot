@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
@@ -12,7 +13,7 @@ namespace DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
 public class FilterCallbackHandler(
     AdminUserRepository adminUserRepository,
     MessageAssistance messageAssistance,
-    AppConfig appConfig,
+    ChatConfigService chatConfigService,
     CallbackService callbackService
 ) : IPrivateCallbackHandler
 {
@@ -29,32 +30,38 @@ public class FilterCallbackHandler(
             Some: async parameters =>
             {
                 if (!callbackService.HasChatIdKey(parameters, out var targetChatId)) return unit;
+                
+                var maybeFilterConfig = await chatConfigService.GetConfig(targetChatId, config => config.FilterConfig);
+                if (!maybeFilterConfig.TryGetSome(out var filterConfig))
+                {
+                    return chatConfigService.LogNonExistConfig(unit, nameof(FilterConfig), Prefix);
+                }
 
                 return filterSuffix switch
                 {
                     _ when !await adminUserRepository.IsAdmin(new CompositeId(telegramId, targetChatId)) =>
                         await messageAssistance.SendAdminOnlyMessage(telegramId, telegramId),
-                    FilterSuffix.Create => await SendRequestFilterRecord(targetChatId, telegramId),
-                    FilterSuffix.Delete => await SendRequestDelete(targetChatId, telegramId),
+                    FilterSuffix.Create => await SendRequestFilterRecord(targetChatId, telegramId, filterConfig),
+                    FilterSuffix.Delete => await SendRequestDelete(targetChatId, telegramId, filterConfig),
                     _ => throw new ArgumentOutOfRangeException(nameof(suffix), suffix, null)
                 };
             });
         return await Array(taskResult, messageAssistance.AnswerCallbackQuery(queryId, chatId, Prefix)).WhenAll();
     }
 
-    private Task<Unit> SendRequestDelete(long targetChatId, long chatId)
+    private async Task<Unit> SendRequestDelete(long targetChatId, long chatId, FilterConfig filterConfig)
     {
-        var message = string.Format(appConfig.FilterConfig.DeleteRequest,
+        var message = string.Format(filterConfig.DeleteRequest,
             GetFilterTag(FilterRecordHandler.DeleteSuffix, targetChatId));
-        return messageAssistance.SendCommandResponse(chatId, message, nameof(FilterCallbackHandler),
+        return await messageAssistance.SendCommandResponse(chatId, message, nameof(FilterCallbackHandler),
             replyMarkup: new ForceReplyMarkup());
     }
 
-    private Task<Unit> SendRequestFilterRecord(long targetChatId, long chatId)
+    private async Task<Unit> SendRequestFilterRecord(long targetChatId, long chatId, FilterConfig filterConfig)
     {
-        var message = string.Format(appConfig.FilterConfig.CreateRequest,
+        var message = string.Format(filterConfig.CreateRequest,
             GetFilterTag(FilterRecordHandler.RecordSuffix, targetChatId));
-        return messageAssistance.SendCommandResponse(chatId, message, nameof(FilterCallbackHandler),
+        return await messageAssistance.SendCommandResponse(chatId, message, nameof(FilterCallbackHandler),
             replyMarkup: new ForceReplyMarkup());
     }
 

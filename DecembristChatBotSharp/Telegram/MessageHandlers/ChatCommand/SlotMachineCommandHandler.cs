@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
@@ -19,17 +20,28 @@ public class SlotMachineCommandHandler(
     ExpiredMessageRepository expiredMessageRepository,
     Random random,
     CancellationTokenSource cancelToken,
-    PremiumMemberService premiumMemberService) : ICommandHandler
+    PremiumMemberService premiumMemberService,
+    ChatConfigService chatConfigService) : ICommandHandler
 {
     public const string CommandKey = "/slotmachine";
 
     public string Command => CommandKey;
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Play slot machine for a chance to win boxes");
+
+    public string Description =>
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+            "Play slot machine for a chance to win boxes");
+
     public CommandLevel CommandLevel => CommandLevel.Item;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
+        var maybeSlotMachineConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.SlotMachineConfig);
+        if (!maybeSlotMachineConfig.TryGetSome(out var slotMachineConfig))
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(SlotMachineConfig), Command);
+        }
 
         var isAdmin = await adminUserRepository.IsAdmin(new(telegramId, chatId));
 
@@ -41,19 +53,19 @@ public class SlotMachineCommandHandler(
 
         return result switch
         {
-            SlotMachineResult.Failed => await SendSlotMachineErrorMessage(chatId),
+            SlotMachineResult.Failed => await SendSlotMachineErrorMessage(chatId, slotMachineConfig),
             SlotMachineResult.NoItems => await messageAssistance.SendNoItems(chatId),
             SlotMachineResult.Success => await Array(
-                ProcessSlotResult(chatId, telegramId),
+                ProcessSlotResult(chatId, telegramId, slotMachineConfig),
                 messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll(),
             _ => throw new ArgumentOutOfRangeException()
         };
     }
 
-    private async Task<Unit> ProcessSlotResult(long chatId, long telegramId)
+    private async Task<Unit> ProcessSlotResult(long chatId, long telegramId, SlotMachineConfig slotMachineConfig)
     {
         var isPremium = await premiumMemberService.IsPremium(telegramId, chatId);
-        var attempts = isPremium ? appConfig.SlotMachineConfig.PremiumAttempts : 1;
+        var attempts = isPremium ? slotMachineConfig.PremiumAttempts : 1;
 
         var num1 = 0;
         var num2 = 0;
@@ -82,10 +94,10 @@ public class SlotMachineCommandHandler(
         var emoji3 = GetNumberEmoji(num3);
 
         var resultText = isWin
-            ? string.Format(appConfig.SlotMachineConfig.WinMessage, num1)
-            : string.Format(appConfig.SlotMachineConfig.LoseMessage, appConfig.SlotMachineConfig.PremiumAttempts);
+            ? string.Format(slotMachineConfig.WinMessage, num1)
+            : string.Format(slotMachineConfig.LoseMessage, slotMachineConfig.PremiumAttempts);
 
-        var message = string.Format(appConfig.SlotMachineConfig.LaunchMessage, username, emoji1, emoji2, emoji3,
+        var message = string.Format(slotMachineConfig.LaunchMessage, username, emoji1, emoji2, emoji3,
             resultText);
 
         var is777 = num1 == 7 && num2 == 7 && num3 == 7;
@@ -100,7 +112,7 @@ public class SlotMachineCommandHandler(
             {
                 await premiumMemberService.AddPremiumMember(
                     chatId, telegramId, PremiumMemberOperationType.AddBySlotMachine,
-                    DateTime.UtcNow.AddDays(appConfig.SlotMachineConfig.PremiumDaysFor777), session: session);
+                    DateTime.UtcNow.AddDays(slotMachineConfig.PremiumDaysFor777), session: session);
             }
 
             await historyLogRepository.LogItem(
@@ -114,7 +126,7 @@ public class SlotMachineCommandHandler(
         if (is777)
         {
             message += string.Format(
-                "\n\n" + appConfig.SlotMachineConfig.Premium777Message, appConfig.SlotMachineConfig.PremiumDaysFor777);
+                "\n\n" + slotMachineConfig.Premium777Message, slotMachineConfig.PremiumDaysFor777);
         }
 
         await botClient.SendMessageAndLog(chatId, message,
@@ -129,9 +141,9 @@ public class SlotMachineCommandHandler(
         return unit;
     }
 
-    private async Task<Unit> SendSlotMachineErrorMessage(long chatId)
+    private async Task<Unit> SendSlotMachineErrorMessage(long chatId, SlotMachineConfig slotMachineConfig)
     {
-        var message = appConfig.SlotMachineConfig.ErrorMessage;
+        var message = slotMachineConfig.ErrorMessage;
         return await botClient.SendMessageAndLog(chatId, message,
             sentMessage =>
             {

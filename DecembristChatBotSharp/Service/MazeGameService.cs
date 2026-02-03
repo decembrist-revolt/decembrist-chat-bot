@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Telegram;
 using Lamar;
@@ -12,9 +13,9 @@ public class MazeGameService(
     MazeGeneratorService mazeGenerator,
     MazeGameRepository mazeGameRepository,
     MazeRendererService mazeRenderer,
-    AppConfig appConfig,
     Random random,
-    MessageAssistance messageAssistance)
+    MessageAssistance messageAssistance,
+    ChatConfigService chatConfigService)
 {
     private const int MazeSize = 128;
     private const int CellSize = 10;
@@ -145,9 +146,9 @@ public class MazeGameService(
         return (r, g, b);
     }
 
-    public async Task<Option<MazeGame>> CreateGame(long chatId)
+    public async Task<Option<MazeGame>> CreateGame(long chatId, MazeConfig mazeConfig)
     {
-        var (maze, exitPosition) = mazeGenerator.GenerateMaze();
+        var (maze, exitPosition) = mazeGenerator.GenerateMaze(mazeConfig);
 
         if (exitPosition == (-1, -1))
         {
@@ -171,6 +172,11 @@ public class MazeGameService(
     public async Task<Option<MazeGamePlayer>> JoinGame(long chatId, long telegramId)
     {
         var gameOpt = await mazeGameRepository.GetGame(new MazeGame.CompositeId(chatId));
+        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.MazeConfig);
+        if (!maybeConfig.TryGetSome(out var mazeConfig))
+        {
+            return chatConfigService.LogNonExistConfig(None, nameof(MazeConfig));
+        }
 
         return await gameOpt.MatchAsync(
             async game =>
@@ -196,7 +202,7 @@ public class MazeGameService(
                     spawnPosition,
                     spawnPosition,
                     availableColor,
-                    appConfig.MazeConfig.DefaultViewRadius,
+                    mazeConfig.DefaultViewRadius,
                     DateTime.UtcNow,
                     DateTime.UtcNow,
                     true,
@@ -216,16 +222,16 @@ public class MazeGameService(
     {
         var playerId = new MazeGamePlayer.CompositeId(chatId, telegramId);
         var playerOpt = await mazeGameRepository.GetPlayer(playerId);
-        
+
         var initialCheck = await playerOpt.MatchAsync(
             player => Task.FromResult(player.LastPhotoMessageId == keyboardMessage),
             () => Task.FromResult(false));
-        
+
         if (!initialCheck)
         {
             return MazeMoveResult.KeyboardNotFound;
         }
-        
+
         for (var i = 0; i < steps; i++)
         {
             var result = await MovePlayerSingleStep(chatId, telegramId, direction);
@@ -239,7 +245,7 @@ public class MazeGameService(
                 return result;
             }
         }
-        
+
         return MazeMoveResult.Success;
     }
 

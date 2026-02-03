@@ -310,4 +310,10 @@ public static class UtilsExtensions
             .Select(handler => new BotCommand(handler.Command, handler.Description))
             .OrderBy(command => command.Command)
             .ToArray();
+
+    public static bool TryGetSome<T>(this Option<T> option, out T value)
+    {
+        value = option.IsSome ? option.ValueUnsafe() : default!;
+        return option.IsSome;
+    }
 }

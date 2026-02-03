@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Service.Buttons;
@@ -11,7 +12,7 @@ namespace DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
 
 [Singleton]
 public class ListCallbackHandler(
-    AppConfig appConfig,
+    ChatConfigService chatConfigService,
     CallbackRepository callbackRepository,
     MessageAssistance messageAssistance,
     ListButtons listButtons,
@@ -35,34 +36,39 @@ public class ListCallbackHandler(
         if (!listService.IsContainIndex(parameters, out var currentOffset)) return unit;
 
         var id = new CallbackPermission.CompositeId(chatId, presserId, CallbackType.List, messageId);
-        var hasPermission = await callbackRepository.HasPermission(id);
-        if (!hasPermission) return await SendNotAccess(queryId, chatId);
+        var maybeListConfig = await chatConfigService.GetConfig(chatId, config => config.ListConfig);
+        if (!maybeListConfig.TryGetSome(out var listConfig))
+        {
+            return chatConfigService.LogNonExistConfig(unit, nameof(ListConfig), Prefix);
+        }
 
+        var hasPermission = await callbackRepository.HasPermission(id);
+        if (!hasPermission) return await SendNotAccess(queryId, chatId, listConfig);
         var maybeKeysAndCount = await listService.GetListBody(chatId, listType, currentOffset);
         return await maybeKeysAndCount.Match(
-            tuple => EditSuccess(chatId, messageId, currentOffset, listType, tuple),
-            () => SendNotFound(queryId, chatId));
+            tuple => EditSuccess(chatId, messageId, currentOffset, listType, tuple, listConfig),
+            () => SendNotFound(queryId, chatId, listConfig));
     }
 
-    private Task<Unit> EditSuccess(long chatId, int messageId, int currentOffset, ListType listType,
-        (string, int) tuple)
+    private async Task<Unit> EditSuccess(long chatId, int messageId, int currentOffset, ListType listType,
+        (string, int) tuple, ListConfig listConfig)
     {
         var (keys, totalCount) = tuple;
         var keyboard = listButtons.GetListChatMarkup(totalCount, listType, currentOffset);
-        var message = string.Format(appConfig.ListConfig.SuccessTemplate, listType, totalCount, keys);
-        return messageAssistance.EditMessageAndLog(chatId, messageId, message, Prefix, replyMarkup: keyboard,
+        var message = string.Format(listConfig.SuccessTemplate, listType, totalCount, keys);
+        return await messageAssistance.EditMessageAndLog(chatId, messageId, message, Prefix, replyMarkup: keyboard,
             ParseMode.MarkdownV2);
     }
 
-    private Task<Unit> SendNotAccess(string queryId, long chatId)
+    private async Task<Unit> SendNotAccess(string queryId, long chatId, ListConfig listConfig)
     {
-        var message = string.Format(appConfig.ListConfig.NotAccess, ListCommandHandler.CommandKey);
-        return messageAssistance.AnswerCallbackQuery(queryId, chatId, Prefix, message);
+        var message = string.Format(listConfig.NotAccess, ListCommandHandler.CommandKey);
+        return await messageAssistance.AnswerCallbackQuery(queryId, chatId, Prefix, message);
     }
 
-    private Task<Unit> SendNotFound(string queryId, long chatId)
+    private async Task<Unit> SendNotFound(string queryId, long chatId, ListConfig listConfig)
     {
-        var message = appConfig.ListConfig.NotFound;
-        return messageAssistance.AnswerCallbackQuery(queryId, chatId, Prefix, message);
+        var message = listConfig.NotFound;
+        return await messageAssistance.AnswerCallbackQuery(queryId, chatId, Prefix, message);
     }
 }

@@ -1,6 +1,6 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Service;
 using Lamar;
-using LanguageExt.UnsafeValueAccess;
 using MongoDB.Driver;
 using Serilog;
 
@@ -8,7 +8,6 @@ namespace DecembristChatBotSharp.Mongo;
 
 [Singleton]
 public class FastReplyRepository(
-    AppConfig appConfig,
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
 {
@@ -44,7 +43,7 @@ public class FastReplyRepository(
             .Find(m => m.Id.ChatId == chatId && m.MessageType == FastReplyType.Text)
             .SortBy(m => m.Id.Message)
             .Skip(skip)
-            .Limit(appConfig.ListConfig.RowLimit)
+            .Limit(ListService.ListRowLimit)
             .Project(record => new { record.Id.Message, record.ExpireAt })
             .ToListAsync()
             .ToTryAsync()

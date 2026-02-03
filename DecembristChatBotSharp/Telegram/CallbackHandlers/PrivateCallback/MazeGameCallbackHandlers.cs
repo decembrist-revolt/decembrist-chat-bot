@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
@@ -10,7 +11,7 @@ namespace DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
 
 [Singleton]
 public class MazeGameMoveCallbackHandler(
-    AppConfig appConfig,
+    ChatConfigService chatConfigService,
     BotClient botClient,
     CallbackService callbackService,
     MazeGameService mazeGameService,
@@ -29,7 +30,6 @@ public class MazeGameMoveCallbackHandler(
     public async Task<Unit> Do(CallbackQueryParameters queryParameters)
     {
         var (_, suffix, privateChatId, telegramId, messageId, queryId, maybeParameters) = queryParameters;
-        if (suffix == ExitSuffix) return await SendGameExit(privateChatId, telegramId, messageId);
 
         if (!Enum.TryParse(suffix, true, out MazeDirection direction) || maybeParameters.IsNone) return unit;
         var parameters = maybeParameters.ValueUnsafe();
@@ -41,16 +41,23 @@ public class MazeGameMoveCallbackHandler(
                 "Ошибка обработки хода", showAlert: true);
         }
 
+        if (suffix == ExitSuffix) return await SendGameExit(privateChatId, telegramId, messageId);
         var steps = callbackService.HasStepsCountKey(parameters, out var stepsCount)
             ? stepsCount
             : 1;
+
+        var maybeConfig = await chatConfigService.GetConfig(targetChatId, config => config.MazeConfig);
+        if (!maybeConfig.TryGetSome(out var mazeConfig))
+        {
+            return chatConfigService.LogNonExistConfig(unit, nameof(MazeConfig), Prefix);
+        }
 
         var moved = await mazeGameService.MovePlayer(targetChatId, messageId, telegramId, direction, steps);
         var answer = moved switch
         {
             MazeMoveResult.Success => "Ход сделан",
             MazeMoveResult.InvalidMove => "Невозможно переместиться в этом направлении",
-            MazeMoveResult.KeyboardNotFound => appConfig.MazeConfig.KeyboardIncorrectMessage,
+            MazeMoveResult.KeyboardNotFound => mazeConfig.KeyboardIncorrectMessage,
             MazeMoveResult.PartialSuccess => "Ход сделан частично",
             _ => "Ошибка обработки хода"
         };
@@ -69,12 +76,12 @@ public class MazeGameMoveCallbackHandler(
                 if (game.IsFinished && game.WinnerId == telegramId)
                 {
                     // Player won!
-                    _ = await HandleWinner(targetChatId, telegramId, privateChatId);
+                    _ = await HandleWinner(targetChatId, telegramId, privateChatId, mazeConfig);
                 }
                 else
                 {
                     // Schedule view update with 3 second delay
-                    mazeGameViewService.ScheduleViewUpdate(targetChatId, telegramId);
+                    mazeGameViewService.ScheduleViewUpdate(targetChatId, telegramId, mazeConfig);
                 }
 
                 return unit;
@@ -86,17 +93,18 @@ public class MazeGameMoveCallbackHandler(
     {
         await messageAssistance.DeleteCommandMessage(privateChatId, messageId, Prefix);
         Log.Information("Player {0} exited maze game", telegramId);
-        return await messageAssistance.SendMessage(privateChatId, appConfig.MazeConfig.GameExitMessage, Prefix);
+        return await messageAssistance.SendMessage(privateChatId, "Вы вышли из игры, вы можете перезайти из чата",
+            Prefix);
     }
 
-    private async Task<Unit> HandleWinner(long chatId, long telegramId, long privateChatId)
+    private async Task<Unit> HandleWinner(long chatId, long telegramId, long privateChatId, MazeConfig mazeConfig)
     {
         Log.Information("Player {0} won maze game in chat {1}", telegramId, chatId);
 
         using var session = await db.OpenSession();
         session.StartTransaction();
 
-        var boxReward = appConfig.MazeConfig.WinnerBoxReward;
+        var boxReward = mazeConfig.WinnerBoxReward;
         var success =
             await memberItemRepository.AddMemberItem(chatId, telegramId, MemberItemType.Box, session, boxReward);
         if (!success)

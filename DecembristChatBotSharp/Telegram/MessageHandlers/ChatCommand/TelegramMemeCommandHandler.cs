@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.Entity.Configs;
+using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
@@ -16,17 +17,30 @@ public class TelegramMemeCommandHandler(
     BotClient botClient,
     ExpiredMessageRepository expiredMessageRepository,
     IHttpClientFactory httpClientFactory,
+    ChatConfigService chatConfigService,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public const string CommandKey = "/telegrammeme";
+    private const string StolenMemeCaption = "Украденный мем";
 
     public string Command => CommandKey;
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey, "Generate random telegram meme from random channel");
+
+    public string Description =>
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+            "Generate random telegram meme from random channel");
+
     public CommandLevel CommandLevel => CommandLevel.Item;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
+
+        var maybeCommandConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.TelegramPostConfig);
+        if (!maybeCommandConfig.TryGetSome(out var telegramPostConfig))
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(TelegramPostConfig), Command);
+        }
 
         var isAdmin = await adminUserRepository.IsAdmin(new(telegramId, chatId));
 
@@ -39,7 +53,7 @@ public class TelegramMemeCommandHandler(
         var (maybeMeme, resultType) = result;
         return resultType switch
         {
-            UseTelegramMemeResult.Type.Failed => await SendTelegramErrorMessage(chatId),
+            UseTelegramMemeResult.Type.Failed => await SendTelegramErrorMessage(chatId, telegramPostConfig),
             UseTelegramMemeResult.Type.NoItems => await messageAssistance.SendNoItems(chatId),
             UseTelegramMemeResult.Type.Success => await Array(
                 TrySendMeme(chatId, maybeMeme),
@@ -64,37 +78,37 @@ public class TelegramMemeCommandHandler(
             var httpClient = httpClientFactory.CreateClient();
             using var response = await httpClient.GetAsync(meme.PhotoLink, cancelToken.Token);
             response.EnsureSuccessStatusCode();
-            
+
             using var stream = await response.Content.ReadAsStreamAsync(cancelToken.Token);
             using var memoryStream = new MemoryStream();
             await stream.CopyToAsync(memoryStream, cancelToken.Token);
             memoryStream.Position = 0;
-            
+
             var fileName = Path.GetFileName(new Uri(meme.PhotoLink).LocalPath);
             if (string.IsNullOrEmpty(fileName) || !fileName.Contains('.'))
             {
                 fileName = "meme.jpg";
             }
-            
+
             await botClient.SendPhoto(
-                chatId, 
-                InputFile.FromStream(memoryStream, fileName), 
-                caption: "Украденный мем", 
+                chatId,
+                InputFile.FromStream(memoryStream, fileName),
+                caption: StolenMemeCaption,
                 cancellationToken: cancelToken.Token);
-            
+
             Log.Information("Sent random telegram meme to chat {0}", chatId);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to send random telegram meme {0} to chat {1}", meme.PhotoLink, chatId);
         }
-        
+
         return unit;
     }
 
-    private async Task<Unit> SendTelegramErrorMessage(long chatId)
+    private async Task<Unit> SendTelegramErrorMessage(long chatId, TelegramPostConfig telegramPostConfig)
     {
-        var message = appConfig.CommandConfig.TelegramPostConfig.TelegramErrorMessage;
+        var message = telegramPostConfig.TelegramErrorMessage;
         return await botClient.SendMessageAndLog(chatId, message,
             message =>
             {
