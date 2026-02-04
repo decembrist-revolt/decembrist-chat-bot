@@ -12,7 +12,7 @@ public class WhiteListCommandHandler(
     WhiteListRepository whiteListRepository) : ICommandHandler
 {
     public string Command => "/whitelist";
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Adding or removing from the white list");
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command, "Adding or removing from the white list");
     public CommandLevel CommandLevel => CommandLevel.Admin;
 
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)

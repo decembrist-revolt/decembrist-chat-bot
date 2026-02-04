@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using JasperFx.Core;
@@ -15,6 +16,7 @@ public partial class CurseCommandHandler(
     AppConfig appConfig,
     AdminUserRepository adminUserRepository,
     CurseRepository curseRepository,
+    ChatConfigService chatConfigService,
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
     MemberItemService itemService,
@@ -35,9 +37,8 @@ public partial class CurseCommandHandler(
     private static readonly string EmojisString = string.Join(", ", Emojis);
     public string Command => CommandKey;
 
-    public string Description =>
-        appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
-            "All user messages will be cursed by certain emoji");
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+        "All user messages will be cursed by certain emoji");
 
     public CommandLevel CommandLevel => CommandLevel.Item;
 
@@ -48,17 +49,23 @@ public partial class CurseCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
+        var maybeCurseConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CurseConfig);
+        if (!maybeCurseConfig.TryGetSome(out var curseConfig))
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(CurseConfig), Command);
+        }
 
         var taskResult = parameters.ReplyToTelegramId.Match(
-            async receiverId => await HandleCurse(telegramId, chatId, receiverId, text, messageId),
-            async () => await SendReceiverNotSet(chatId));
+            async receiverId => await HandleCurse(telegramId, chatId, receiverId, text, curseConfig),
+            async () => await SendReceiverNotSet(chatId, curseConfig));
 
         return await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, Command),
             taskResult).WhenAll();
     }
 
-    private async Task<Unit> HandleCurse(long telegramId, long chatId, long receiverId, string text,
-        int messageId)
+    private async Task<Unit> HandleCurse(
+        long telegramId, long chatId, long receiverId, string text, CurseConfig curseConfig)
     {
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
 
@@ -76,10 +83,10 @@ public partial class CurseCommandHandler(
         }
 
         return await ParseEmoji(text.Trim()).MatchAsync(
-            None: async () => await SendHelpMessageWithLock(chatId),
+            None: async () => await SendHelpMessageWithLock(chatId, curseConfig),
             Some: async emoji =>
             {
-                var expireAt = DateTime.UtcNow.AddMinutes(appConfig.CurseConfig.DurationMinutes);
+                var expireAt = DateTime.UtcNow.AddMinutes(curseConfig.DurationMinutes);
                 var reactMember = new ReactionSpamMember(compositeId, emoji, expireAt);
 
                 var result = await itemService.UseCurse(chatId, telegramId, reactMember, isAdmin);
@@ -100,15 +107,15 @@ public partial class CurseCommandHandler(
             });
     }
 
-    private async Task<Unit> SendReceiverNotSet(long chatId)
+    private async Task<Unit> SendReceiverNotSet(long chatId, CurseConfig curseConfig)
     {
-        var message = string.Format(appConfig.CurseConfig.ReceiverNotSetMessage, Command);
+        var message = string.Format(curseConfig.ReceiverNotSetMessage, Command);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendDuplicateMessage(long chatId)
+    private async Task<Unit> SendDuplicateMessage(long chatId, CurseConfig curseConfig)
     {
-        var message = appConfig.CurseConfig.DuplicateMessage;
+        var message = curseConfig.DuplicateMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
@@ -125,11 +132,11 @@ public partial class CurseCommandHandler(
             return await messageAssistance.SendCommandNotReady(chatId, Command);
         }
 
-        var message = string.Format(appConfig.CurseConfig.HelpMessage, Command, EmojisString);
+        var message = string.Format(curseConfig.HelpMessage, Command, EmojisString);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendSuccessMessage(CompositeId id, string emoji)
+    private async Task<Unit> SendSuccessMessage(CompositeId id, string emoji, CurseConfig curseConfig)
     {
         var (receiverId, chatId) = id;
         var username = await botClient.GetUsernameOrId(receiverId, chatId, cancelToken.Token);

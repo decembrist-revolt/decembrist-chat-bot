@@ -7,12 +7,12 @@ using static DecembristChatBotSharp.Service.CallbackService;
 namespace DecembristChatBotSharp.Service.Buttons;
 
 [Singleton]
-public class ListButtons(AppConfig appConfig)
+public class ListButtons
 {
     public InlineKeyboardMarkup GetListChatMarkup(int totalCount, ListType listType, int currentOffset = 0)
     {
         var markup = new List<InlineKeyboardButton>();
-        var limit = appConfig.ListConfig.RowLimit;
+        const int limit = ListService.ListRowLimit;
         if (currentOffset > 0)
         {
             markup.Add(GetListChatButton("⬅️ Prev", listType, currentOffset - limit));

@@ -10,7 +10,6 @@ public record LikeTelegramToLikeCount(long LikeTelegramId, int Count);
 
 [Singleton]
 public class MemberLikeRepository(
-    AppConfig appConfig,
     MongoDatabase db,
     CancellationTokenSource cancelToken) : IRepository
 {

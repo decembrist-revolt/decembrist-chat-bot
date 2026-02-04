@@ -123,7 +123,7 @@ public class MemberItemService(
             return new UseTelegramMemeResult(None, UseTelegramMemeResult.Type.NoItems);
         }
 
-        var maybeMeme = await telegramPostService.GetRandomPostPicture();
+        var maybeMeme = await telegramPostService.GetRandomPostPicture(chatId);
         if (maybeMeme.IsNone)
         {
             await session.TryAbort(cancelToken.Token);

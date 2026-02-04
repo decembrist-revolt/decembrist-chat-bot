@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using Lamar;
 using Serilog;
@@ -15,17 +16,25 @@ public class OpenBoxService(
     HistoryLogRepository historyLogRepository,
     Random random,
     CancellationTokenSource cancelToken,
-    UniqueItemService uniqueItemService)
+    UniqueItemService uniqueItemService,
+    ChatConfigService chatConfigService)
 {
     public async Task<OpenBoxResultData> OpenBox(long chatId, long telegramId)
     {
+        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.ItemConfig);
+        if (!maybeConfig.TryGetSome(out var itemConfig))
+        {
+            return chatConfigService.LogNonExistConfig(
+                new OpenBoxResultData(MemberItemType.TelegramMeme, 0, OpenBoxResult.Failed), nameof(ItemConfig));
+        }
+
         using var session = await db.OpenSession();
         session.StartTransaction();
 
         var hasBox = await memberItemRepository.RemoveMemberItem(chatId, telegramId, MemberItemType.Box, session);
         if (!hasBox) return await AbortWithResult(session, OpenBoxResult.NoItems);
 
-        var (itemType, quantity) = GetRandomItemWithQuantity();
+        var (itemType, quantity) = GetRandomItemWithQuantity(itemConfig);
 
         return itemType switch
         {
@@ -73,7 +82,7 @@ public class OpenBoxService(
     }
 
     private async Task<OpenBoxResultData> HandleUniqueItem(
-        long chatId, long telegramId, MemberItemType itemType, IMongoSession session)
+        long chatId, long telegramId, MemberItemType itemType, IMongoSession session, ItemConfig itemConfig)
     {
         var isHasUniqueItem = await memberItemRepository.IsUserHasItem(chatId, telegramId, itemType, session);
         if (isHasUniqueItem) return await HandleCompensation(chatId, telegramId, itemType, session);
@@ -143,9 +152,9 @@ public class OpenBoxService(
         return new OpenBoxResultData(None, 0, result);
     }
 
-    private (MemberItemType, int) GetRandomItemWithQuantity()
+    private (MemberItemType, int) GetRandomItemWithQuantity(ItemConfig itemConfig)
     {
-        var itemChances = appConfig.ItemConfig.ItemChance;
+        var itemChances = itemConfig.ItemChance;
         var total = itemChances.Values.Sum(x => x.Chance);
         var roll = random.NextDouble() * total;
 

@@ -1,7 +1,9 @@
 ﻿using System.Text;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Items;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
 
@@ -13,10 +15,11 @@ public class HelpChatCommandHandler(
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
     Lazy<IList<ICommandHandler>> commandHandlers,
-    Lazy<IList<IPassiveItem>> passiveItems) : ICommandHandler
+    Lazy<IList<IPassiveItem>> passiveItems,
+    ChatConfigService chatConfigService) : ICommandHandler
 {
     public string Command => "/help";
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Help");
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command, "Help");
     public CommandLevel CommandLevel => CommandLevel.User;
 
     private Map<string, string>? _commandDescriptions;
@@ -30,23 +33,29 @@ public class HelpChatCommandHandler(
     {
         var (messageId, _, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
+        var maybeHelpConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.HelpConfig);
+        if (!maybeHelpConfig.TryGetSome(out var helpConfig))
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(HelpConfig), Command);
+        }
 
         Task<Unit> helpTask;
-        if (text.Contains('@') && text.Split('@') is [.._, var subject] &&
+        if (text.Contains('@') && text.Split('@') is [.. _, var subject] &&
             !subject.EndsWith("bot", StringComparison.OrdinalIgnoreCase))
         {
-            helpTask = GetSpecificHelp(chatId, messageId, subject.ToLower());
+            helpTask = GetSpecificHelp(chatId, messageId, subject.ToLower(), helpConfig);
         }
         else
         {
-            helpTask = GetCommandsHelp(chatId, messageId);
+            helpTask = GetCommandsHelp(chatId, messageId, helpConfig);
         }
 
         return await Array(helpTask,
             messageAssistance.DeleteCommandMessage(chatId, parameters.MessageId, Command)).WhenAll();
     }
 
-    private async Task<Unit> GetCommandsHelp(long chatId, int messageId)
+    private async Task<Unit> GetCommandsHelp(long chatId, int messageId, HelpConfig helpConfig)
     {
         if (!await lockRepository.TryAcquire(chatId, Command))
         {
@@ -54,7 +63,7 @@ public class HelpChatCommandHandler(
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine(appConfig.HelpConfig.HelpTitle);
+        builder.AppendLine(helpConfig.HelpTitle);
         foreach (var (command, description) in CommandDescriptions)
         {
             builder.AppendLine(MakeCommandHelpString(command, description));
@@ -63,7 +72,7 @@ public class HelpChatCommandHandler(
         return await messageAssistance.SendCommandResponse(chatId, builder.ToString(), Command);
     }
 
-    private async Task<Unit> GetSpecificHelp(long chatId, int messageId, string subject)
+    private async Task<Unit> GetSpecificHelp(long chatId, int messageId, string subject, HelpConfig helpConfig)
     {
         var command = $"{Command}={subject}";
         if (!await lockRepository.TryAcquire(chatId, Command, command))
@@ -72,15 +81,15 @@ public class HelpChatCommandHandler(
         }
 
         if (!Enum.TryParse(subject, true, out MemberItemType itemType))
-            return await GetCommandHelp(chatId, AddCommandPrefix(subject));
+            return await GetCommandHelp(chatId, AddCommandPrefix(subject), helpConfig);
 
         var maybePassiveItem = passiveItems.Value.Find(x => x.ItemType == itemType);
         return await maybePassiveItem.MatchAsync(
-            Some: passiveItem => SendItemHelp(chatId, passiveItem.ItemType, passiveItem.Description),
-            None: () => GetActiveItemHelp(chatId, AddCommandPrefix(subject), itemType));
+            Some: passiveItem => SendItemHelp(chatId, passiveItem.ItemType, passiveItem.Description, helpConfig),
+            None: () => GetActiveItemHelp(chatId, AddCommandPrefix(subject), itemType, helpConfig));
     }
 
-    private Task<Unit> GetActiveItemHelp(long chatId, string command, MemberItemType itemType)
+    private Task<Unit> GetActiveItemHelp(long chatId, string command, MemberItemType itemType, HelpConfig helpConfig)
     {
         command = itemType switch
         {
@@ -88,31 +97,33 @@ public class HelpChatCommandHandler(
             _ => command
         };
         return CommandDescriptions.Find(command).Match(
-            Some: description => SendItemHelp(chatId, itemType, MakeCommandHelpString(command, description)),
-            None: () => SendHelpNotFound(chatId, command));
+            Some: description =>
+                SendItemHelp(chatId, itemType, MakeCommandHelpString(command, description), helpConfig),
+            None: () => SendHelpNotFound(chatId, command, helpConfig));
     }
 
-    private Task<Unit> GetCommandHelp(long chatId, string command) =>
+    private Task<Unit> GetCommandHelp(long chatId, string command, HelpConfig helpConfig) =>
         CommandDescriptions.Find(command).Match(
-            Some: description => SendCommandHelp(chatId, command, MakeCommandHelpString(command, description)),
-            None: () => SendHelpNotFound(chatId, command));
+            Some: description =>
+                SendCommandHelp(chatId, command, MakeCommandHelpString(command, description), helpConfig),
+            None: () => SendHelpNotFound(chatId, command, helpConfig));
 
-    private Task<Unit> SendCommandHelp(long chatId, string command, string description)
+    private Task<Unit> SendCommandHelp(long chatId, string command, string description, HelpConfig helpConfig)
     {
-        var message = string.Format(appConfig.HelpConfig.CommandHelpTemplate, command, description);
+        var message = string.Format(helpConfig.CommandHelpTemplate, command, description);
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private Task<Unit> SendItemHelp(long chatId, MemberItemType item, string description)
+    private Task<Unit> SendItemHelp(long chatId, MemberItemType item, string description, HelpConfig helpConfig)
     {
-        var message = string.Format(appConfig.HelpConfig.ItemHelpTemplate, item, description);
+        var message = string.Format(helpConfig.ItemHelpTemplate, item, description);
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private Task<Unit> SendHelpNotFound(long chatId, string subject)
+    private Task<Unit> SendHelpNotFound(long chatId, string subject, HelpConfig helpConfig)
     {
         Log.Information("Help not found for: {0}", subject);
-        return messageAssistance.SendCommandResponse(chatId, appConfig.HelpConfig.FailedMessage, Command);
+        return messageAssistance.SendCommandResponse(chatId, helpConfig.FailedMessage, Command);
     }
 
     private string MakeCommandHelpString(string command, string description) => $"{command} - {description}";

@@ -16,7 +16,7 @@ public class CraftService(
     PremiumMemberRepository premiumMemberRepository)
 {
     private readonly Dictionary<int, CraftRecipe> _recipeCache =
-        appConfig.CraftConfig.Recipes.ToDictionary(recipe => CalculateRecipeHash(recipe.Inputs));
+        appConfig.CraftRecipesConfig.Recipes.ToDictionary(recipe => CalculateRecipeHash(recipe.Inputs));
 
     public async Task<CraftOperationResult> HandleCraft(List<ItemQuantity> input, long chatId, long telegramId)
     {
@@ -93,7 +93,7 @@ public class CraftService(
         return new ItemQuantity(last.Item, last.Quantity);
     }
 
-    private bool IsGetPremiumBonus() => random.NextDouble() < appConfig.CraftConfig.PremiumChance;
+    private bool IsGetPremiumBonus() => random.NextDouble() < appConfig.CraftRecipesConfig.PremiumChance;
 
     private async Task<CraftOperationResult> CommitWithResult(IMongoSession session, CraftOperationResult result)
     {

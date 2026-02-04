@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Service;
 using JasperFx.Core;
 using Lamar;
@@ -10,10 +11,14 @@ public partial class CraftCommandHandler(
     AppConfig appConfig,
     MemberItemService memberItemService,
     MessageAssistance messageAssistance,
-    CraftService craftService) : ICommandHandler
+    CraftService craftService,
+    ChatConfigService chatConfigService) : ICommandHandler
 {
     public string Command => "/craft";
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, "Craft items");
+
+    public string Description =>
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command, "Craft items");
+
     public CommandLevel CommandLevel => CommandLevel.User;
 
     [GeneratedRegex(@"\s+")]
@@ -23,62 +28,70 @@ public partial class CraftCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
+        var maybeCraftConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CraftConfig);
+        if (!maybeCraftConfig.TryGetSome(out var craftConfig))
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(CraftConfig), Command);
+        }
 
         var items = GetCraftItems(text.Trim());
-        var resultTask = items.Count > 0 ? HandleCraft(items, chatId, telegramId) : SendHelp(chatId);
+        var resultTask = items.Count > 0
+            ? HandleCraft(items, chatId, telegramId, craftConfig)
+            : SendHelp(chatId, craftConfig);
 
         return await Array(
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command),
             resultTask).WhenAll();
     }
 
-    private async Task<Unit> HandleCraft(List<ItemQuantity> inputItems, long chatId, long telegramId)
+    private async Task<Unit> HandleCraft(List<ItemQuantity> inputItems, long chatId, long telegramId,
+        CraftConfig craftConfig)
     {
         var result = await craftService.HandleCraft(inputItems, chatId, telegramId);
         result.LogCraftResult(telegramId, chatId);
 
         return result.CraftResult switch
         {
-            CraftResult.Failed => await SendFailed(chatId),
-            CraftResult.Success => await SendSuccess(chatId, result.CraftReward!),
-            CraftResult.PremiumSuccess => await SendPremiumSuccess(chatId, result.CraftReward!),
-            CraftResult.NoRecipe => await SendNoRecipe(chatId),
+            CraftResult.Failed => await SendFailed(chatId, craftConfig),
+            CraftResult.Success => await SendSuccess(chatId, result.CraftReward!, craftConfig),
+            CraftResult.PremiumSuccess => await SendPremiumSuccess(chatId, result.CraftReward!, craftConfig),
+            CraftResult.NoRecipe => await SendNoRecipe(chatId, craftConfig),
             CraftResult.NoItems => await messageAssistance.SendNoItems(chatId),
             _ => throw new ArgumentOutOfRangeException()
         };
     }
 
-    private Task<Unit> SendSuccess(long chatId, ItemQuantity reward)
+    private Task<Unit> SendSuccess(long chatId, ItemQuantity reward, CraftConfig craftConfig)
     {
-        var message = string.Format(appConfig.CraftConfig.SuccessMessage, reward.Quantity, reward.Item);
-        var expirationDate = DateTime.UtcNow.AddMinutes(appConfig.CraftConfig.SuccessExpiration);
+        var message = string.Format(craftConfig.SuccessMessage, reward.Quantity, reward.Item);
+        var expirationDate = DateTime.UtcNow.AddMinutes(craftConfig.SuccessExpiration);
         return messageAssistance.SendCommandResponse(chatId, message, Command, expirationDate);
     }
 
-    private Task<Unit> SendPremiumSuccess(long chatId, ItemQuantity reward)
+    private Task<Unit> SendPremiumSuccess(long chatId, ItemQuantity reward, CraftConfig craftConfig)
     {
-        var craftConfig = appConfig.CraftConfig;
         var successMessage = string.Format(craftConfig.SuccessMessage, reward.Quantity, reward.Item);
         var message = string.Format(craftConfig.PremiumSuccessMessage, successMessage, craftConfig.PremiumBonus);
         var expirationDate = DateTime.UtcNow.AddMinutes(craftConfig.SuccessExpiration);
         return messageAssistance.SendCommandResponse(chatId, message, Command, expirationDate);
     }
 
-    private Task<Unit> SendNoRecipe(long chatId)
+    private Task<Unit> SendNoRecipe(long chatId, CraftConfig craftConfig)
     {
-        var message = appConfig.CraftConfig.NoRecipeMessage;
+        var message = craftConfig.NoRecipeMessage;
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private Task<Unit> SendHelp(long chatId)
+    private Task<Unit> SendHelp(long chatId, CraftConfig craftConfig)
     {
-        var message = string.Format(appConfig.CraftConfig.HelpMessage, Command);
+        var message = string.Format(craftConfig.HelpMessage, Command);
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private Task<Unit> SendFailed(long chatId)
+    private Task<Unit> SendFailed(long chatId, CraftConfig craftConfig)
     {
-        var message = appConfig.CraftConfig.FailedMessage;
+        var message = craftConfig.FailedMessage;
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 

@@ -35,7 +35,7 @@ public class DailyDislikesResultsJob(
             .WithIdentity(triggerKey)
             .StartNow()
             .WithCronSchedule(
-                appConfig.DislikeConfig.DailyResultCronUtc,
+                appConfig.DislikeJobConfig.DailyResultCronUtc,
                 x => x.InTimeZone(TimeZoneInfo.Utc))
             .Build();
 
@@ -140,9 +140,9 @@ public class DailyDislikesResultsJob(
     {
         var emoji = new ReactionTypeEmoji
         {
-            Emoji = appConfig.DislikeConfig.DailyResultEmoji
+            Emoji = appConfig.DislikeJobConfig.DailyResultEmoji
         };
-        var expireAt = DateTime.UtcNow.AddMinutes(appConfig.DislikeConfig.EmojiDurationMinutes);
+        var expireAt = DateTime.UtcNow.AddMinutes(appConfig.DislikeJobConfig.EmojiDurationMinutes);
         var curseMember = new ReactionSpamMember((topDislikesUserId, chatId), emoji, expireAt);
         await curseRepository.DeleteCurseMember(curseMember.Id, session);
         var result = await curseRepository.AddCurseMember(curseMember, session);
@@ -156,7 +156,7 @@ public class DailyDislikesResultsJob(
         var dislikerUsername = await GetUsername(randomDislikerId);
 
         var message = string.Format(
-            appConfig.DislikeConfig.DailyResultMessage,
+            appConfig.DislikeJobConfig.DailyResultMessage,
             dislikeUsername,
             GetCurseText(amuletRemoved),
             dislikerUsername);
@@ -180,7 +180,7 @@ public class DailyDislikesResultsJob(
     }
 
     private string GetCurseText(bool isAmuletRemoved) => string.Format(
-        isAmuletRemoved ? appConfig.DislikeConfig.CurseBlocked : appConfig.DislikeConfig.CurseSuccess,
-        appConfig.DislikeConfig.DailyResultEmoji
+        isAmuletRemoved ? appConfig.DislikeJobConfig.CurseBlocked : appConfig.DislikeJobConfig.CurseSuccess,
+        appConfig.DislikeJobConfig.DailyResultEmoji
     );
 }

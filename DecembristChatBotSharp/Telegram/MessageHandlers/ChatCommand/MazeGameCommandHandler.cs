@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.Entity.Configs;
+using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
@@ -8,12 +9,11 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public class MazeGameCommandHandler(
-    AppConfig appConfig,
     BotClient botClient,
     MessageAssistance messageAssistance,
     AdminUserRepository adminUserRepository,
     MazeGameService mazeGameService,
-    CancellationTokenSource cancelToken) : ICommandHandler
+    ChatConfigService chatConfigService) : ICommandHandler
 {
     public string Command => "/mazegame";
     public string Description => "Start a maze game (Admin only)";
@@ -40,22 +40,36 @@ public class MazeGameCommandHandler(
             ).WhenAll();
         }
 
+        var maybeMazeConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.MazeConfig);
+        if (!maybeMazeConfig.TryGetSome(out var mazeConfig))
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(MazeConfig), Command);
+        }
+
+        var maybeCommandConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CommandConfig);
+        if (!maybeCommandConfig.TryGetSome(out var commandConfig))
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(CommandConfig), Command);
+        }
+
         var url = await botClient.GetBotStartLink(
             PrivateMessageHandler.GetCommandForChat(PrivateMessageHandler.MazeGameCommandSuffix, chatId));
         var replyMarkup = new InlineKeyboardMarkup(
-            InlineKeyboardButton.WithUrl(appConfig.CommandConfig.InviteToDirectMessage, url));
-        var message = appConfig.MazeConfig.AnnouncementMessage;
+            InlineKeyboardButton.WithUrl(commandConfig.InviteToDirectMessage, url));
+        var message = mazeConfig.AnnouncementMessage;
 
         var existingGame = await mazeGameService.FindActiveGameForChat(chatId);
         var isGameExist = existingGame.IsSome;
         if (isGameExist)
         {
             Log.Information("Active maze game already exists in chat {0}", chatId);
-            message = appConfig.MazeConfig.RepeatAnnouncementMessage;
+            message = mazeConfig.RepeatAnnouncementMessage;
         }
         else
         {
-            var isCreate = await mazeGameService.CreateGame(chatId);
+            var isCreate = await mazeGameService.CreateGame(chatId, mazeConfig);
             isCreate.Match(
                 game => Log.Information("Maze game created successfully"),
                 () => Log.Error("Failed to create maze game in database"));

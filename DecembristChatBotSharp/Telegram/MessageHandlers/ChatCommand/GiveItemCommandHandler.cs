@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Service;
 using JasperFx.Core;
 using Lamar;
@@ -15,16 +16,20 @@ public partial class GiveItemCommandHandler(
     UniqueItemService uniqueItemService,
     GiveService giveService,
     MessageAssistance messageAssistance,
+    ChatConfigService chatConfigService,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public string Command => "/give";
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(Command, $"Give item to replied member, options: {_itemOptions}");
+
+    public string Description =>
+        appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(Command,
+            $"Give item to replied member, options: {_itemOptions}");
+
     public CommandLevel CommandLevel => CommandLevel.User;
 
     private readonly string _itemOptions =
         string.Join(", ", Enum.GetValues<MemberItemType>().Map(type => type.ToString()));
 
-    private readonly GiveConfig _giveConfig = appConfig.GiveConfig;
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex ArgsRegex();
@@ -33,12 +38,21 @@ public partial class GiveItemCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
+        var maybeGiveConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.GiveConfig);
+        if (!maybeGiveConfig.TryGetSome(out var giveConfig))
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(GiveConfig), Command);
+        }
+        var maybeItemConfig = await chatConfigService.GetConfig(chatId, config => config.ItemConfig);
+        if (!maybeItemConfig.TryGetSome(out var itemConfig))
+            return await messageAssistance.DeleteCommandMessage(chatId, messageId, Command);
 
         var resultTask = parameters.ReplyToTelegramId.MatchAsync(
-            None: () => SendReceiverNotSet(chatId),
+            None: () => SendReceiverNotSet(chatId, giveConfig),
             Some: receiverId => ParseText(text).MatchAsync(
-                itemQuantity => HandleGive(chatId, telegramId, receiverId, itemQuantity),
-                () => SendHelp(chatId)));
+                itemQuantity => HandleGive(chatId, telegramId, receiverId, itemQuantity, giveConfig, itemConfig),
+                () => SendHelp(chatId, giveConfig)));
 
         return await Array(resultTask,
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
@@ -52,7 +66,8 @@ public partial class GiveItemCommandHandler(
             .Filter(arg => arg.Length > 0)
             .Bind(memberItemService.ParseItem);
 
-    private async Task<Unit> HandleGive(long chatId, long telegramId, long receiverId, ItemQuantity itemQuantity)
+    private async Task<Unit> HandleGive(long chatId, long telegramId, long receiverId, ItemQuantity itemQuantity,
+        GiveConfig giveConfig, ItemConfig itemConfig)
     {
         var (giveResult, isAmuletBroken) = await giveService.GiveItem(chatId, telegramId, receiverId, itemQuantity);
         giveResult.LogGiveResult(itemQuantity, telegramId, receiverId, chatId);
@@ -60,68 +75,72 @@ public partial class GiveItemCommandHandler(
         return giveResult switch
         {
             GiveResult.NoItems => await messageAssistance.SendNoItems(chatId),
-            GiveResult.NotExpired => await SendNotExpired(chatId, itemQuantity.Item),
-            GiveResult.Success => await SendSuccess(telegramId, receiverId, chatId, itemQuantity, isAmuletBroken),
+            GiveResult.NotExpired => await SendNotExpired(chatId, itemQuantity.Item, giveConfig),
+            GiveResult.Success => await SendSuccess(telegramId, receiverId, chatId, itemQuantity, isAmuletBroken,
+                giveConfig, itemConfig),
             GiveResult.AdminSuccess =>
-                await SendAdminSuccess(telegramId, receiverId, chatId, itemQuantity, isAmuletBroken),
-            GiveResult.Self => await SendSelf(chatId),
-            GiveResult.Failed => await SendFailed(chatId),
+                await SendAdminSuccess(telegramId, receiverId, chatId, itemQuantity, isAmuletBroken, giveConfig,
+                    itemConfig),
+            GiveResult.Self => await SendSelf(chatId, giveConfig),
+            GiveResult.Failed => await SendFailed(chatId, giveConfig),
             _ => throw new ArgumentOutOfRangeException(nameof(giveResult), giveResult, null)
         };
     }
 
-    private async Task<Unit> SendNotExpired(long chatId, MemberItemType itemType)
+    private async Task<Unit> SendNotExpired(long chatId, MemberItemType itemType, GiveConfig giveConfig)
     {
         var maybeTime = await uniqueItemService.GetRemainingTime((chatId, itemType));
         return await maybeTime.MatchAsync(async time =>
             {
-                var message = string.Format(_giveConfig.GiveNotExpiredMessage, itemType, time);
+                var message = string.Format(giveConfig.GiveNotExpiredMessage, itemType, time);
                 return await messageAssistance.SendCommandResponse(chatId, message, Command);
             },
-            async () => await SendFailed(chatId)
+            async () => await SendFailed(chatId, giveConfig)
         );
     }
 
 
     private async Task<Unit> SendSuccess(
-        long telegramId, long receiverId, long chatId, ItemQuantity itemQuantity, bool isAmuletBroken)
+        long telegramId, long receiverId, long chatId, ItemQuantity itemQuantity, bool isAmuletBroken,
+        GiveConfig giveConfig, ItemConfig itemConfig)
     {
         var senderName = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
         var receiverName = await botClient.GetUsernameOrId(receiverId, chatId, cancelToken.Token);
         var message = string.Format(
-            _giveConfig.SuccessMessage, senderName, receiverName, itemQuantity.Item, itemQuantity.Quantity);
-        if (isAmuletBroken) message += "\n\n" + appConfig.ItemConfig.AmuletBrokenMessage;
-        var expireAt = DateTime.UtcNow.AddMinutes(_giveConfig.ExpirationMinutes);
+            giveConfig.SuccessMessage, senderName, receiverName, itemQuantity.Item, itemQuantity.Quantity);
+        if (isAmuletBroken) message += "\n\n" + itemConfig.AmuletBrokenMessage;
+        var expireAt = DateTime.UtcNow.AddMinutes(giveConfig.ExpirationMinutes);
         return await messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
     }
 
     private async Task<Unit> SendAdminSuccess(
-        long telegramId, long receiverId, long chatId, ItemQuantity itemQuantity, bool isAmuletBroken)
+        long telegramId, long receiverId, long chatId, ItemQuantity itemQuantity, bool isAmuletBroken,
+        GiveConfig giveConfig, ItemConfig itemConfig)
     {
         Log.Information("Admin: {0} give item: {1} for: {2}", telegramId, itemQuantity, receiverId);
         var receiverName = await botClient.GetUsernameOrId(receiverId, chatId, cancelToken.Token);
         var message = string.Format(
-            _giveConfig.AdminSuccessMessage, receiverName, itemQuantity.Item, itemQuantity.Quantity, Command);
-        if (isAmuletBroken) message += "\n\n" + appConfig.ItemConfig.AmuletBrokenMessage;
-        var expireAt = DateTime.UtcNow.AddMinutes(appConfig.ItemConfig.BoxMessageExpiration);
+            giveConfig.AdminSuccessMessage, receiverName, itemQuantity.Item, itemQuantity.Quantity, Command);
+        if (isAmuletBroken) message += "\n\n" + itemConfig.AmuletBrokenMessage;
+        var expireAt = DateTime.UtcNow.AddMinutes(itemConfig.BoxMessageExpiration);
         return await messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
     }
 
-    private Task<Unit> SendHelp(long chatId)
+    private Task<Unit> SendHelp(long chatId, GiveConfig giveConfig)
     {
-        var message = string.Format(_giveConfig.HelpMessage, Command, _itemOptions);
+        var message = string.Format(giveConfig.HelpMessage, Command, _itemOptions);
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private Task<Unit> SendReceiverNotSet(long chatId)
+    private Task<Unit> SendReceiverNotSet(long chatId, GiveConfig giveConfig)
     {
-        var message = string.Format(_giveConfig.ReceiverNotSet, Command);
+        var message = string.Format(giveConfig.ReceiverNotSet, Command);
         return messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private Task<Unit> SendFailed(long chatId) =>
-        messageAssistance.SendCommandResponse(chatId, _giveConfig.FailedMessage, Command);
+    private Task<Unit> SendFailed(long chatId, GiveConfig giveConfig) =>
+        messageAssistance.SendCommandResponse(chatId, giveConfig.FailedMessage, Command);
 
-    private Task<Unit> SendSelf(long chatId) =>
-        messageAssistance.SendCommandResponse(chatId, _giveConfig.SelfMessage, Command);
+    private Task<Unit> SendSelf(long chatId, GiveConfig giveConfig) =>
+        messageAssistance.SendCommandResponse(chatId, giveConfig.SelfMessage, Command);
 }

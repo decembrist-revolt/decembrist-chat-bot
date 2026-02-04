@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using JasperFx.Core;
@@ -16,6 +17,7 @@ public partial class CharmCommandHandler(
     MemberItemService itemService,
     MinionService minionService,
     AppConfig appConfig,
+    ChatConfigService chatConfigService,
     BotClient botClient,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
@@ -32,15 +34,23 @@ public partial class CharmCommandHandler(
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
+        var maybeCharmConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CharmConfig);
+        if (!maybeCharmConfig.TryGetSome(out var charmConfig))
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(CharmConfig), Command);
+        }
+
         var taskResult = parameters.ReplyToTelegramId.MatchAsync(
-            async receiverId => await HandleCharm(text, receiverId, chatId, telegramId),
-            async () => await SendReceiverNotSet(chatId));
+            async receiverId => await HandleCharm(text, receiverId, chatId, telegramId, charmConfig),
+            async () => await SendReceiverNotSet(chatId, charmConfig));
 
         return await Array(messageAssistance.DeleteCommandMessage(chatId, messageId, Command),
             taskResult).WhenAll();
     }
 
-    private async Task<Unit> HandleCharm(string text, long receiverId, long chatId, long telegramId)
+    private async Task<Unit> HandleCharm(string text, long receiverId, long chatId, long telegramId,
+        CharmConfig charmConfig)
     {
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
         if (isAdmin && text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
@@ -49,10 +59,10 @@ public partial class CharmCommandHandler(
             return LogAssistant.LogDeleteResult(isDelete, receiverId, chatId, telegramId, Command);
         }
 
-        if (receiverId == telegramId) return await SendSelfMessage(chatId);
+        if (receiverId == telegramId) return await SendSelfMessage(chatId, charmConfig);
 
 
-        return await ParseText(text.Trim()).Match(
+        return await ParseText(text.Trim(), charmConfig).Match(
             None: async () => await SendHelpMessage(chatId),
             Some: async phrase =>
             {
@@ -82,36 +92,36 @@ public partial class CharmCommandHandler(
             });
     }
 
-    private Option<string> ParseText(string text)
+    private Option<string> ParseText(string text, CharmConfig charmConfig)
     {
         var argsPosition = text.IndexOf(' ');
         return Optional(argsPosition != -1 ? text[(argsPosition + 1)..] : string.Empty)
             .Filter(arg => arg.IsNotEmpty())
             .Map(arg => ArgsRegex().Replace(arg, " ").Trim())
-            .Filter(arg => arg.Length > 0 && arg.Length <= appConfig.CharmConfig.CharacterLimit);
+            .Filter(arg => arg.Length > 0 && arg.Length <= charmConfig.CharacterLimit);
     }
 
-    private async Task<Unit> SendReceiverNotSet(long chatId)
+    private async Task<Unit> SendReceiverNotSet(long chatId, CharmConfig charmConfig)
     {
-        var message = string.Format(appConfig.CharmConfig.ReceiverNotSetMessage, Command);
+        var message = string.Format(charmConfig.ReceiverNotSetMessage, Command);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendHelpMessage(long chatId)
+    private async Task<Unit> SendHelpMessage(long chatId, CharmConfig charmConfig)
     {
-        var message = string.Format(appConfig.CharmConfig.HelpMessage, Command, appConfig.CharmConfig.CharacterLimit);
+        var message = string.Format(charmConfig.HelpMessage, Command, charmConfig.CharacterLimit);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendSelfMessage(long chatId)
+    private async Task<Unit> SendSelfMessage(long chatId, CharmConfig charmConfig)
     {
-        var message = appConfig.CharmConfig.SelfMessage;
+        var message = charmConfig.SelfMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendDuplicateMessage(long chatId)
+    private async Task<Unit> SendDuplicateMessage(long chatId, CharmConfig charmConfig)
     {
-        var message = appConfig.CharmConfig.DuplicateMessage;
+        var message = charmConfig.DuplicateMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
@@ -121,23 +131,22 @@ public partial class CharmCommandHandler(
             "Миньон этого пользователя уже зачарован, попробуйте позже", Command);
     }
 
-    private async Task<Unit> SendSuccessMessage(long chatId, long receiverId, string phrase)
+    private async Task<Unit> SendSuccessMessage(long chatId, long receiverId, string phrase, CharmConfig charmConfig)
     {
         var username = await botClient.GetUsernameOrId(receiverId, chatId, cancelToken.Token);
-        var message = string.Format(appConfig.CharmConfig.SuccessMessage, username,
-            appConfig.CharmConfig.DurationMinutes, phrase);
-        var exp = DateTime.UtcNow.AddMinutes(appConfig.CharmConfig.DurationMinutes);
+        var message = string.Format(charmConfig.SuccessMessage, username, charmConfig.DurationMinutes, phrase);
+        var exp = DateTime.UtcNow.AddMinutes(charmConfig.DurationMinutes);
         Log.Information("Charm message sent ChatId: {0}, Phrase:{1} Receiver: {2}", chatId, phrase, receiverId);
         return await messageAssistance.SendCommandResponse(chatId, message, Command, exp);
     }
 
     private async Task<Unit> SendSuccessRedirectMessage(long chatId, long receiverId, long originalReceiverId,
-        string phrase)
+        string phrase,CharmConfig charmConfig)
     {
         var username = await botClient.GetUsernameOrId(receiverId, chatId, cancelToken.Token);
-        var message = string.Format(appConfig.CharmConfig.SuccessMessage, username,
+        var message = string.Format(charmConfig.SuccessMessage, username,
             appConfig.CharmConfig.DurationMinutes, phrase);
-        var exp = DateTime.UtcNow.AddMinutes(appConfig.CharmConfig.DurationMinutes);
+        var exp = DateTime.UtcNow.AddMinutes(charmConfig.DurationMinutes);
         Log.Information("Charm redirected ChatId: {0}, Phrase:{1} Receiver: {2}", chatId, phrase, receiverId);
         await minionService.SendNegativeEffectRedirectMessage(chatId, originalReceiverId, receiverId);
         return await messageAssistance.SendCommandResponse(chatId, message, Command, exp);

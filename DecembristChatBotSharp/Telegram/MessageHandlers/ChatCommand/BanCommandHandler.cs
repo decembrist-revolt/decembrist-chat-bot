@@ -1,19 +1,22 @@
 ﻿using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
+
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 
 [Singleton]
 public partial class BanCommandHandler(
-    AppConfig appConfig,
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
     MemberItemRepository memberItemRepository,
     BotClient botClient,
     Random random,
-    CancellationTokenSource cancelToken) : ICommandHandler
+    CancellationTokenSource cancelToken,
+    ChatConfigService chatConfigService) : ICommandHandler
 {
     public string Command => "/ban";
     public string Description => "Ban user in reply. Set reason in format /ban This is ban reason";
@@ -26,6 +29,12 @@ public partial class BanCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
+        var maybeConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.BanConfig);
+        if (!maybeConfig.TryGetSome(out var banConfig))
+        {
+            await messageAssistance.SendNotConfigured(chatId, messageId, Command);
+            return chatConfigService.LogNonExistConfig(unit, nameof(BanConfig), Command);
+        }
 
         if (!await lockRepository.TryAcquire(chatId, Command, telegramId: telegramId))
         {
@@ -34,8 +43,8 @@ public partial class BanCommandHandler(
 
         var taskResult = parameters.ReplyToTelegramId.ToTryOption()
             .MatchAsync(
-                receiverId => HandleBan(chatId, telegramId, receiverId, messageId, text),
-                () => SendReceiverNotSet(chatId),
+                receiverId => HandleBan(chatId, telegramId, receiverId, messageId, text, banConfig),
+                () => SendReceiverNotSet(chatId, banConfig),
                 ex =>
                 {
                     Log.Error(ex, "Failed to get chat member in chat {0} with telegramId {1}", chatId, telegramId);
@@ -46,12 +55,13 @@ public partial class BanCommandHandler(
             messageAssistance.DeleteCommandMessage(chatId, messageId, Command)).WhenAll();
     }
 
-    private async Task<Unit> HandleBan(long chatId, long telegramId, long receiverId, int messageId, string text)
+    private async Task<Unit> HandleBan(long chatId, long telegramId, long receiverId, int messageId, string text,
+        BanConfig banConfig)
     {
         var targetHasAmulet = await memberItemRepository.IsUserHasItem(chatId, receiverId, MemberItemType.Amulet);
         return targetHasAmulet
-            ? await SendAmuletMessage(chatId)
-            : await SendBanMessage(chatId, telegramId, text.Trim(), receiverId);
+            ? await SendAmuletMessage(chatId, banConfig)
+            : await SendBanMessage(chatId, telegramId, text.Trim(), receiverId, banConfig);
     }
 
 
@@ -59,7 +69,8 @@ public partial class BanCommandHandler(
         long chatId,
         long telegramId,
         string text,
-        long receiverId)
+        long receiverId,
+        BanConfig banConfig)
     {
         var banUsername = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
             .ToAsync()
@@ -68,7 +79,6 @@ public partial class BanCommandHandler(
         var argsPosition = text.IndexOf(' ');
         var arg = argsPosition != -1 ? text[(argsPosition + 1)..] : string.Empty;
 
-        var banConfig = appConfig.CommandConfig.BanConfig;
         if (string.IsNullOrEmpty(arg))
         {
             arg = banConfig.BanNoReasonMessage;
@@ -79,7 +89,7 @@ public partial class BanCommandHandler(
 
             if (arg.Length > banConfig.ReasonLengthLimit)
             {
-                return await SendToLongReasonMessage(chatId);
+                return await SendToLongReasonMessage(chatId, banConfig);
             }
         }
 
@@ -100,22 +110,21 @@ public partial class BanCommandHandler(
             cancelToken.Token);
     }
 
-    private async Task<Unit> SendReceiverNotSet(long chatId)
+    private async Task<Unit> SendReceiverNotSet(long chatId, BanConfig banConfig)
     {
-        var message = appConfig.CommandConfig.BanConfig.BanReceiverNotSetMessage;
+        var message = banConfig.BanReceiverNotSetMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendToLongReasonMessage(long chatId)
+    private async Task<Unit> SendToLongReasonMessage(long chatId, BanConfig banConfig)
     {
-        var banConfig = appConfig.CommandConfig.BanConfig;
         var message = string.Format(banConfig.ReasonLengthErrorMessage, banConfig.ReasonLengthLimit);
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
-    private async Task<Unit> SendAmuletMessage(long chatId)
+    private async Task<Unit> SendAmuletMessage(long chatId, BanConfig banConfig)
     {
-        var message = appConfig.CommandConfig.BanConfig.BanAmuletMessage;
+        var message = banConfig.BanAmuletMessage;
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 }

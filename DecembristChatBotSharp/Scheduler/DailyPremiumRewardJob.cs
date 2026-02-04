@@ -33,7 +33,7 @@ public class DailyPremiumRewardJob(
             .WithIdentity(triggerKey)
             .StartNow()
             .WithCronSchedule(
-                appConfig.CommandConfig.PremiumConfig.DailyPremiumRewardCronUtc,
+                appConfig.CommandAssistanceConfig.PremiumConfig.DailyPremiumRewardCronUtc,
                 x => x.InTimeZone(TimeZoneInfo.Utc))
             .Build();
 
@@ -150,6 +150,7 @@ public class DailyPremiumRewardJob(
                 minionUsernamesString);
         }
 
+        var message = string.Format(appConfig.CommandAssistanceConfig.PremiumConfig.DailyPremiumRewardMessage, usernamesString);
         return await botClient.SendMessage(
                 chatId, message, parseMode: ParseMode.MarkdownV2, cancellationToken: cancelToken.Token)
             .ToTryAsync()

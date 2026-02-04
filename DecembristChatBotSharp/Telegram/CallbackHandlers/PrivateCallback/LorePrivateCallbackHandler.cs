@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Service;
+﻿using DecembristChatBotSharp.Entity.Configs;
+using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Service.Buttons;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
 using DecembristChatBotSharp.Telegram.LoreHandlers;
@@ -14,7 +15,7 @@ public class LorePrivateCallbackHandler(
     MessageAssistance messageAssistance,
     CallbackService callbackService,
     LoreButtons loreButtons,
-    AppConfig appConfig,
+    ChatConfigService chatConfigService,
     LoreService loreService) : IPrivateCallbackHandler
 {
     public const string PrefixKey = "Lore";
@@ -32,42 +33,50 @@ public class LorePrivateCallbackHandler(
             Some: async parameters =>
             {
                 if (!callbackService.HasChatIdKey(parameters, out var targetChatId)) return unit;
+                var maybeLoreConfig = await chatConfigService.GetConfig(targetChatId, config => config.LoreConfig);
+                if (!maybeLoreConfig.TryGetSome(out var loreConfig))
+                {
+                    return chatConfigService.LogNonExistConfig(unit, nameof(LoreConfig), Prefix);
+                }
 
                 return loreSuffix switch
                 {
-                    LoreSuffix.Create => await SendRequestLoreKey(targetChatId, telegramId),
-                    LoreSuffix.Delete => await SendRequestDelete(targetChatId, telegramId),
+                    LoreSuffix.Create => await SendRequestLoreKey(targetChatId, telegramId, loreConfig),
+                    LoreSuffix.Delete => await SendRequestDelete(targetChatId, telegramId, loreConfig),
                     LoreSuffix.List when maybeParameters.IsSome => await SwitchLoreList(targetChatId, telegramId,
-                        messageId, queryId, maybeParameters.ValueUnsafe()),
+                        messageId, queryId, maybeParameters.ValueUnsafe(), loreConfig),
                     _ => throw new ArgumentOutOfRangeException(nameof(suffix), suffix, null)
                 };
             });
         return await Array(taskResult, messageAssistance.AnswerCallbackQuery(queryId, chatId, Prefix)).WhenAll();
     }
 
-    private Task<Unit> SendRequestDelete(long targetChatId, long chatId)
+    private async Task<Unit> SendRequestDelete(long targetChatId, long chatId, LoreConfig loreConfig)
     {
-        var message = string.Format(appConfig.LoreConfig.DeleteRequest,
+        var message = string.Format(loreConfig.DeleteRequest,
             LoreService.GetLoreTag(LoreHandler.DeleteSuffix, targetChatId));
-        return messageAssistance.SendCommandResponse(
+        return await messageAssistance.SendCommandResponse(
             chatId, message, nameof(LorePrivateCallbackHandler), replyMarkup: loreService.GetKeyTip());
     }
 
-    private Task<Unit> SendRequestLoreKey(long targetChatId, long chatId)
+    private async Task<Unit> SendRequestLoreKey(long targetChatId, long chatId, LoreConfig loreConfig)
     {
-        var message = string.Format(appConfig.LoreConfig.KeyRequest,
-            LoreService.GetLoreTag(LoreHandler.KeySuffix, targetChatId));
-        return messageAssistance.SendCommandResponse(
+        var message = string.Format(loreConfig.KeyRequest, LoreService.GetLoreTag(LoreHandler.KeySuffix, targetChatId));
+        return await messageAssistance.SendCommandResponse(
             chatId, message, nameof(LorePrivateCallbackHandler), replyMarkup: loreService.GetKeyTip());
     }
 
     private async Task<Unit> SwitchLoreList(long targetChatId, long telegramId, int messageId, string queryId,
-        Map<string, string> parameters)
+        Map<string, string> parameters, LoreConfig loreConfig)
     {
         if (!loreService.IsContainIndex(parameters, out var currentOffset))
         {
-            return await EditNotFound(targetChatId, telegramId, messageId);
+            return await EditNotFound(targetChatId, telegramId, messageId, loreConfig);
         }
+
+        var maybeListConfig = await chatConfigService.GetConfig(targetChatId, config => config.ListConfig);
+        if (!maybeListConfig.TryGetSome(out var listConfig))
+            return chatConfigService.LogNonExistConfig(unit, nameof(ListConfig));
 
         var maybeKeysAndCount = await loreService.GetLoreKeys(targetChatId, currentOffset);
         return await maybeKeysAndCount.Match(
@@ -76,17 +85,17 @@ public class LorePrivateCallbackHandler(
             {
                 var (keys, totalCount) = tuple;
                 var keyboard = loreButtons.GetLoreListPrivateMarkup(targetChatId, currentOffset, totalCount);
-                var message = string.Format(appConfig.ListConfig.SuccessTemplate, ListType.Lore, totalCount, keys);
+                var message = string.Format(listConfig.SuccessTemplate, ListType.Lore, totalCount, keys);
                 return messageAssistance.EditProfileMessage(telegramId, targetChatId, messageId, keyboard, message,
                     Prefix, ParseMode.MarkdownV2);
             });
     }
 
-    private Task<Unit> EditNotFound(long targetChatId, long telegramId, int messageId)
+    private async Task<Unit> EditNotFound(long targetChatId, long telegramId, int messageId, LoreConfig loreConfig)
     {
         var markup = loreButtons.GetLoreMarkup(targetChatId);
-        var message = appConfig.LoreConfig.PrivateLoreNotFound;
-        return messageAssistance.EditProfileMessage(telegramId, targetChatId, messageId, markup, message, Prefix);
+        var message = loreConfig.PrivateLoreNotFound;
+        return await messageAssistance.EditProfileMessage(telegramId, targetChatId, messageId, markup, message, Prefix);
     }
 }
 

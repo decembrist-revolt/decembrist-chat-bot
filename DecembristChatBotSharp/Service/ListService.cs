@@ -12,11 +12,13 @@ public class ListService(
     LoreRecordRepository loreRecordRepository,
     FastReplyRepository fastReplyRepository)
 {
-    private readonly ImmutableList<string> _dustRecipes = appConfig.DustConfig.DustRecipes.Select(dustRecipe =>
+    public const int ListRowLimit = 25;
+
+    private readonly ImmutableList<string> _dustRecipes = appConfig.DustRecipesConfig.DustRecipes.Select(dustRecipe =>
             $"• `{dustRecipe.Key.ToString().EscapeMarkdown()}`{$" ⇒ {dustRecipe.Value.Reward.Item} - {dustRecipe.Value.Reward.Range.Min}-{dustRecipe.Value.Reward.Range.Max}".EscapeMarkdown()}")
         .ToImmutableList();
 
-    private readonly ImmutableList<string> _craftRecipes = appConfig.CraftConfig.Recipes.Select(x =>
+    private readonly ImmutableList<string> _craftRecipes = appConfig.CraftRecipesConfig.Recipes.Select(x =>
     {
         var input = $"• `{string.Join(" ", x.Inputs.Select(iq => $"{iq.Item}@{iq.Quantity}")).EscapeMarkdown()}`";
         var output = x.Outputs.Count == 1
@@ -89,7 +91,7 @@ public class ListService(
         if (maybeResult.IsEmpty || maybeResult.Count < currentOffset) return None;
 
         var sb = new StringBuilder();
-        foreach (var line in maybeResult.Skip(currentOffset).Take(appConfig.ListConfig.RowLimit))
+        foreach (var line in maybeResult.Skip(currentOffset).Take(ListRowLimit))
         {
             sb.AppendLine(line);
         }

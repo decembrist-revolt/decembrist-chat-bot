@@ -1,7 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Text;
 using DecembristChatBotSharp.Mongo;
-using DecembristChatBotSharp.Telegram;
 using DecembristChatBotSharp.Telegram.LoreHandlers;
 using Lamar;
 using Serilog;
@@ -36,7 +35,7 @@ public class LoreService(
         string key, string content, long loreChatId, long telegramId, DateTime date) =>
         await RunTransaction(async session =>
         {
-            if (content.Length > appConfig.LoreConfig.ContentLimit) return ChangeLoreContentResult.Limit;
+            if (content.Length > appConfig.LoreServiceConfig.ContentLimit) return ChangeLoreContentResult.Limit;
             if (IsContentExpired(date)) return ChangeLoreContentResult.Expire;
             if (!await IsExist(key, loreChatId, session)) return ChangeLoreContentResult.NotFound;
 
@@ -47,7 +46,7 @@ public class LoreService(
     public async Task<AddLoreKeyResult> AddLoreKey(string key, long loreChatId, long telegramId) =>
         await RunTransaction(async session =>
         {
-            if (key.Length > appConfig.LoreConfig.KeyLimit) return AddLoreKeyResult.Limit;
+            if (key.Length > appConfig.LoreServiceConfig.KeyLimit) return AddLoreKeyResult.Limit;
             if (await IsExist(key, loreChatId, session)) return AddLoreKeyResult.Duplicate;
 
             var isAdd = await loreRecordRepository.AddLoreRecord((loreChatId, key), telegramId, session: session);
@@ -67,8 +66,8 @@ public class LoreService(
         var id = (chatId, key);
         var maybeRecord = await loreRecordRepository.GetLoreRecord(id);
         return maybeRecord.Match(
-            record => string.Format(appConfig.LoreConfig.ChatTemplate, record.Id.Key, record.Content),
-            () => appConfig.LoreConfig.ChatFailed
+            record => string.Format(appConfig.LoreServiceConfig.ChatTemplate, record.Id.Key, record.Content),
+            () => appConfig.LoreServiceConfig.ChatFailed
         );
     }
 
@@ -108,12 +107,12 @@ public class LoreService(
 
     public ForceReplyMarkup GetContentTip() => new()
     {
-        InputFieldPlaceholder = string.Format(appConfig.LoreConfig.Tip, appConfig.LoreConfig.ContentLimit),
+        InputFieldPlaceholder = string.Format(appConfig.LoreServiceConfig.Tip, appConfig.LoreServiceConfig.ContentLimit),
     };
 
     public ForceReplyMarkup GetKeyTip() => new()
     {
-        InputFieldPlaceholder = string.Format(appConfig.LoreConfig.Tip, appConfig.LoreConfig.KeyLimit),
+        InputFieldPlaceholder = string.Format(appConfig.LoreServiceConfig.Tip, appConfig.LoreServiceConfig.KeyLimit),
     };
 
     public static string GetLoreTag(string suffix, long targetChatId, string key = "") =>
@@ -123,10 +122,10 @@ public class LoreService(
         await loreRecordRepository.IsLoreRecordExist((loreChatId, key.Trim()), session);
 
     private bool IsContentExpired(DateTime date) =>
-        (DateTime.UtcNow - date).TotalMinutes > appConfig.LoreConfig.ContentEditExpiration;
+        (DateTime.UtcNow - date).TotalMinutes > appConfig.LoreServiceConfig.ContentEditExpiration;
 
     private bool IsDeletionExpired(DateTime date) =>
-        (DateTime.UtcNow - date).TotalMinutes > appConfig.LoreConfig.DeleteExpiration;
+        (DateTime.UtcNow - date).TotalMinutes > appConfig.LoreServiceConfig.DeleteExpiration;
 
     public bool IsContainIndex(Map<string, string> parameters, out int currentOffset)
     {

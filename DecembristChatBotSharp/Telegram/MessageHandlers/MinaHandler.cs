@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
@@ -14,6 +15,7 @@ public class MinaHandler(
     MinionService minionService,
     MessageAssistance messageAssistance,
     AppConfig appConfig,
+    ChatConfigService chatConfigService,
     CancellationTokenSource cancelToken)
 {
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
@@ -21,12 +23,25 @@ public class MinaHandler(
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return false;
 
+        var chatConfig = await chatConfigService.GetChatConfig(chatId);
+        var maybeCurseConfig = chatConfigService.GetConfig(chatConfig, config => config.CurseConfig);
+        var maybeMinaConfig = chatConfigService.GetConfig(chatConfig, config => config.MinaConfig);
+        if (!maybeCurseConfig.TryGetSome(out var curseConfig))
+        {
+            return chatConfigService.LogNonExistConfig(false, nameof(CurseConfig), nameof(MinaHandler));
+        }
+
+        if (!maybeMinaConfig.TryGetSome(out var minaConfig))
+        {
+            return chatConfigService.LogNonExistConfig(false, nameof(MinaConfig), nameof(MinaHandler));
+        }
+
         return await minaRepository.FindMineTrigger(chatId, text).MatchAsync(
-            async trigger => await ActivateMine(trigger, messageId, telegramId, chatId),
+            async trigger => await ActivateMine(trigger, messageId, telegramId, chatId, curseConfig, minaConfig),
             () => false);
     }
 
-    private async Task<bool> ActivateMine(MineTrigger trigger, int messageId, long victimTelegramId, long chatId)
+    private async Task<bool> ActivateMine(MineTrigger trigger, int messageId, long victimTelegramId, long chatId, CurseConfig curseConfig, MinaConfig minaConfig)
     {
         var redirectTarget = await minionService.GetRedirectTarget(victimTelegramId, chatId);
         if (redirectTarget.TryGetSome(out var redirectedId))
@@ -36,7 +51,7 @@ public class MinaHandler(
             await minionService.SendNegativeEffectRedirectMessage(chatId, originalVictimId, victimTelegramId);
         }
 
-        var expireAt = DateTime.UtcNow.AddMinutes(appConfig.CurseConfig.DurationMinutes);
+        var expireAt = DateTime.UtcNow.AddMinutes(curseConfig.DurationMinutes);
         var curseMember = new ReactionSpamMember(new CompositeId(victimTelegramId, chatId), trigger.Emoji, expireAt);
 
         var result = await curseRepository.AddCurseMember(curseMember);
@@ -44,17 +59,17 @@ public class MinaHandler(
 
         await SetReaction(curseMember, messageId, chatId);
         await minaRepository.DeleteMineTrigger(trigger.Id);
-        await SendMineActivationMessage(chatId, victimTelegramId, trigger);
+        await SendMineActivationMessage(chatId, victimTelegramId, trigger, minaConfig);
 
         return true;
     }
 
-    private async Task<Unit> SendMineActivationMessage(long chatId, long victimTelegramId, MineTrigger trigger)
+    private async Task<Unit> SendMineActivationMessage(long chatId, long victimTelegramId, MineTrigger trigger, MinaConfig minaConfig)
     {
         var victimUsername = await botClient.GetUsernameOrId(victimTelegramId, chatId, cancelToken.Token);
         var ownerUsername = await botClient.GetUsernameOrId(trigger.Id.TelegramId, chatId, cancelToken.Token);
 
-        var message = string.Format(appConfig.MinaConfig.ActivationMessage,
+        var message = string.Format(minaConfig.ActivationMessage,
             victimUsername, trigger.Id.Trigger, trigger.Emoji.Emoji, ownerUsername);
 
         var expiration = DateTime.UtcNow.AddMinutes(appConfig.CurseConfig.DurationMinutes);
