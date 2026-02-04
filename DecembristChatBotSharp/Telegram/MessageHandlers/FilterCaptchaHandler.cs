@@ -15,7 +15,7 @@ public class FilterCaptchaHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
 
-        var maybeConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.FilterConfig);
+        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.FilterConfig);
         if (!maybeConfig.TryGetSome(out var filterConfig))
         {
             return chatConfigService.LogNonExistConfig(false, nameof(FilterConfig));

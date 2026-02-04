@@ -12,6 +12,8 @@ public class MinaHandler(
     BotClient botClient,
     MinaRepository minaRepository,
     CurseRepository curseRepository,
+    MinionService minionService,
+    MessageAssistance messageAssistance,
     ChatConfigService chatConfigService,
     CancellationTokenSource cancelToken)
 {
@@ -20,9 +22,8 @@ public class MinaHandler(
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return false;
 
-        var chatConfig = await chatConfigService.GetChatConfig(chatId);
-        var maybeCurseConfig = chatConfigService.GetConfig(chatConfig, config => config.CurseConfig);
-        var maybeMinaConfig = chatConfigService.GetConfig(chatConfig, config => config.MinaConfig);
+        var maybeCurseConfig = await chatConfigService.GetConfig(chatId, config => config.CurseConfig);
+        var maybeMinaConfig = await chatConfigService.GetConfig(chatId, config => config.MinaConfig);
         if (!maybeCurseConfig.TryGetSome(out var curseConfig))
         {
             return chatConfigService.LogNonExistConfig(false, nameof(CurseConfig), nameof(MinaHandler));
@@ -41,6 +42,14 @@ public class MinaHandler(
     private async Task<bool> ActivateMine(MineTrigger trigger, int messageId, long victimTelegramId, long chatId,
         CurseConfig curseConfig, MinaConfig minaConfig)
     {
+        var redirectTarget = await minionService.GetRedirectTarget(victimTelegramId, chatId);
+        if (redirectTarget.TryGetSome(out var redirectedId))
+        {
+            var originalVictimId = victimTelegramId;
+            victimTelegramId = redirectedId;
+            await minionService.SendNegativeEffectRedirectMessage(chatId, originalVictimId, victimTelegramId);
+        }
+
         var expireAt = DateTime.UtcNow.AddMinutes(curseConfig.DurationMinutes);
         var curseMember = new ReactionSpamMember(new CompositeId(victimTelegramId, chatId), trigger.Emoji, expireAt);
 
@@ -49,30 +58,24 @@ public class MinaHandler(
 
         await SetReaction(curseMember, messageId, chatId);
         await minaRepository.DeleteMineTrigger(trigger.Id);
-        await SendMineActivationMessage(chatId, victimTelegramId, trigger, minaConfig);
+        await SendMineActivationMessage(chatId, victimTelegramId, trigger, minaConfig, curseConfig);
 
         return true;
     }
 
-    private async Task SendMineActivationMessage(long chatId, long victimTelegramId, MineTrigger trigger,
-        MinaConfig minaConfig)
+    private async Task<Unit> SendMineActivationMessage(long chatId, long victimTelegramId, MineTrigger trigger,
+        MinaConfig minaConfig, CurseConfig curseConfig)
     {
-        var victimUsername = await botClient.GetUsername(chatId, victimTelegramId, cancelToken.Token)
-            .ToAsync()
-            .IfNone(victimTelegramId.ToString);
-
-        var ownerUsername = await botClient.GetUsername(chatId, trigger.Id.TelegramId, cancelToken.Token)
-            .ToAsync()
-            .IfNone(trigger.Id.TelegramId.ToString);
+        var victimUsername = await botClient.GetUsernameOrId(victimTelegramId, chatId, cancelToken.Token);
+        var ownerUsername = await botClient.GetUsernameOrId(trigger.Id.TelegramId, chatId, cancelToken.Token);
 
         var message = string.Format(minaConfig.ActivationMessage,
             victimUsername, trigger.Id.Trigger, trigger.Emoji.Emoji, ownerUsername);
 
-        const string logTemplate = "Mine activation message {0} ChatId: {1} VictimId: {2} OwnerId: {3}";
-        await botClient.SendMessageAndLog(chatId, message,
-            _ => Log.Information(logTemplate, "sent", chatId, victimTelegramId, trigger.Id.TelegramId),
-            ex => Log.Error(ex, logTemplate, "failed", chatId, victimTelegramId, trigger.Id.TelegramId),
-            cancelToken.Token);
+        var expiration = DateTime.UtcNow.AddMinutes(curseConfig.DurationMinutes);
+        Log.Information("Mine activation message sending ChatId: {0} VictimId: {1} OwnerId: {2}", chatId,
+            victimTelegramId, trigger.Id.TelegramId);
+        return await messageAssistance.SendCommandResponse(chatId, message, nameof(MinaHandler), expiration);
     }
 
     private async Task SetReaction(ReactionSpamMember member, int messageId, long chatId)

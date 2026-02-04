@@ -32,7 +32,8 @@ public class LorePrivateCallbackHandler(
             None: () => messageAssistance.SendCommandResponse(chatId, "OK", nameof(LorePrivateCallbackHandler)),
             Some: async parameters =>
             {
-                if (!callbackService.HasChatIdKey(parameters, out var targetChatId)) return unit;
+                if (!callbackService.HasChatIdKey(parameters, out var targetChatId) &&
+                    !await messageAssistance.IsAllowedChat(targetChatId)) return unit;
                 var maybeLoreConfig = await chatConfigService.GetConfig(targetChatId, config => config.LoreConfig);
                 if (!maybeLoreConfig.TryGetSome(out var loreConfig))
                 {

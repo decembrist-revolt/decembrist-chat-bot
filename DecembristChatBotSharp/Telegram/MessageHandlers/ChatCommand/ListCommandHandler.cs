@@ -42,7 +42,7 @@ public partial class ListCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeListConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.ListConfig);
+        var maybeListConfig = await chatConfigService.GetConfig(chatId, config => config.ListConfig);
         if (!maybeListConfig.TryGetSome(out var listConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

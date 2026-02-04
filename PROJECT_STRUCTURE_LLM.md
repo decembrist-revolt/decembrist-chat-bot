@@ -45,6 +45,8 @@ DecembristChatBotSharp/
 │   ├── FilterRecord.cs     # Записи антиспам фильтра
 │   ├── RestrictMember.cs   # Ограниченные участники
 │   ├── PremiumMember.cs    # Премиум-участники
+│   ├── MinionInvitation.cs # Приглашения в миньоны (временные)
+│   ├── MinionRelation.cs   # Активные связи миньон-мастер
 │   ├── LoreUser.cs         # Пользователи с лорами
 │   ├── MemberLike.cs       # Лайки участников
 │   ├── DislikeMember.cs    # Дизлайки
@@ -62,6 +64,8 @@ DecembristChatBotSharp/
 │   ├── NewMemberRepository.cs    # Новые участники
 │   ├── AdminRepository.cs        # Администраторы
 │   ├── RestrictRepository.cs     # Ограничения
+│   ├── MinionInvitationRepository.cs # Приглашения в миньоны
+│   ├── MinionRepository.cs       # Связи миньон-мастер
 │   ├── HistoryLogRepository.cs   # История действий
 │   ├── MazeGameRepository.cs     # Игры-лабиринты и игроки
 │   └── ...                       # Другие репозитории
@@ -80,6 +84,7 @@ DecembristChatBotSharp/
 │   ├── ListService.cs          # Списки (админы, whitelist)
 │   ├── CallbackService.cs      # Обработка callback-запросов
 │   ├── PremiumMemberService.cs # Премиум-функции
+│   ├── MinionService.cs        # Система миньонов (transfers, revocation)
 │   ├── DeepSeekService.cs      # AI-интеграция
 │   ├── RedditService.cs        # Reddit мемы
 │   ├── TelegramPostService.cs  # Посты из Telegram
@@ -110,6 +115,7 @@ DecembristChatBotSharp/
 │   │   ├── CurseHandler.cs            # Проклятия (троллинг)
 │   │   ├── CharmHandler.cs            # Чары (троллинг)
 │   │   ├── MinaHandler.cs             # Мины (троллинг)
+│   │   ├── MinionHandler.cs           # Обработка подтверждений миньонов
 │   │   ├── FastReplyHandler.cs        # Быстрые ответы
 │   │   ├── AccessLevelHandler.cs      # Проверка уровня доступа
 │   │   ├── AiQueryHandler.cs          # AI запросы
@@ -126,6 +132,7 @@ DecembristChatBotSharp/
 │   │       ├── CurseCommandHandler.cs      # /curse
 │   │       ├── CharmCommandHandler.cs      # /charm
 │   │       ├── MinaCommandHandler.cs       # /mina
+│   │       ├── MinionCommandHandler.cs     # /minion
 │   │       ├── LoreCommandHandler.cs       # /lore
 │   │       ├── PremiumCommandHandler.cs    # /premium
 │   │       ├── ListCommandHandler.cs       # /list
@@ -164,6 +171,7 @@ DecembristChatBotSharp/
 │   ├── JobManager.cs       # Управление задачами
 │   ├── IRegisterJob.cs     # Интерфейс регистрации
 │   ├── CheckCaptchaJob.cs  # Проверка captcha (кик)
+│   ├── CheckMinionConfirmationJob.cs # Проверка сообщений миньонов (раз в час)
 │   ├── ExpiredMessageJob.cs # Удаление старых сообщений
 │   ├── DailyDislikesResultsJob.cs  # Дневные результаты дизлайков
 │   ├── DailyTopLikersGiftJob.cs    # Награда топ-лайкерам
@@ -260,6 +268,8 @@ BotHandler.HandleUpdateAsync()
 - `filter_records` — антиспам фильтры
 - `restrict_members` — ограниченные участники
 - `premium_members` — премиум участники
+- `minion_invitations` — приглашения в миньоны (временные)
+- `minion_relations` — активные связи миньон-мастер
 - `lore_users` — пользователи с лорами
 - `member_likes` — лайки
 - `dislike_members` — дизлайки

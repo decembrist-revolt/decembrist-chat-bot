@@ -20,7 +20,7 @@ public partial class CurseCommandHandler(
     MessageAssistance messageAssistance,
     CommandLockRepository lockRepository,
     MemberItemService itemService,
-    ExpiredMessageRepository expiredMessageRepository,
+    MinionService minionService,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public const string CommandKey = "/curse";
@@ -48,7 +48,7 @@ public partial class CurseCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeCurseConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CurseConfig);
+        var maybeCurseConfig = await chatConfigService.GetConfig(chatId, config => config.CurseConfig);
         if (!maybeCurseConfig.TryGetSome(out var curseConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);
@@ -67,7 +67,14 @@ public partial class CurseCommandHandler(
         long telegramId, long chatId, long receiverId, string text, CurseConfig curseConfig)
     {
         var isAdmin = await adminUserRepository.IsAdmin((telegramId, chatId));
+
+        var redirectTarget = await minionService.GetRedirectTarget(receiverId, chatId);
+        var originalReceiverId = receiverId;
+        var isRedirected = redirectTarget.TryGetSome(out var redirectedId);
+        if (isRedirected) receiverId = redirectedId;
+
         var compositeId = (receiverId, chatId);
+
         if (isAdmin && text.Contains(ChatCommandHandler.DeleteSubcommand, StringComparison.OrdinalIgnoreCase))
         {
             var isDelete = await curseRepository.DeleteCurseMember(compositeId);
@@ -86,8 +93,13 @@ public partial class CurseCommandHandler(
                 {
                     CurseResult.NoItems => await messageAssistance.SendNoItems(chatId),
                     CurseResult.Failed => await SendHelpMessageWithLock(chatId, curseConfig),
+                    CurseResult.Blocked when isRedirected =>
+                        await SendAmuletRedirected(compositeId, originalReceiverId),
                     CurseResult.Blocked => await messageAssistance.SendAmuletMessage(chatId, receiverId, Command),
+                    CurseResult.Duplicate when isRedirected => await SendDuplicateRedirectedMessage(chatId),
                     CurseResult.Duplicate => await SendDuplicateMessage(chatId, curseConfig),
+                    CurseResult.Success when isRedirected =>
+                        await SendSuccessRedirectMessage(compositeId, originalReceiverId, emoji.Emoji, curseConfig),
                     CurseResult.Success => await SendSuccessMessage(compositeId, emoji.Emoji, curseConfig),
                     _ => unit
                 };
@@ -106,6 +118,12 @@ public partial class CurseCommandHandler(
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
+    private async Task<Unit> SendDuplicateRedirectedMessage(long chatId)
+    {
+        return await messageAssistance.SendCommandResponse(chatId,
+            "Миньон этого пользователя уже проклят, попробуйте позже", Command);
+    }
+
     private async Task<Unit> SendHelpMessageWithLock(long chatId, CurseConfig curseConfig)
     {
         if (!await lockRepository.TryAcquire(chatId, Command))
@@ -120,20 +138,32 @@ public partial class CurseCommandHandler(
     private async Task<Unit> SendSuccessMessage(CompositeId id, string emoji, CurseConfig curseConfig)
     {
         var (receiverId, chatId) = id;
-        var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
-            .ToAsync()
-            .IfNone(receiverId.ToString);
+        var username = await botClient.GetUsernameOrId(receiverId, chatId, cancelToken.Token);
         var expireAt = curseConfig.DurationMinutes;
         var message = string.Format(curseConfig.SuccessMessage, username, emoji);
-        const string logTemplate = "Curse message sent {0} ChatId: {1}, Emoji:{2} Receiver: {3}";
-        return await botClient.SendMessageAndLog(chatId, message,
-            m =>
-            {
-                Log.Information(logTemplate, "success", chatId, emoji, receiverId);
-                expiredMessageRepository.QueueMessage(chatId, m.MessageId, DateTime.UtcNow.AddMinutes(expireAt));
-            },
-            ex => Log.Error(ex, logTemplate, "failed", chatId, emoji, receiverId),
-            cancelToken.Token);
+        Log.Information("Curse message sent ChatId: {chatId}, Emoji:{emoji} Receiver: {receiver}", chatId, emoji,
+            receiverId);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command,
+            DateTime.UtcNow.AddMinutes(expireAt));
+    }
+
+    private async Task<Unit> SendSuccessRedirectMessage(CompositeId id, long originalReceiverId, string emoji,
+        CurseConfig curseConfig)
+    {
+        var (receiverId, chatId) = id;
+        var username = await botClient.GetUsernameOrId(receiverId, chatId, cancelToken.Token);
+        var message = string.Format(curseConfig.SuccessMessage, username, emoji);
+        var exp = DateTime.UtcNow.AddMinutes(curseConfig.DurationMinutes);
+        Log.Information("Curse redirected ChatId: {0}, Phrase:{1} Receiver: {2}", chatId, emoji, receiverId);
+        await minionService.SendNegativeEffectRedirectMessage(chatId, originalReceiverId, receiverId);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command, exp);
+    }
+
+    private async Task<Unit> SendAmuletRedirected(CompositeId id, long originalReceiverId)
+    {
+        var (receiverId, chatId) = id;
+        await minionService.SendNegativeEffectRedirectMessage(chatId, originalReceiverId, receiverId);
+        return await messageAssistance.SendAmuletMessage(chatId, receiverId, Command);
     }
 
     private Option<ReactionTypeEmoji> ParseEmoji(string text)

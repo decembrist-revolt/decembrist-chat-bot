@@ -91,7 +91,7 @@ public class PrivateMessageHandler(
                 cancellationToken: cancelToken.Token));
         }
 
-        if (!messageAssistance.IsAllowedChat(chatId)) return SendChatNotAllowed(privateChatId, menuConfig);
+        if (!await messageAssistance.IsAllowedChat(chatId)) return SendChatNotAllowed(privateChatId, menuConfig);
         var message = menuConfig.WelcomeMessage;
         var markup = await profileButtons.GetProfileMarkup(privateChatId, chatId);
         return TryAsync(botClient.SendMessage(privateChatId, message,

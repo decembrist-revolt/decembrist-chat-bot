@@ -1,4 +1,4 @@
-﻿﻿namespace DecembristChatBotSharp.Entity;
+﻿namespace DecembristChatBotSharp.Entity;
 
 public record MemberItem(
     MemberItem.CompositeId Id,
@@ -48,6 +48,7 @@ public enum MemberItemSourceType
     Use = 2,
     TopLiker = 3,
     PremiumDaily = 4,
+    MinionDaily = 12,
     Dust = 5,
     Craft = 6,
     Give = 7,

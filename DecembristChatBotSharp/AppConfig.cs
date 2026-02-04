@@ -28,6 +28,7 @@ public record AppConfig(
     DustRecipesConfig DustRecipesConfig,
     CraftRecipesConfig CraftRecipesConfig,
     PollPaymentConfig? PollPaymentConfig,
+    MinionConfig MinionConfig,
     QuizConfig? QuizConfig = null,
     DeepSeekConfig? DeepSeekConfig = null,
     KeycloakConfig? KeycloakConfig = null,
@@ -187,6 +188,46 @@ public record AmuletConfig(
     [property: Required(AllowEmptyStrings = false)]
     int MessageExpirationMinutes);
 
+public record MinionConfig(
+    [property: Required(AllowEmptyStrings = false)]
+    string MinionConfirmationPrefix,
+    [property: Required(AllowEmptyStrings = false)]
+    string InvitationMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string MinionCreatedMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string AlreadyHasMinionMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string AlreadyHasInvitationMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string AlreadyIsMinionMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string NotPremiumMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string TargetIsPremiumMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ReceiverNotSetMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ShowMinionStatusMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string NegativeEffectRedirectMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string MinionRevokedByPremiumLossMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string MinionRevokedByBecomingPremiumMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string MinionRevokedByDeleteMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string AmuletTransferMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string StoneTransferMessage,
+    [property: Range(1, int.MaxValue)] int InvitationExpirationMinutes,
+    [property: Range(1, int.MaxValue)] int MessageExpirationMinutes,
+    [property: Required(AllowEmptyStrings = false)]
+    string ConfirmationCheckCron,
+    [property: Range(0.0, 1.0)] double DailyBoxChance
+);
+
 public record ItemDropConfig(
     double Chance,
     int Quantity = 1
@@ -229,7 +270,9 @@ public record PremiumConfig(
     [property: Required(AllowEmptyStrings = false)]
     string DailyPremiumRewardCronUtc,
     [property: Required(AllowEmptyStrings = false)]
-    string DailyPremiumRewardMessage
+    string DailyPremiumRewardMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string DailyMinionRewardMessage
 );
 
 public record HttpConfig(

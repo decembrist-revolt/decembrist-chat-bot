@@ -33,7 +33,7 @@ public class HelpChatCommandHandler(
     {
         var (messageId, _, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeHelpConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.HelpConfig);
+        var maybeHelpConfig = await chatConfigService.GetConfig(chatId, config => config.HelpConfig);
         if (!maybeHelpConfig.TryGetSome(out var helpConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

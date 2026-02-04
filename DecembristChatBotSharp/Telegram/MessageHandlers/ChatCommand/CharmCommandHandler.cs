@@ -13,9 +13,9 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 public partial class CharmCommandHandler(
     CharmRepository charmRepository,
     AdminUserRepository adminUserRepository,
-    ExpiredMessageRepository expiredMessageRepository,
     MessageAssistance messageAssistance,
     MemberItemService itemService,
+    MinionService minionService,
     ChatConfigService chatConfigService,
     BotClient botClient,
     CancellationTokenSource cancelToken) : ICommandHandler
@@ -33,7 +33,7 @@ public partial class CharmCommandHandler(
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
 
-        var maybeCharmConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CharmConfig);
+        var maybeCharmConfig = await chatConfigService.GetConfig(chatId, config => config.CharmConfig);
         if (!maybeCharmConfig.TryGetSome(out var charmConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);
@@ -60,10 +60,16 @@ public partial class CharmCommandHandler(
 
         if (receiverId == telegramId) return await SendSelfMessage(chatId, charmConfig);
 
+
         return await ParseText(text.Trim(), charmConfig).Match(
             None: async () => await SendHelpMessage(chatId, charmConfig),
             Some: async phrase =>
             {
+                var redirectTarget = await minionService.GetRedirectTarget(receiverId, chatId);
+                var originalReceiverId = receiverId;
+                var isRedirected = redirectTarget.TryGetSome(out var redirectedId);
+                if (isRedirected) receiverId = redirectedId;
+
                 var expireAt = DateTime.UtcNow.AddMinutes(charmConfig.DurationMinutes);
                 var charmMember = new CharmMember((receiverId, chatId), phrase, expireAt);
 
@@ -71,9 +77,14 @@ public partial class CharmCommandHandler(
                 return result switch
                 {
                     CharmResult.NoItems => await messageAssistance.SendNoItems(chatId),
+                    CharmResult.Duplicate when isRedirected => await SendDuplicateRedirectedMessage(chatId),
                     CharmResult.Duplicate => await SendDuplicateMessage(chatId, charmConfig),
+                    CharmResult.Blocked when isRedirected => await SendAmuletRedirected(chatId, receiverId,
+                        originalReceiverId),
                     CharmResult.Blocked => await messageAssistance.SendAmuletMessage(chatId, receiverId, Command),
                     CharmResult.Failed => await SendHelpMessage(chatId, charmConfig),
+                    CharmResult.Success when isRedirected => await SendSuccessRedirectMessage(chatId, receiverId,
+                        originalReceiverId, phrase, charmConfig),
                     CharmResult.Success => await SendSuccessMessage(chatId, receiverId, phrase, charmConfig),
                     _ => unit
                 };
@@ -113,20 +124,35 @@ public partial class CharmCommandHandler(
         return await messageAssistance.SendCommandResponse(chatId, message, Command);
     }
 
+    private async Task<Unit> SendDuplicateRedirectedMessage(long chatId)
+    {
+        return await messageAssistance.SendCommandResponse(chatId,
+            "Миньон этого пользователя уже зачарован, попробуйте позже", Command);
+    }
+
     private async Task<Unit> SendSuccessMessage(long chatId, long receiverId, string phrase, CharmConfig charmConfig)
     {
-        var username = await botClient.GetUsername(chatId, receiverId, cancelToken.Token)
-            .ToAsync()
-            .IfNone(receiverId.ToString);
+        var username = await botClient.GetUsernameOrId(receiverId, chatId, cancelToken.Token);
         var message = string.Format(charmConfig.SuccessMessage, username, charmConfig.DurationMinutes, phrase);
-        const string logTemplate = "Charm success message sent {0} ChatId: {1}, Phrase:{2} Receiver: {3}";
-        return await botClient.SendMessageAndLog(chatId, message, m =>
-            {
-                Log.Information(logTemplate, "success", chatId, phrase, receiverId);
-                var expirationDate = DateTime.UtcNow.AddMinutes(charmConfig.DurationMinutes);
-                expiredMessageRepository.QueueMessage(chatId, m.MessageId, expirationDate);
-            },
-            ex => Log.Error(ex, logTemplate, "failed", chatId, phrase, receiverId),
-            cancelToken.Token);
+        var exp = DateTime.UtcNow.AddMinutes(charmConfig.DurationMinutes);
+        Log.Information("Charm message sent ChatId: {0}, Phrase:{1} Receiver: {2}", chatId, phrase, receiverId);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command, exp);
+    }
+
+    private async Task<Unit> SendSuccessRedirectMessage(long chatId, long receiverId, long originalReceiverId,
+        string phrase, CharmConfig charmConfig)
+    {
+        var username = await botClient.GetUsernameOrId(receiverId, chatId, cancelToken.Token);
+        var message = string.Format(charmConfig.SuccessMessage, username, charmConfig.DurationMinutes, phrase);
+        var exp = DateTime.UtcNow.AddMinutes(charmConfig.DurationMinutes);
+        Log.Information("Charm redirected ChatId: {0}, Phrase:{1} Receiver: {2}", chatId, phrase, receiverId);
+        await minionService.SendNegativeEffectRedirectMessage(chatId, originalReceiverId, receiverId);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command, exp);
+    }
+
+    private async Task<Unit> SendAmuletRedirected(long chatId, long receiverId, long originalReceiverId)
+    {
+        await minionService.SendNegativeEffectRedirectMessage(chatId, originalReceiverId, receiverId);
+        return await messageAssistance.SendAmuletMessage(chatId, receiverId, Command);
     }
 }

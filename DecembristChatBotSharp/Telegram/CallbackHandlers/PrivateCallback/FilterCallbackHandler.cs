@@ -29,8 +29,9 @@ public class FilterCallbackHandler(
             None: () => messageAssistance.SendCommandResponse(chatId, "OK", nameof(FilterCallbackHandler)),
             Some: async parameters =>
             {
-                if (!callbackService.HasChatIdKey(parameters, out var targetChatId)) return unit;
-                
+                if (!callbackService.HasChatIdKey(parameters, out var targetChatId) &&
+                    !await messageAssistance.IsAllowedChat(targetChatId)) return unit;
+
                 var maybeFilterConfig = await chatConfigService.GetConfig(targetChatId, config => config.FilterConfig);
                 if (!maybeFilterConfig.TryGetSome(out var filterConfig))
                 {

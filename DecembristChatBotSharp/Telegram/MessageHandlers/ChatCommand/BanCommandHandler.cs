@@ -29,7 +29,7 @@ public partial class BanCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.BanConfig);
+        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.BanConfig);
         if (!maybeConfig.TryGetSome(out var banConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

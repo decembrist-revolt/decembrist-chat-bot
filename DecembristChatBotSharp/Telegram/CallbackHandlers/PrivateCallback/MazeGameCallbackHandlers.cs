@@ -34,7 +34,8 @@ public class MazeGameMoveCallbackHandler(
         if (!Enum.TryParse(suffix, true, out MazeDirection direction) || maybeParameters.IsNone) return unit;
         var parameters = maybeParameters.ValueUnsafe();
 
-        if (!callbackService.HasChatIdKey(parameters, out var targetChatId))
+        if (!callbackService.HasChatIdKey(parameters, out var targetChatId) &&
+            !await messageAssistance.IsAllowedChat(targetChatId))
         {
             Log.Warning("Maze move parameters do not contain chatId");
             return await messageAssistance.AnswerCallbackQuery(queryId, privateChatId, Prefix,

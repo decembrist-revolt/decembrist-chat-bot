@@ -12,6 +12,7 @@ namespace DecembristChatBotSharp.Service;
 public class MemberItemService(
     MongoDatabase db,
     AmuletService amuletService,
+    MinionService minionService,
     MemberItemRepository memberItemRepository,
     HistoryLogRepository historyLogRepository,
     FastReplyRepository fastReplyRepository,
@@ -400,6 +401,8 @@ public enum OpenBoxResult
     Success,
     SuccessUnique,
     AmuletActivated,
+    ToMinionTransferred,
+    ToMasterTransferred,
     NoItems,
     Failed
 }

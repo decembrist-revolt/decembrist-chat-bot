@@ -25,7 +25,7 @@ public class InventoryCommandHandler(
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, _, chatId) = parameters;
-        var maybeItemConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.ItemConfig);
+        var maybeItemConfig = await chatConfigService.GetConfig(chatId, config => config.ItemConfig);
         if (!maybeItemConfig.TryGetSome(out var itemConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

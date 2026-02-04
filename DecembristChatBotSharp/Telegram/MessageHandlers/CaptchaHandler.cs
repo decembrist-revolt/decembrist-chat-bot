@@ -35,7 +35,7 @@ public class CaptchaHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
 
-        var maybeConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CaptchaConfig);
+        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.CaptchaConfig);
         if (!maybeConfig.TryGetSome(out var captchaConfig))
         {
             return chatConfigService.LogNonExistConfig(Result.JustMessage, nameof(Entity.Configs.CaptchaConfig));

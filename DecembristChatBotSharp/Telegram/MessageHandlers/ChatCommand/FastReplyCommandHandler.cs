@@ -39,7 +39,7 @@ public class FastReplyCommandHandler(
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
-        var maybeConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CommandConfig);
+        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
         if (!maybeConfig.TryGetSome(out var commandConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

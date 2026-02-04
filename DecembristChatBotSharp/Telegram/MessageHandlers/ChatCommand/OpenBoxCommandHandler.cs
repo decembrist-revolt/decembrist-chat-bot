@@ -11,6 +11,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 public class OpenBoxCommandHandler(
     AppConfig appConfig,
     ExpiredMessageRepository expiredMessageRepository,
+    MinionService minionService,
     OpenBoxService openBoxService,
     MessageAssistance messageAssistance,
     BotClient botClient,
@@ -30,7 +31,7 @@ public class OpenBoxCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload) return unit;
-        var maybeItemConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.ItemConfig);
+        var maybeItemConfig = await chatConfigService.GetConfig(chatId, config => config.ItemConfig);
         if (!maybeItemConfig.TryGetSome(out var itemConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);
@@ -48,6 +49,8 @@ public class OpenBoxCommandHandler(
                 SendBoxResult(boxResult.ItemType, chatId, telegramId, boxResult.Quantity),
             OpenBoxResult.SuccessX2 => SendBoxResult(boxResult.ItemType, chatId, telegramId, boxResult.Quantity),
             OpenBoxResult.AmuletActivated => SendBoxResult(boxResult.ItemType, chatId, telegramId, 0),
+            OpenBoxResult.ToMinionTransferred => SendToMinionTransfer(chatId, telegramId),
+            OpenBoxResult.ToMasterTransferred => SendToMasterTransfer(chatId, telegramId),
             _ => throw new ArgumentOutOfRangeException()
         };
         return await Array(resultTask,
@@ -73,4 +76,20 @@ public class OpenBoxCommandHandler(
             },
             ex => Log.Error(ex, "Failed to send failed to open box message to {0} chat {1}", telegramId, chatId),
             cancelToken.Token);
+
+    private async Task<Unit> SendToMinionTransfer(long chatId, long masterId)
+    {
+        var minionId = await minionService.GetMinionId(masterId, chatId).IfNoneAsync(0);
+        var (masterName, minionName) = await minionService.GetMasterMinionNames(chatId, masterId, minionId);
+        var message = string.Format(appConfig.MinionConfig.StoneTransferMessage, masterName, minionName);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
+
+    private async Task<Unit> SendToMasterTransfer(long chatId, long minionId)
+    {
+        var masterId = await minionService.GetMasterId(minionId, chatId).IfNoneAsync(0);
+        var (masterName, minionName) = await minionService.GetMasterMinionNames(chatId, masterId, minionId);
+        var message = string.Format(appConfig.MinionConfig.AmuletTransferMessage, minionName, masterName);
+        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+    }
 }

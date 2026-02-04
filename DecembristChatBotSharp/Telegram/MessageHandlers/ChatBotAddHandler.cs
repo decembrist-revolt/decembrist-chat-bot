@@ -1,18 +1,20 @@
-﻿using Lamar;
+﻿using DecembristChatBotSharp.Mongo;
+using Lamar;
 using Serilog;
 using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
-public class ChatBotAddHandler(AppConfig appConfig, BotClient botClient)
+public class ChatBotAddHandler(AppConfig appConfig, BotClient botClient, ChatConfigRepository chatConfigRepository)
 {
-    public async Task<Unit> Do(
-        long chatId,
-        CancellationToken cancelToken)
+    public async Task<Unit> Do(long chatId, CancellationToken cancelToken)
     {
-        var (allowedChatIds, wrongChatText, rightChatText) = appConfig.AllowedChatConfig;
-        return allowedChatIds?.Contains(chatId) == true
+        var allowedChatIds = await chatConfigRepository.GetChatIds();
+        var wrongChatText = appConfig.AllowedChatConfig.WrongChatText;
+        var rightChatText = appConfig.AllowedChatConfig.RightChatText;
+
+        return allowedChatIds.Contains(chatId)
             ? await RightChatAdd(chatId, rightChatText, cancelToken)
             : await WrongChatAdd(chatId, wrongChatText, cancelToken);
     }

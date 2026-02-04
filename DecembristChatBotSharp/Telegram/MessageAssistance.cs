@@ -17,6 +17,7 @@ public class MessageAssistance(
     AppConfig appConfig,
     BotClient botClient,
     ExpiredMessageRepository expiredMessageRepository,
+    ChatConfigRepository chatConfigRepository,
     CancellationTokenSource cancelToken)
 {
     public async Task<Unit> CommandNotReady(
@@ -133,6 +134,9 @@ public class MessageAssistance(
             DeleteCommandMessage(chatId, messageId, commandName)
         ).WhenAll();
 
+    /// <summary>
+    /// Send a message
+    /// </summary>
     public async Task<Unit> SendMessage(
         long chatId,
         string message,
@@ -147,6 +151,9 @@ public class MessageAssistance(
                 commandName, callerName, chatId),
             cancelToken.Token, replyMarkup);
 
+    /// <summary>
+    /// Send a message that will be deleted by timer
+    /// </summary>
     public async Task<Unit> SendCommandResponse(
         long chatId,
         string message,
@@ -286,5 +293,5 @@ public class MessageAssistance(
             cancelToken.Token);
     }
 
-    public bool IsAllowedChat(long chatId) => appConfig.AllowedChatConfig.AllowedChatIds?.Contains(chatId) == true;
+    public async Task<bool> IsAllowedChat(long chatId) => (await chatConfigRepository.GetChatIds()).Contains(chatId);
 }

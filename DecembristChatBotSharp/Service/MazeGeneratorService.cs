@@ -1,4 +1,4 @@
-﻿using DecembristChatBotSharp.Entity.Configs;
+using DecembristChatBotSharp.Entity.Configs;
 using Lamar;
 
 namespace DecembristChatBotSharp.Service;
