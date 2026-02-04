@@ -31,7 +31,7 @@ public class OpenBoxCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload) return unit;
-        var maybeItemConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.ItemConfig);
+        var maybeItemConfig = await chatConfigService.GetConfig(chatId, config => config.ItemConfig);
         if (!maybeItemConfig.TryGetSome(out var itemConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

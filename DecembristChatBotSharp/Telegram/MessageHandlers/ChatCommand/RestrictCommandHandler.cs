@@ -34,7 +34,7 @@ public partial class RestrictCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeRestrictConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.RestrictConfig);
+        var maybeRestrictConfig = await chatConfigService.GetConfig(chatId, config => config.RestrictConfig);
         if (!maybeRestrictConfig.TryGetSome(out var restrictConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

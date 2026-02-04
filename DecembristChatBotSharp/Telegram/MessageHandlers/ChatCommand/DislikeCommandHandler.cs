@@ -29,7 +29,7 @@ public class DislikeCommandHandler(
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
-        var maybeDislikeConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.DislikeConfig);
+        var maybeDislikeConfig = await chatConfigService.GetConfig(chatId, config => config.DislikeConfig);
         if (!maybeDislikeConfig.TryGetSome(out var dislikeConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

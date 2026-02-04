@@ -48,7 +48,7 @@ public partial class CurseCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeCurseConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CurseConfig);
+        var maybeCurseConfig = await chatConfigService.GetConfig(chatId, config => config.CurseConfig);
         if (!maybeCurseConfig.TryGetSome(out var curseConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

@@ -29,7 +29,7 @@ public partial class LoreCommandHandler(
     {
         var (messageId, _, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeLoreConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.LoreConfig);
+        var maybeLoreConfig = await chatConfigService.GetConfig(chatId, config => config.LoreConfig);
         if (!maybeLoreConfig.TryGetSome(out var loreConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

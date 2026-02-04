@@ -38,7 +38,7 @@ public partial class GiveItemCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeGiveConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.GiveConfig);
+        var maybeGiveConfig = await chatConfigService.GetConfig(chatId, config => config.GiveConfig);
         if (!maybeGiveConfig.TryGetSome(out var giveConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

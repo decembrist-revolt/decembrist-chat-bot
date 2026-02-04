@@ -16,7 +16,6 @@ public class BotHandler(
     User botUser,
     BotClient botClient,
     AppConfig appConfig,
-    ChatConfigService chatConfigService,
     NewMemberHandler newMemberHandler,
     PrivateMessageHandler privateMessageHandler,
     ChatMessageHandler chatMessageHandler,
@@ -83,17 +82,14 @@ public class BotHandler(
         };
     }
 
-    private async Task HandleChatEditedMessage(Message message)
-    {
-        var completedTask = message switch
+    private Task HandleChatEditedMessage(Message message) =>
+        message switch
         {
             {
                 From.Id: { },
-            } => chatEditedHandler.Do(await GetChatMessageHandlerParams(message)),
+            } => chatEditedHandler.Do(GetChatMessageHandlerParams(message)),
             _ => Task.CompletedTask
         };
-        await completedTask;
-    }
 
     private Task HandlePrivateMessageUpdateAsync(Message message) => message switch
     {
@@ -123,10 +119,10 @@ public class BotHandler(
     private async Task HandleChatMessage(Message message)
     {
         var parameters = GetChatMessageHandlerParams(message);
-        await chatMessageHandler.Do(await parameters);
+        await chatMessageHandler.Do(parameters);
     }
 
-    private async Task<ChatMessageHandlerParams> GetChatMessageHandlerParams(Message message)
+    private ChatMessageHandlerParams GetChatMessageHandlerParams(Message message)
     {
         IMessagePayload payload = message switch
         {
@@ -154,7 +150,6 @@ public class BotHandler(
         var replyToMessageText = Optional(message.ReplyToMessage?.Text ?? message.ReplyToMessage?.Caption);
         var replyToMessageId = Optional(message.ReplyToMessage?.MessageId);
         var replyToTelegramId = Optional(message.ReplyToMessage?.From?.Id);
-        var chatConfig = await chatConfigService.GetChatConfig(chatId);
 
         Option<string> replyToFileId = None;
         var type = MessageType.Unknown;
@@ -166,8 +161,8 @@ public class BotHandler(
         var parameters = new ChatMessageHandlerParams(
             payload, messageId, telegramId, chatId,
             replyToTelegramId, replyToMessageId,
-            botMentioned, replyToBotMessage, replyToMessageText, 
-            replyToFileId, chatConfig, type);
+            botMentioned, replyToBotMessage, replyToMessageText,
+            replyToFileId, type);
         return parameters;
     }
 

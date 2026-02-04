@@ -50,7 +50,7 @@ public partial class GiveawayCommandHandler(
             ).WhenAll();
         }
 
-        var maybeGiveawayConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.GiveawayConfig);
+        var maybeGiveawayConfig = await chatConfigService.GetConfig(chatId, config => config.GiveawayConfig);
         if (!maybeGiveawayConfig.TryGetSome(out var giveawayConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

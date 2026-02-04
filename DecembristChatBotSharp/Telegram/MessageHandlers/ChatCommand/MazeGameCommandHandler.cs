@@ -40,14 +40,14 @@ public class MazeGameCommandHandler(
             ).WhenAll();
         }
 
-        var maybeMazeConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.MazeConfig);
+        var maybeMazeConfig = await chatConfigService.GetConfig(chatId, config => config.MazeConfig);
         if (!maybeMazeConfig.TryGetSome(out var mazeConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);
             return chatConfigService.LogNonExistConfig(unit, nameof(MazeConfig), Command);
         }
 
-        var maybeCommandConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CommandConfig);
+        var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.CommandConfig);
         if (!maybeCommandConfig.TryGetSome(out var commandConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

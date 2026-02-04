@@ -22,9 +22,8 @@ public class MinaHandler(
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return false;
 
-        var chatConfig = await chatConfigService.GetChatConfig(chatId);
-        var maybeCurseConfig = chatConfigService.GetConfig(chatConfig, config => config.CurseConfig);
-        var maybeMinaConfig = chatConfigService.GetConfig(chatConfig, config => config.MinaConfig);
+        var maybeCurseConfig = await chatConfigService.GetConfig(chatId, config => config.CurseConfig);
+        var maybeMinaConfig = await chatConfigService.GetConfig(chatId, config => config.MinaConfig);
         if (!maybeCurseConfig.TryGetSome(out var curseConfig))
         {
             return chatConfigService.LogNonExistConfig(false, nameof(CurseConfig), nameof(MinaHandler));

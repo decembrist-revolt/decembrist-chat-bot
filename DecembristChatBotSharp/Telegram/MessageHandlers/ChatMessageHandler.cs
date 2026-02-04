@@ -15,7 +15,6 @@ public readonly record struct ChatMessageHandlerParams(
     bool ReplyToBotMessage,
     Option<string> ReplyToMessageText,
     Option<string> ReplyFileId,
-    Option<ChatConfig> ChatConfig,
     MessageType MessageType = MessageType.Unknown
 )
 {

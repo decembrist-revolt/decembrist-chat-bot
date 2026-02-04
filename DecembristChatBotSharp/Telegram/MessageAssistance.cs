@@ -17,6 +17,7 @@ public class MessageAssistance(
     AppConfig appConfig,
     BotClient botClient,
     ExpiredMessageRepository expiredMessageRepository,
+    ChatConfigRepository chatConfigRepository,
     CancellationTokenSource cancelToken)
 {
     public async Task<Unit> CommandNotReady(
@@ -292,5 +293,5 @@ public class MessageAssistance(
             cancelToken.Token);
     }
 
-    public bool IsAllowedChat(long chatId) => appConfig.AllowedChatConfig.AllowedChatIds?.Contains(chatId) == true;
+    public async Task<bool> IsAllowedChat(long chatId) => (await chatConfigRepository.GetChatIds()).Contains(chatId);
 }

@@ -35,7 +35,7 @@ public class TelegramMemeCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
 
-        var maybeCommandConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.TelegramPostConfig);
+        var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.TelegramPostConfig);
         if (!maybeCommandConfig.TryGetSome(out var telegramPostConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

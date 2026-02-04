@@ -62,8 +62,7 @@ public class CallbackService(MessageAssistance messageAssistance)
     {
         chatId = 0;
         return parameters.ContainsKey(ChatIdParameter) &&
-               long.TryParse(parameters[ChatIdParameter], out chatId) &&
-               messageAssistance.IsAllowedChat(chatId);
+               long.TryParse(parameters[ChatIdParameter], out chatId);
     }
 
     public bool HasStepsCountKey(Map<string, string> parameters, out int value)

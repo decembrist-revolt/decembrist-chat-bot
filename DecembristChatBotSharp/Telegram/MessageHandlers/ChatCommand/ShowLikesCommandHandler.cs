@@ -32,7 +32,7 @@ public class ShowLikesCommandHandler(
         var chatId = parameters.ChatId;
         var messageId = parameters.MessageId;
 
-        var maybeCommandConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.LikeConfig);
+        var maybeCommandConfig = await chatConfigService.GetConfig(chatId, config => config.LikeConfig);
         if (!maybeCommandConfig.TryGetSome(out var likeConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

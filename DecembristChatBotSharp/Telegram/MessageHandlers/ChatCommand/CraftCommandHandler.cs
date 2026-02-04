@@ -28,7 +28,7 @@ public partial class CraftCommandHandler(
     {
         var (messageId, telegramId, chatId) = parameters;
         if (parameters.Payload is not TextPayload { Text: var text }) return unit;
-        var maybeCraftConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.CraftConfig);
+        var maybeCraftConfig = await chatConfigService.GetConfig(chatId, config => config.CraftConfig);
         if (!maybeCraftConfig.TryGetSome(out var craftConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

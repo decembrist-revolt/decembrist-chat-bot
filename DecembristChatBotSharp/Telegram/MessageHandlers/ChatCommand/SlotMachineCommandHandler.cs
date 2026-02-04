@@ -36,7 +36,7 @@ public class SlotMachineCommandHandler(
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
-        var maybeSlotMachineConfig = chatConfigService.GetConfig(parameters.ChatConfig, config => config.SlotMachineConfig);
+        var maybeSlotMachineConfig = await chatConfigService.GetConfig(chatId, config => config.SlotMachineConfig);
         if (!maybeSlotMachineConfig.TryGetSome(out var slotMachineConfig))
         {
             await messageAssistance.SendNotConfigured(chatId, messageId, Command);

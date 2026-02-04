@@ -35,9 +35,10 @@ public class ProfilePrivateCallbackHandler(
             None: () => messageAssistance.SendCommandResponse(chatId, "OK", nameof(ProfilePrivateCallbackHandler)),
             Some: async parameters =>
             {
-                if (!callbackService.HasChatIdKey(parameters, out var targetChatId)) return unit;
-                var chatConfig = await chatConfigService.GetChatConfig(targetChatId);
-                var maybeConfig = chatConfigService.GetConfig(chatConfig, config => config.ProfileConfig);
+                if (!callbackService.HasChatIdKey(parameters, out var targetChatId) &&
+                    !await messageAssistance.IsAllowedChat(targetChatId)) return unit;
+
+                var maybeConfig = await chatConfigService.GetConfig(targetChatId, config => config.ProfileConfig);
                 if (!maybeConfig.TryGetSome(out var menuConfig))
                 {
                     return chatConfigService.LogNonExistConfig(unit, nameof(ProfileConfig), Prefix);
