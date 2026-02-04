@@ -11,7 +11,6 @@ public class OpenBoxService(
     MemberItemRepository memberItemRepository,
     MemberItemService memberItemService,
     MinionService minionService,
-    AppConfig appConfig,
     MongoDatabase db,
     HistoryLogRepository historyLogRepository,
     Random random,
@@ -38,28 +37,28 @@ public class OpenBoxService(
 
         return itemType switch
         {
-            MemberItemType.Stone => await HandleStone(chatId, telegramId, itemType, session),
-            MemberItemType.Amulet => await HandleAmulet(chatId, telegramId, itemType, quantity, session),
+            MemberItemType.Stone => await HandleStone(chatId, telegramId, itemType, session, itemConfig),
+            MemberItemType.Amulet => await HandleAmulet(chatId, telegramId, itemType, quantity, session, itemConfig),
             MemberItemType.Box =>
                 await HandleItemType(chatId, telegramId, itemType, quantity, OpenBoxResult.SuccessX2, session),
             _ => await HandleItemType(chatId, telegramId, itemType, quantity, OpenBoxResult.Success, session)
         };
     }
 
-    private async Task<OpenBoxResultData> HandleStone(
-        long chatId, long telegramId, MemberItemType itemType, IMongoSession session)
+    private async Task<OpenBoxResultData> HandleStone(long chatId, long telegramId, MemberItemType itemType,
+        IMongoSession session, ItemConfig itemConfig)
     {
         var maybeMinion = await minionService.GetMinionId(telegramId, chatId);
         return telegramId switch
         {
             _ when maybeMinion.TryGetSome(out var minionId) =>
-                await HandleStoneForMaster(chatId, telegramId, minionId, itemType, session),
-            _ => await HandleUniqueItem(chatId, telegramId, itemType, session)
+                await HandleStoneForMaster(chatId, telegramId, minionId, itemType,itemConfig, session),
+            _ => await HandleUniqueItem(chatId, telegramId, itemType, session, itemConfig)
         };
     }
 
     private async Task<OpenBoxResultData> HandleAmulet(long chatId, long telegramId, MemberItemType itemType,
-        int quantity, IMongoSession session)
+        int quantity, IMongoSession session, ItemConfig itemConfig)
     {
         var maybeMaster = await minionService.GetMasterId(telegramId, chatId);
         return telegramId switch
@@ -85,7 +84,7 @@ public class OpenBoxService(
         long chatId, long telegramId, MemberItemType itemType, IMongoSession session, ItemConfig itemConfig)
     {
         var isHasUniqueItem = await memberItemRepository.IsUserHasItem(chatId, telegramId, itemType, session);
-        if (isHasUniqueItem) return await HandleCompensation(chatId, telegramId, itemType, session);
+        if (isHasUniqueItem) return await HandleCompensation(chatId, telegramId, itemType, itemConfig, session);
 
         var isChangeOwner = await memberItemRepository.RemoveAllItemsForChat(chatId, itemType, session)
                             && await uniqueItemService.ChangeOwnerUniqueItem(chatId, telegramId, itemType, session);
@@ -94,11 +93,11 @@ public class OpenBoxService(
             : await AbortWithResult(session);
     }
 
-    private async Task<OpenBoxResultData> HandleStoneForMaster(
-        long chatId, long masterId, long minionId, MemberItemType itemType, IMongoSession session)
+    private async Task<OpenBoxResultData> HandleStoneForMaster(long chatId, long masterId, long minionId,
+        MemberItemType itemType, ItemConfig itemConfig, IMongoSession session)
     {
         var isHasUniqueItem = await memberItemRepository.IsUserHasItem(chatId, minionId, itemType, session);
-        if (isHasUniqueItem) return await HandleCompensation(chatId, masterId, itemType, session);
+        if (isHasUniqueItem) return await HandleCompensation(chatId, masterId, itemType, itemConfig, session);
 
         var isChangeOwner = await memberItemRepository.RemoveAllItemsForChat(chatId, itemType, session)
                             && await uniqueItemService.ChangeOwnerUniqueItem(chatId, minionId, itemType, session);
@@ -108,9 +107,9 @@ public class OpenBoxService(
     }
 
     private async Task<OpenBoxResultData> HandleCompensation(
-        long chatId, long masterId, MemberItemType itemType, IMongoSession session)
+        long chatId, long masterId, MemberItemType itemType, ItemConfig itemConfig, IMongoSession session)
     {
-        var compensation = appConfig.ItemConfig.CompensationItem;
+        var compensation = itemConfig.CompensationItem;
         Log.Information("User has unique {0}, compensating item: {1} has been issued", itemType, compensation);
         return await LogInHistoryAndCommit(chatId, masterId, OpenBoxResult.Success, compensation, session, 1);
     }

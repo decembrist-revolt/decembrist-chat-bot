@@ -22,7 +22,7 @@ public class MinionCommandHandler(
     public const string CommandKey = "/minion";
     public string Command => CommandKey;
 
-    public string Description => appConfig.CommandConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
         "Make a chat member your minion (premium only)");
 
     public CommandLevel CommandLevel => CommandLevel.User;

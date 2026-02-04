@@ -28,7 +28,7 @@ public record AppConfig(
     DustRecipesConfig DustRecipesConfig,
     CraftRecipesConfig CraftRecipesConfig,
     PollPaymentConfig? PollPaymentConfig,
-    MinionConfig MinionConfi,
+    MinionConfig MinionConfig,
     QuizConfig? QuizConfig = null,
     DeepSeekConfig? DeepSeekConfig = null,
     KeycloakConfig? KeycloakConfig = null,

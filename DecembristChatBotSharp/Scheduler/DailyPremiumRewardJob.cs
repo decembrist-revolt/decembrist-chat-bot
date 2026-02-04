@@ -133,7 +133,7 @@ public class DailyPremiumRewardJob(
             .Map(username => username.EscapeMarkdown())
             .ToFullString();
 
-        var message = string.Format(appConfig.CommandConfig.PremiumConfig.DailyPremiumRewardMessage,
+        var message = string.Format(appConfig.CommandAssistanceConfig.PremiumConfig.DailyPremiumRewardMessage,
             premiumUsernamesString);
 
         // Add minions message if there are lucky minions
@@ -146,11 +146,10 @@ public class DailyPremiumRewardJob(
                 .Map(username => username.EscapeMarkdown())
                 .ToFullString();
 
-            message += string.Format(appConfig.CommandConfig.PremiumConfig.DailyMinionRewardMessage,
+            message += string.Format(appConfig.CommandAssistanceConfig.PremiumConfig.DailyMinionRewardMessage,
                 minionUsernamesString);
         }
 
-        var message = string.Format(appConfig.CommandAssistanceConfig.PremiumConfig.DailyPremiumRewardMessage, usernamesString);
         return await botClient.SendMessage(
                 chatId, message, parseMode: ParseMode.MarkdownV2, cancellationToken: cancelToken.Token)
             .ToTryAsync()

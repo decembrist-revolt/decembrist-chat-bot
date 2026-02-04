@@ -14,7 +14,6 @@ public class MinaHandler(
     CurseRepository curseRepository,
     MinionService minionService,
     MessageAssistance messageAssistance,
-    AppConfig appConfig,
     ChatConfigService chatConfigService,
     CancellationTokenSource cancelToken)
 {
@@ -41,7 +40,8 @@ public class MinaHandler(
             () => false);
     }
 
-    private async Task<bool> ActivateMine(MineTrigger trigger, int messageId, long victimTelegramId, long chatId, CurseConfig curseConfig, MinaConfig minaConfig)
+    private async Task<bool> ActivateMine(MineTrigger trigger, int messageId, long victimTelegramId, long chatId,
+        CurseConfig curseConfig, MinaConfig minaConfig)
     {
         var redirectTarget = await minionService.GetRedirectTarget(victimTelegramId, chatId);
         if (redirectTarget.TryGetSome(out var redirectedId))
@@ -59,12 +59,13 @@ public class MinaHandler(
 
         await SetReaction(curseMember, messageId, chatId);
         await minaRepository.DeleteMineTrigger(trigger.Id);
-        await SendMineActivationMessage(chatId, victimTelegramId, trigger, minaConfig);
+        await SendMineActivationMessage(chatId, victimTelegramId, trigger, minaConfig, curseConfig);
 
         return true;
     }
 
-    private async Task<Unit> SendMineActivationMessage(long chatId, long victimTelegramId, MineTrigger trigger, MinaConfig minaConfig)
+    private async Task<Unit> SendMineActivationMessage(long chatId, long victimTelegramId, MineTrigger trigger,
+        MinaConfig minaConfig, CurseConfig curseConfig)
     {
         var victimUsername = await botClient.GetUsernameOrId(victimTelegramId, chatId, cancelToken.Token);
         var ownerUsername = await botClient.GetUsernameOrId(trigger.Id.TelegramId, chatId, cancelToken.Token);
@@ -72,7 +73,7 @@ public class MinaHandler(
         var message = string.Format(minaConfig.ActivationMessage,
             victimUsername, trigger.Id.Trigger, trigger.Emoji.Emoji, ownerUsername);
 
-        var expiration = DateTime.UtcNow.AddMinutes(appConfig.CurseConfig.DurationMinutes);
+        var expiration = DateTime.UtcNow.AddMinutes(curseConfig.DurationMinutes);
         Log.Information("Mine activation message sending ChatId: {0} VictimId: {1} OwnerId: {2}", chatId,
             victimTelegramId, trigger.Id.TelegramId);
         return await messageAssistance.SendCommandResponse(chatId, message, nameof(MinaHandler), expiration);
