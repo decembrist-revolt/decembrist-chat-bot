@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Reflection;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 
@@ -18,6 +19,7 @@ public record AppConfig(
     CaptchaJobConfig CaptchaJobConfig,
     AllowedChatConfig AllowedChatConfig,
     MongoConfig MongoConfig,
+    GlobalAdminConfig GlobalAdminConfig,
     CommandAssistanceConfig CommandAssistanceConfig,
     LoreServiceConfig LoreServiceConfig,
     FilterJobConfig FilterJobConfig,
@@ -33,7 +35,8 @@ public record AppConfig(
     DeepSeekConfig? DeepSeekConfig = null,
     KeycloakConfig? KeycloakConfig = null,
     DateTime? DeployTime = null,
-    List<long>? WhiteListIds = null)
+    List<long>? WhiteListIds = null,
+    ChatConfig? ChatConfigTemplate = null)
 {
     public static Option<AppConfig> GetInstance()
     {
@@ -41,6 +44,7 @@ public record AppConfig(
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .AddJsonFile("craftsettings.json", optional: false, reloadOnChange: true)
+            .AddJsonFile("chatConfigTemplate.json", optional: false, reloadOnChange: true)
             .AddEnvironmentVariables()
             .AddInMemoryCollection(new Dictionary<string, string>
             {
@@ -93,16 +97,16 @@ public record AppConfig(
 }
 
 public record AllowedChatConfig(
-    System.Collections.Generic.HashSet<long>? AllowedChatIds,
     [property: Required(AllowEmptyStrings = false)]
     string WrongChatText,
     [property: Required(AllowEmptyStrings = false)]
-    string RightChatText
+    string RightChatText,
+    System.Collections.Generic.HashSet<long>? AllowedChatIds = null
 );
 
 public record CaptchaJobConfig(
-    [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalHours,
-    [property: Range(1, long.MaxValue)] long CaptchaTimeHours,
+    [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalSeconds,
+    [property: Range(1, long.MaxValue)] long CaptchaTimeSeconds,
     [property: Range(1, int.MaxValue)] int CaptchaRequestAgainCount,
     [property: Range(1, int.MaxValue)] int CaptchaRetryCount);
 
@@ -110,6 +114,14 @@ public record MongoConfig(
     [property: Required(AllowEmptyStrings = false)]
     string ConnectionString,
     int ConnectionCheckTimeoutSeconds
+);
+
+public record GlobalAdminConfig(
+    System.Collections.Generic.HashSet<long> AdminIds,
+    [property: Required(AllowEmptyStrings = false)]
+    string IdChatRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string IdChatDeleteRequest
 );
 
 public record CommandAssistanceConfig(
