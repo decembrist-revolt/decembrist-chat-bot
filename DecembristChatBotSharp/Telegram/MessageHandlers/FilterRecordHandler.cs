@@ -19,38 +19,39 @@ public class FilterRecordHandler(
     public const string Tag = "#Filter";
     public const string RecordSuffix = "Record";
     public const string DeleteSuffix = "Delete";
-    
+
+    private const string ParseErrorMessage = "Проблема с входящими данными,попробуйте позже";
     private const string AdminOnlyMessage = "Только администраторы могут использовать эту команду.";
 
     public async Task<Message> Do(Message message)
     {
         var telegramId = message.From!.Id;
-        var chatId = message.Chat.Id;
-        var maybeFilterConfig = await chatConfigService.GetConfig(chatId, config => config.FilterConfig);
-        if (!maybeFilterConfig.TryGetSome(out var filterConfig))
-        {
-            return await chatConfigService.LogNonExistConfig(SendHelpMessage(telegramId, filterConfig),
-                nameof(FilterConfig));
-        }
 
         var replyText = message.ReplyToMessage!.Text;
         var messageText = message.Text!;
         var dateReply = message.ReplyToMessage.Date;
 
         return await ParseReplyText(replyText).MatchAsync(
-            None: () => SendHelpMessage(telegramId, filterConfig),
+            None: () => SendParseError(telegramId),
             Some: async tuple =>
             {
                 await messageAssistance.DeleteCommandMessage(telegramId, message.ReplyToMessage.Id, Tag);
                 await messageAssistance.DeleteCommandMessage(telegramId, message.Id, Tag);
-                var (suffix, lorChatId) = tuple;
+                var (suffix, targetChatId) = tuple;
+                var maybeFilterConfig = await chatConfigService.GetConfig(targetChatId, config => config.FilterConfig);
+                if (!maybeFilterConfig.TryGetSome(out var filterConfig))
+                {
+                    return chatConfigService.LogNonExistConfig(SendHelpMessage(telegramId, filterConfig),
+                        nameof(FilterConfig));
+                }
+
                 return suffix switch
                 {
-                    _ when !await IsAdmin(telegramId, lorChatId) => SendNotAdmin(telegramId),
-                    RecordSuffix => 
-                        HandleCreateFilterRecord(messageText, lorChatId, telegramId, dateReply, filterConfig),
-                    DeleteSuffix => 
-                        HandleDeleteFilterRecord(messageText, lorChatId, telegramId, dateReply, filterConfig),
+                    _ when !await IsAdmin(telegramId, targetChatId) => SendNotAdmin(telegramId),
+                    RecordSuffix =>
+                        HandleCreateFilterRecord(messageText, targetChatId, telegramId, dateReply, filterConfig),
+                    DeleteSuffix =>
+                        HandleDeleteFilterRecord(messageText, targetChatId, telegramId, dateReply, filterConfig),
                     _ => SendHelpMessage(telegramId, filterConfig)
                 };
             }).Flatten();
@@ -101,6 +102,9 @@ public class FilterRecordHandler(
 
     private Task<Message> SendHelpMessage(long telegramId, FilterConfig filterConfig) =>
         botClient.SendMessage(telegramId, filterConfig.HelpMessage, cancellationToken: cancelToken.Token);
+
+    private Task<Message> SendParseError(long telegramId) =>
+        botClient.SendMessage(telegramId, ParseErrorMessage, cancellationToken: cancelToken.Token);
 
     private Task<Message> SendDuplicateMessage(long telegramId, string messageText, FilterConfig filterConfig)
     {
