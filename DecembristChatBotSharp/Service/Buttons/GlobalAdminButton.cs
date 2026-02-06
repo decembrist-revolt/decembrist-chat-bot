@@ -12,7 +12,8 @@ public class GlobalAdminButton()
             InlineKeyboard =
             [
                 [GetGlobalAdminButton("Add Disabled Chat Config", GlobalAdminSuffix.AddDisabledChatConfig)],
-                [GetGlobalAdminButton("Add Enabled Chat Config", GlobalAdminSuffix.AddEnabledChatConfig)],
+                [GetGlobalAdminButton("Enable Chat Config", GlobalAdminSuffix.EnableChatConfig)],
+                [GetGlobalAdminButton("Disable Chat Config", GlobalAdminSuffix.DisableChatConfig)],
                 [GetGlobalAdminButton("Remove Chat Config", GlobalAdminSuffix.RemoveChatConfig)],
             ]
         };
@@ -20,7 +21,7 @@ public class GlobalAdminButton()
 
     private static InlineKeyboardButton GetGlobalAdminButton(string name, GlobalAdminSuffix suffix)
     {
-        var callback = CallbackService.GetCallback(name, suffix);
+        var callback = CallbackService.GetCallback(ChatConfigCallbackHandler.PrefixKey, suffix);
         return InlineKeyboardButton.WithCallbackData(name, callback);
     }
 }

@@ -129,6 +129,47 @@ public class ChatConfigRepository(MongoDatabase db, CancellationTokenSource canc
             });
     }
 
+    public async Task<bool> ToggleChatConfig(long chatId, bool enabled)
+    {
+        var collection = GetCollection();
+        var update = Builders<ChatConfig>.Update
+            .Set(c => c.CommandConfig.Enabled, enabled)
+            .Set(c => c.LikeConfig.Enabled, enabled)
+            .Set(c => c.BanConfig.Enabled, enabled)
+            .Set(c => c.TelegramPostConfig.Enabled, enabled)
+            .Set(c => c.ProfileConfig.Enabled, enabled)
+            .Set(c => c.LoreConfig.Enabled, enabled)
+            .Set(c => c.ListConfig.Enabled, enabled)
+            .Set(c => c.FilterConfig.Enabled, enabled)
+            .Set(c => c.RestrictConfig.Enabled, enabled)
+            .Set(c => c.CurseConfig.Enabled, enabled)
+            .Set(c => c.MinaConfig.Enabled, enabled)
+            .Set(c => c.SlotMachineConfig.Enabled, enabled)
+            .Set(c => c.DislikeConfig.Enabled, enabled)
+            .Set(c => c.CharmConfig.Enabled, enabled)
+            .Set(c => c.ItemConfig.Enabled, enabled)
+            .Set(c => c.HelpConfig.Enabled, enabled)
+            .Set(c => c.GiveConfig.Enabled, enabled)
+            .Set(c => c.GiveawayConfig.Enabled, enabled)
+            .Set(c => c.DustConfig.Enabled, enabled)
+            .Set(c => c.CraftConfig.Enabled, enabled)
+            .Set(c => c.MazeConfig.Enabled, enabled);
+
+        return await collection
+            .UpdateOneAsync(c => c.ChatId == chatId, update, cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .Match(result =>
+            {
+                if (result.ModifiedCount <= 0) return false;
+                Log.Information("Successfully toggle config for chatId: {chatId}", chatId);
+                return true;
+            }, ex =>
+            {
+                Log.Error(ex, "Failed to toggle config for chatId: {chatId}", chatId);
+                return false;
+            });
+    }
+
     public async Task<bool> DeleteChatConfig(long chatId)
     {
         return await GetCollection()

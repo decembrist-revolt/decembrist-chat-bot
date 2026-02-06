@@ -31,12 +31,12 @@ public record AppConfig(
     CraftRecipesConfig CraftRecipesConfig,
     PollPaymentConfig? PollPaymentConfig,
     MinionConfig MinionConfig,
+    ChatConfig ChatConfigTemplate,
     QuizConfig? QuizConfig = null,
     DeepSeekConfig? DeepSeekConfig = null,
     KeycloakConfig? KeycloakConfig = null,
     DateTime? DeployTime = null,
-    List<long>? WhiteListIds = null,
-    ChatConfig? ChatConfigTemplate = null)
+    List<long>? WhiteListIds = null)
 {
     public static Option<AppConfig> GetInstance()
     {
