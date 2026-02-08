@@ -124,13 +124,13 @@ public class MessageAssistance(
             .ToAsync()
             .IfNone(receiverId.ToString);
         var message = string.Format(appConfig.AmuletConfig.AmuletBreaksMessage, username, commandName);
-        return await SendCommandResponse(chatId, message, commandName,
+        return await SendMessageExpired(chatId, message, commandName,
             DateTime.UtcNow.AddMinutes(appConfig.AmuletConfig.MessageExpirationMinutes));
     }
 
     public Task<Unit> SendNotConfigured(long chatId, int messageId, string commandName) =>
         Array(
-            SendCommandResponse(chatId, "Эта функция не доступна в этом чате", commandName),
+            SendMessageExpired(chatId, "Эта функция не доступна в этом чате", commandName),
             DeleteCommandMessage(chatId, messageId, commandName)
         ).WhenAll();
 
@@ -154,13 +154,14 @@ public class MessageAssistance(
     /// <summary>
     /// Send a message that will be deleted by timer
     /// </summary>
-    public async Task<Unit> SendCommandResponse(
+    public async Task<Unit> SendMessageExpired(
         long chatId,
         string message,
         string commandName,
         DateTime? expirationDate = null,
         ReplyMarkup? replyMarkup = null,
         ParseMode parseMode = ParseMode.None,
+        ReplyParameters? replyParameters = null,
         [CallerMemberName] string callerName = "UnknownCaller") =>
         await botClient.SendMessageAndLog(chatId, message, parseMode,
             message =>
@@ -170,7 +171,7 @@ public class MessageAssistance(
             },
             ex => Log.Error(ex, "Failed to send response to command: {0} from {1} to chat {2}",
                 commandName, callerName, chatId),
-            cancelToken.Token, replyMarkup);
+            cancelToken.Token, replyMarkup, replyParameters);
 
     public Task<Unit> TryEditMarkdownMessage(
         long chatId,

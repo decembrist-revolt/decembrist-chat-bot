@@ -80,7 +80,7 @@ public partial class DustCommandHandler(
         var message = string.Format(dustConfig.PremiumSuccessMessage,
             successMessage, premiumQuantity, premiumItem);
         var expireAt = DateTime.UtcNow.AddMinutes(dustConfig.SuccessExpiration);
-        return messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
+        return messageAssistance.SendMessageExpired(chatId, message, Command, expireAt);
     }
 
     private Task<Unit> SendSuccess(
@@ -89,24 +89,24 @@ public partial class DustCommandHandler(
         var message = string.Format(
             dustConfig.SuccessMessage, recipeItem, dustReward.Quantity, dustReward.Item);
         var expireAt = DateTime.UtcNow.AddMinutes(dustConfig.SuccessExpiration);
-        return messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
+        return messageAssistance.SendMessageExpired(chatId, message, Command, expireAt);
     }
 
     private Task<Unit> SendHelp(long chatId, DustConfig dustConfig)
     {
         var message = string.Format(dustConfig.HelpMessage, Command);
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        return messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private Task<Unit> SendNoRecipe(long chatId, DustConfig dustConfig)
     {
         var message = dustConfig.NoRecipeMessage;
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        return messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private Task<Unit> SendFailed(long chatId, DustConfig dustConfig)
     {
         var message = dustConfig.FailedMessage;
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        return messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 }

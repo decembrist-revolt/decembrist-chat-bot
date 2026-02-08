@@ -82,7 +82,7 @@ public class OpenBoxCommandHandler(
         var minionId = await minionService.GetMinionId(masterId, chatId).IfNoneAsync(0);
         var (masterName, minionName) = await minionService.GetMasterMinionNames(chatId, masterId, minionId);
         var message = string.Format(appConfig.MinionConfig.StoneTransferMessage, masterName, minionName);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendToMasterTransfer(long chatId, long minionId)
@@ -90,6 +90,6 @@ public class OpenBoxCommandHandler(
         var masterId = await minionService.GetMasterId(minionId, chatId).IfNoneAsync(0);
         var (masterName, minionName) = await minionService.GetMasterMinionNames(chatId, masterId, minionId);
         var message = string.Format(appConfig.MinionConfig.AmuletTransferMessage, minionName, masterName);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 }

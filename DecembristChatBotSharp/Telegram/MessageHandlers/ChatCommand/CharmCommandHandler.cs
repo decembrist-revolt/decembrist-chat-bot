@@ -96,6 +96,7 @@ public partial class CharmCommandHandler(
         var argsPosition = text.IndexOf(' ');
         return Optional(argsPosition != -1 ? text[(argsPosition + 1)..] : string.Empty)
             .Filter(arg => arg.IsNotEmpty())
+            .Filter(c => !c.StartsWith('/'))
             .Map(arg => ArgsRegex().Replace(arg, " ").Trim())
             .Filter(arg => arg.Length > 0 && arg.Length <= charmConfig.CharacterLimit);
     }
@@ -103,30 +104,30 @@ public partial class CharmCommandHandler(
     private async Task<Unit> SendReceiverNotSet(long chatId, CharmConfig charmConfig)
     {
         var message = string.Format(charmConfig.ReceiverNotSetMessage, Command);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendHelpMessage(long chatId, CharmConfig charmConfig)
     {
         var message = string.Format(charmConfig.HelpMessage, Command, charmConfig.CharacterLimit);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendSelfMessage(long chatId, CharmConfig charmConfig)
     {
         var message = charmConfig.SelfMessage;
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendDuplicateMessage(long chatId, CharmConfig charmConfig)
     {
         var message = charmConfig.DuplicateMessage;
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendDuplicateRedirectedMessage(long chatId)
     {
-        return await messageAssistance.SendCommandResponse(chatId,
+        return await messageAssistance.SendMessageExpired(chatId,
             "Миньон этого пользователя уже зачарован, попробуйте позже", Command);
     }
 
@@ -136,7 +137,7 @@ public partial class CharmCommandHandler(
         var message = string.Format(charmConfig.SuccessMessage, username, charmConfig.DurationMinutes, phrase);
         var exp = DateTime.UtcNow.AddMinutes(charmConfig.DurationMinutes);
         Log.Information("Charm message sent ChatId: {0}, Phrase:{1} Receiver: {2}", chatId, phrase, receiverId);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command, exp);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command, exp);
     }
 
     private async Task<Unit> SendSuccessRedirectMessage(long chatId, long receiverId, long originalReceiverId,
@@ -147,7 +148,7 @@ public partial class CharmCommandHandler(
         var exp = DateTime.UtcNow.AddMinutes(charmConfig.DurationMinutes);
         Log.Information("Charm redirected ChatId: {0}, Phrase:{1} Receiver: {2}", chatId, phrase, receiverId);
         await minionService.SendNegativeEffectRedirectMessage(chatId, originalReceiverId, receiverId);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command, exp);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command, exp);
     }
 
     private async Task<Unit> SendAmuletRedirected(long chatId, long receiverId, long originalReceiverId)

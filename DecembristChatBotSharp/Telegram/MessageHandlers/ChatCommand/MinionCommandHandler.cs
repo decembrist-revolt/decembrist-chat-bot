@@ -128,26 +128,26 @@ public class MinionCommandHandler(
         Log.Information("Minion status shown success ChatId: {chatId}, Master: {masterId}, Minion: {minionId}",
             chatId, masterId, minionId);
         var expirationDate = DateTime.UtcNow.AddMinutes(appConfig.MinionConfig.MessageExpirationMinutes);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command, expirationDate,
+        return await messageAssistance.SendMessageExpired(chatId, message, Command, expirationDate,
             parseMode: ParseMode.Markdown);
     }
 
     private Task<Unit> SendNotPremiumMessage(long chatId)
     {
         Log.Information("Not premium message sent ChatId: {chatId}", chatId);
-        return messageAssistance.SendCommandResponse(chatId, appConfig.MinionConfig.NotPremiumMessage, Command);
+        return messageAssistance.SendMessageExpired(chatId, appConfig.MinionConfig.NotPremiumMessage, Command);
     }
 
     private Task<Unit> SendTargetIsPremiumMessage(long chatId)
     {
         Log.Information("Target is premium message sent ChatId: {0}", chatId);
-        return messageAssistance.SendCommandResponse(chatId, appConfig.MinionConfig.TargetIsPremiumMessage, Command);
+        return messageAssistance.SendMessageExpired(chatId, appConfig.MinionConfig.TargetIsPremiumMessage, Command);
     }
 
     private async Task<Unit> SendAlreadyHasMinionMessage(long chatId)
     {
         Log.Information("Target is premium message sent ChatId: {0}", chatId);
-        return await messageAssistance.SendCommandResponse(chatId, appConfig.MinionConfig.AlreadyHasMinionMessage,
+        return await messageAssistance.SendMessageExpired(chatId, appConfig.MinionConfig.AlreadyHasMinionMessage,
             Command);
     }
 
@@ -156,15 +156,15 @@ public class MinionCommandHandler(
         var expirationMinutes = appConfig.MinionConfig.InvitationExpirationMinutes;
         var message = string.Format(appConfig.MinionConfig.AlreadyHasInvitationMessage, invitedUsername,
             expirationMinutes);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendAlreadyIsMinionMessage(long chatId, string receiverUsername)
     {
         var message = string.Format(appConfig.MinionConfig.AlreadyIsMinionMessage, receiverUsername);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendReceiverNotSet(long chatId) =>
-        await messageAssistance.SendCommandResponse(chatId, appConfig.MinionConfig.ReceiverNotSetMessage, Command);
+        await messageAssistance.SendMessageExpired(chatId, appConfig.MinionConfig.ReceiverNotSetMessage, Command);
 }

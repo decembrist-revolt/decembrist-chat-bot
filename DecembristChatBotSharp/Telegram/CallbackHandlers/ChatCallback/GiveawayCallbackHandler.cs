@@ -113,7 +113,7 @@ public class GiveawayCallbackHandler(
         var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
         var message = string.Format(giveawayConfig.PublicSuccessMessage, username, item, quantity);
         var expireAt = DateTime.UtcNow.AddMinutes(itemConfig.BoxMessageExpiration);
-        return await messageAssistance.SendCommandResponse(chatId, message, Prefix, expireAt);
+        return await messageAssistance.SendMessageExpired(chatId, message, Prefix, expireAt);
     }
 
     private bool TryParseGiveawayData(string suffix, out MemberItemType item, out int quantity,

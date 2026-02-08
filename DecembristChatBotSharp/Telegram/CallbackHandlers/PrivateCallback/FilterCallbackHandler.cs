@@ -26,7 +26,7 @@ public class FilterCallbackHandler(
         if (!Enum.TryParse(suffix, true, out FilterSuffix filterSuffix)) return unit;
 
         var taskResult = maybeParameters.MatchAsync(
-            None: () => messageAssistance.SendCommandResponse(chatId, "OK", nameof(FilterCallbackHandler)),
+            None: () => messageAssistance.SendMessageExpired(chatId, "OK", nameof(FilterCallbackHandler)),
             Some: async parameters =>
             {
                 if (!callbackService.HasChatIdKey(parameters, out var targetChatId) &&
@@ -54,7 +54,7 @@ public class FilterCallbackHandler(
     {
         var message = string.Format(filterConfig.DeleteRequest,
             GetFilterTag(FilterRecordHandler.DeleteSuffix, targetChatId));
-        return await messageAssistance.SendCommandResponse(chatId, message, nameof(FilterCallbackHandler),
+        return await messageAssistance.SendMessageExpired(chatId, message, nameof(FilterCallbackHandler),
             replyMarkup: new ForceReplyMarkup());
     }
 
@@ -62,7 +62,7 @@ public class FilterCallbackHandler(
     {
         var message = string.Format(filterConfig.CreateRequest,
             GetFilterTag(FilterRecordHandler.RecordSuffix, targetChatId));
-        return await messageAssistance.SendCommandResponse(chatId, message, nameof(FilterCallbackHandler),
+        return await messageAssistance.SendMessageExpired(chatId, message, nameof(FilterCallbackHandler),
             replyMarkup: new ForceReplyMarkup());
     }
 

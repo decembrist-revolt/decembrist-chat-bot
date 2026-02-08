@@ -29,7 +29,7 @@ public class LorePrivateCallbackHandler(
         if (!Enum.TryParse(suffix, true, out LoreSuffix loreSuffix)) return unit;
 
         var taskResult = maybeParameters.MatchAsync(
-            None: () => messageAssistance.SendCommandResponse(chatId, "OK", nameof(LorePrivateCallbackHandler)),
+            None: () => messageAssistance.SendMessageExpired(chatId, "OK", nameof(LorePrivateCallbackHandler)),
             Some: async parameters =>
             {
                 if (!callbackService.HasChatIdKey(parameters, out var targetChatId) &&
@@ -56,14 +56,14 @@ public class LorePrivateCallbackHandler(
     {
         var message = string.Format(loreConfig.DeleteRequest,
             LoreService.GetLoreTag(LoreHandler.DeleteSuffix, targetChatId));
-        return await messageAssistance.SendCommandResponse(
+        return await messageAssistance.SendMessageExpired(
             chatId, message, nameof(LorePrivateCallbackHandler), replyMarkup: loreService.GetKeyTip());
     }
 
     private async Task<Unit> SendRequestLoreKey(long targetChatId, long chatId, LoreConfig loreConfig)
     {
         var message = string.Format(loreConfig.KeyRequest, LoreService.GetLoreTag(LoreHandler.KeySuffix, targetChatId));
-        return await messageAssistance.SendCommandResponse(
+        return await messageAssistance.SendMessageExpired(
             chatId, message, nameof(LorePrivateCallbackHandler), replyMarkup: loreService.GetKeyTip());
     }
 
@@ -81,7 +81,7 @@ public class LorePrivateCallbackHandler(
 
         var maybeKeysAndCount = await loreService.GetLoreKeys(targetChatId, currentOffset);
         return await maybeKeysAndCount.Match(
-            None: () => messageAssistance.SendCommandResponse(targetChatId, "not keys", Prefix),
+            None: () => messageAssistance.SendMessageExpired(targetChatId, "not keys", Prefix),
             Some: tuple =>
             {
                 var (keys, totalCount) = tuple;

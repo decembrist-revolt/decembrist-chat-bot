@@ -51,7 +51,7 @@ public class ChatConfigCallbackHandler(
     {
         var message = string.Format(appConfig.ChatConfigMessages.AddConfigRequest,
             GetConfigTag(ChatConfigHandler.AddSuffix));
-        return await messageAssistance.SendCommandResponse(chatId, message, nameof(ChatConfigCallbackHandler),
+        return await messageAssistance.SendMessageExpired(chatId, message, nameof(ChatConfigCallbackHandler),
             replyMarkup: new ForceReplyMarkup());
     }
 
@@ -59,7 +59,7 @@ public class ChatConfigCallbackHandler(
     {
         var message = string.Format(appConfig.ChatConfigMessages.EnableConfigRequest,
             GetConfigTag(ChatConfigHandler.EnableSuffix));
-        return await messageAssistance.SendCommandResponse(chatId, message, nameof(ChatConfigCallbackHandler),
+        return await messageAssistance.SendMessageExpired(chatId, message, nameof(ChatConfigCallbackHandler),
             replyMarkup: new ForceReplyMarkup());
     }
 
@@ -67,7 +67,7 @@ public class ChatConfigCallbackHandler(
     {
         var message = string.Format(appConfig.ChatConfigMessages.DisableConfigRequest,
             GetConfigTag(ChatConfigHandler.DisableSuffix));
-        return await messageAssistance.SendCommandResponse(chatId, message, nameof(ChatConfigCallbackHandler),
+        return await messageAssistance.SendMessageExpired(chatId, message, nameof(ChatConfigCallbackHandler),
             replyMarkup: new ForceReplyMarkup());
     }
 
@@ -75,7 +75,7 @@ public class ChatConfigCallbackHandler(
     {
         var message = string.Format(appConfig.ChatConfigMessages.DeleteConfigRequest,
             GetConfigTag(ChatConfigHandler.DeleteSuffix));
-        return await messageAssistance.SendCommandResponse(chatId, message, nameof(ChatConfigCallbackHandler),
+        return await messageAssistance.SendMessageExpired(chatId, message, nameof(ChatConfigCallbackHandler),
             replyMarkup: new ForceReplyMarkup());
     }
 

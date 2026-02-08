@@ -151,7 +151,7 @@ public partial class GiveawayCommandHandler(
         );
 
         return await Array(
-            messageAssistance.SendCommandResponse(chatId, helpMessage, Command),
+            messageAssistance.SendMessageExpired(chatId, helpMessage, Command),
             messageAssistance.DeleteCommandMessage(chatId, commandMessageId, Command)
         ).WhenAll();
     }

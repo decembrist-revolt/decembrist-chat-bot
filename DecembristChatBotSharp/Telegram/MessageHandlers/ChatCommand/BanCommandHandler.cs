@@ -113,18 +113,18 @@ public partial class BanCommandHandler(
     private async Task<Unit> SendReceiverNotSet(long chatId, BanConfig banConfig)
     {
         var message = banConfig.BanReceiverNotSetMessage;
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendToLongReasonMessage(long chatId, BanConfig banConfig)
     {
         var message = string.Format(banConfig.ReasonLengthErrorMessage, banConfig.ReasonLengthLimit);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendAmuletMessage(long chatId, BanConfig banConfig)
     {
         var message = banConfig.BanAmuletMessage;
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 }

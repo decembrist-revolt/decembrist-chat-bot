@@ -59,13 +59,13 @@ public partial class LoreCommandHandler(
     {
         var expireAt = DateTime.UtcNow.AddMinutes(loreConfig.ChatLoreExpiration);
         var message = await loreService.GetLoreRecord(chatId, key);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command, expireAt);
     }
 
     private Task<Unit> SendNotFound(long chatId, LoreConfig loreConfig)
     {
         var message = string.Format(loreConfig.LoreNotFound, Command,
             $"{ListCommandHandler.CommandKey} {ListType.Lore}");
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        return messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 }

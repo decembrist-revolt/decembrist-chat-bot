@@ -93,7 +93,7 @@ public partial class GiveItemCommandHandler(
         return await maybeTime.MatchAsync(async time =>
             {
                 var message = string.Format(giveConfig.GiveNotExpiredMessage, itemType, time);
-                return await messageAssistance.SendCommandResponse(chatId, message, Command);
+                return await messageAssistance.SendMessageExpired(chatId, message, Command);
             },
             async () => await SendFailed(chatId, giveConfig)
         );
@@ -110,7 +110,7 @@ public partial class GiveItemCommandHandler(
             giveConfig.SuccessMessage, senderName, receiverName, itemQuantity.Item, itemQuantity.Quantity);
         if (isAmuletBroken) message += "\n\n" + itemConfig.AmuletBrokenMessage;
         var expireAt = DateTime.UtcNow.AddMinutes(giveConfig.ExpirationMinutes);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command, expireAt);
     }
 
     private async Task<Unit> SendAdminSuccess(
@@ -123,24 +123,24 @@ public partial class GiveItemCommandHandler(
             giveConfig.AdminSuccessMessage, receiverName, itemQuantity.Item, itemQuantity.Quantity, Command);
         if (isAmuletBroken) message += "\n\n" + itemConfig.AmuletBrokenMessage;
         var expireAt = DateTime.UtcNow.AddMinutes(itemConfig.BoxMessageExpiration);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command, expireAt);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command, expireAt);
     }
 
     private Task<Unit> SendHelp(long chatId, GiveConfig giveConfig)
     {
         var message = string.Format(giveConfig.HelpMessage, Command, _itemOptions);
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        return messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private Task<Unit> SendReceiverNotSet(long chatId, GiveConfig giveConfig)
     {
         var message = string.Format(giveConfig.ReceiverNotSet, Command);
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        return messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private Task<Unit> SendFailed(long chatId, GiveConfig giveConfig) =>
-        messageAssistance.SendCommandResponse(chatId, giveConfig.FailedMessage, Command);
+        messageAssistance.SendMessageExpired(chatId, giveConfig.FailedMessage, Command);
 
     private Task<Unit> SendSelf(long chatId, GiveConfig giveConfig) =>
-        messageAssistance.SendCommandResponse(chatId, giveConfig.SelfMessage, Command);
+        messageAssistance.SendMessageExpired(chatId, giveConfig.SelfMessage, Command);
 }

@@ -20,6 +20,6 @@ public class PrivateCallbackHandler(
 
         return await maybeHandler.MatchAsync(
             handler => handler.Do(callbackQueryParameters),
-            () => messageAssistance.SendCommandResponse(telegramId, "OK", nameof(PrivateCallbackHandler)));
+            () => messageAssistance.SendMessageExpired(telegramId, "OK", nameof(PrivateCallbackHandler)));
     }
 }

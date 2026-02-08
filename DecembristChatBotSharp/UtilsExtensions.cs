@@ -39,8 +39,10 @@ public static class UtilsExtensions
         Action<Message> onSent,
         Action<Exception> onError,
         CancellationToken cancelToken,
-        ReplyMarkup? replyMarkup = null) =>
+        ReplyMarkup? replyMarkup = null,
+        ReplyParameters? replyParameters = null) =>
         botClient.SendMessage(chatId, message, parseMode: parseMode, replyMarkup: replyMarkup,
+                replyParameters: replyParameters,
                 cancellationToken: cancelToken)
             .ToTryAsync()
             .Match(onSent, onError);
