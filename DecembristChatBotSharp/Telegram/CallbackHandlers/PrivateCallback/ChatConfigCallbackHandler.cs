@@ -2,7 +2,7 @@
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service.Buttons;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
-using DecembristChatBotSharp.Telegram.MessageHandlers;
+using DecembristChatBotSharp.Telegram.MessageHandlers.PrivateMessage;
 using Lamar;
 using Serilog;
 using Telegram.Bot.Types.Enums;

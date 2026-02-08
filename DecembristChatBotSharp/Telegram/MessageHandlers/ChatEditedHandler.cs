@@ -9,6 +9,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 public class ChatEditedHandler(
     CharmRepository charmRepository,
     RestrictHandler restrictHandler,
+    FilteredMessageHandler filteredMessageHandler,
     BotClient botClient,
     CancellationTokenSource cancelToken)
 {
@@ -20,6 +21,7 @@ public class ChatEditedHandler(
         var (messageId, telegramId, chatId) = parameters;
 
         if (await restrictHandler.Do(parameters)) return unit;
+        if (await filteredMessageHandler.Do(parameters)) return unit;
         await HandleCharm(messageId, chatId, telegramId, text);
 
         return unit;

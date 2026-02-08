@@ -3,7 +3,7 @@ using Lamar;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
-namespace DecembristChatBotSharp.Telegram.MessageHandlers;
+namespace DecembristChatBotSharp.Telegram.MessageHandlers.PrivateMessage;
 
 [Singleton]
 public class ChatConfigHandler(
