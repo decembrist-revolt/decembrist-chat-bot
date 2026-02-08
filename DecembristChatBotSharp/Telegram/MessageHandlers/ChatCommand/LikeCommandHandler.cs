@@ -121,8 +121,6 @@ public class LikeCommandHandler(
     {
         var username = chatMember.GetUsername();
         var message = string.Format(likeConfig.LikeMessage, username);
-        await botClient.SendMessage(chatId, message, cancellationToken: cancelToken.Token);
-
-        return unit;
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 }
