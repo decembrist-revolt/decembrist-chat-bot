@@ -32,6 +32,7 @@ public record AppConfig(
     PollPaymentConfig? PollPaymentConfig,
     MinionConfig MinionConfig,
     ChatConfig ChatConfigTemplate,
+    ChatConfigMessages ChatConfigMessages,
     QuizConfig? QuizConfig = null,
     DeepSeekConfig? DeepSeekConfig = null,
     KeycloakConfig? KeycloakConfig = null,
@@ -117,11 +118,7 @@ public record MongoConfig(
 );
 
 public record GlobalAdminConfig(
-    System.Collections.Generic.HashSet<long> AdminIds,
-    [property: Required(AllowEmptyStrings = false)]
-    string IdChatRequest,
-    [property: Required(AllowEmptyStrings = false)]
-    string IdChatDeleteRequest
+    System.Collections.Generic.HashSet<long> AdminIds
 );
 
 public record CommandAssistanceConfig(
@@ -404,4 +401,37 @@ public record QuizConfig(
     string SubtopicAvoidancePrompt,
     [property: Range(1, int.MaxValue)] int AutoCloseUnansweredMinutes = 240,
     [property: Range(1, int.MaxValue)] int SubtopicHistoryLimit = 25
+);
+
+public record ChatConfigMessages(
+    [property: Required(AllowEmptyStrings = false)]
+    string AdminOnlyMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string InvalidIdMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ToggleFailedMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string AlreadyExistsMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string TemplateErrorMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessAddMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string FailedAddMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string SuccessDeleteMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string NotFoundMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string ToggleSuccessMessage,
+    [property: Required(AllowEmptyStrings = false)]
+    string AddConfigRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string EnableConfigRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string DisableConfigRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string DeleteConfigRequest,
+    [property: Required(AllowEmptyStrings = false)]
+    string ChatListMessage
 );

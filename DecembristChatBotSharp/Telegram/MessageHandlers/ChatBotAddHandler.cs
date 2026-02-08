@@ -6,15 +6,17 @@ using Telegram.Bot;
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
-public class ChatBotAddHandler(AppConfig appConfig, BotClient botClient, ChatConfigRepository chatConfigRepository)
+public class ChatBotAddHandler(
+    AppConfig appConfig,
+    BotClient botClient,
+    MessageAssistance messageAssistance)
 {
     public async Task<Unit> Do(long chatId, CancellationToken cancelToken)
     {
-        var allowedChatIds = await chatConfigRepository.GetChatIds();
         var wrongChatText = appConfig.AllowedChatConfig.WrongChatText;
         var rightChatText = appConfig.AllowedChatConfig.RightChatText;
 
-        return allowedChatIds.Contains(chatId)
+        return await messageAssistance.IsAllowedChat(chatId)
             ? await RightChatAdd(chatId, rightChatText, cancelToken)
             : await WrongChatAdd(chatId, wrongChatText, cancelToken);
     }

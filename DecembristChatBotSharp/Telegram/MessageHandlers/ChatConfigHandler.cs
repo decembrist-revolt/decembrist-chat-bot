@@ -1,8 +1,5 @@
-﻿using DecembristChatBotSharp.Entity.Configs;
-using DecembristChatBotSharp.Mongo;
-using DecembristChatBotSharp.Service;
+﻿using DecembristChatBotSharp.Mongo;
 using Lamar;
-using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
@@ -12,7 +9,6 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 public class ChatConfigHandler(
     MessageAssistance messageAssistance,
     ChatConfigRepository chatConfigRepository,
-    ChatConfigService chatConfigService,
     AppConfig appConfig,
     CancellationTokenSource cancelToken,
     BotClient botClient)
@@ -22,7 +18,6 @@ public class ChatConfigHandler(
     public const string EnableSuffix = "Enable";
     public const string DisableSuffix = "Disable";
     public const string DeleteSuffix = "Delete";
-    private const string AdminOnlyMessage = "Только глобальные администраторы могут использовать эту команду.";
 
     public async Task<Unit> Do(Message message)
     {
@@ -42,13 +37,11 @@ public class ChatConfigHandler(
             {
                 await messageAssistance.DeleteCommandMessage(telegramId, message.ReplyToMessage.Id, Tag);
                 await messageAssistance.DeleteCommandMessage(telegramId, message.Id, Tag);
-                
+
                 if (!long.TryParse(messageText.Trim(), out var targetChatId))
                 {
                     return await SendInvalidIdMessage(telegramId);
                 }
-
-                targetChatId = NormalizeChatId(targetChatId);
 
                 return suffix switch
                 {
@@ -66,7 +59,8 @@ public class ChatConfigHandler(
         var success = await chatConfigRepository.ToggleChatConfig(chatId, enabled);
         return success
             ? await SendToggleSuccessMessage(chatId, telegramId, enabled)
-            : await messageAssistance.SendMessage(telegramId, $"Не удалось переключить конфиг для чата {chatId}", Tag);
+            : await messageAssistance.SendMessage(telegramId,
+                string.Format(appConfig.ChatConfigMessages.ToggleFailedMessage, chatId), Tag);
     }
 
     private async Task<Unit> HandleAddConfig(long chatId, long telegramId)
@@ -98,41 +92,43 @@ public class ChatConfigHandler(
             : await SendNotFoundMessage(telegramId, chatId);
     }
 
-    private static Option<string> ParseReplyText(string replyText) =>
+    private Option<string> ParseReplyText(string replyText) =>
         replyText.Split(Tag) is [_, var suffix]
             ? suffix
             : None;
 
     private Task<Unit> SendNotAdmin(long telegramId) =>
-        messageAssistance.SendMessage(telegramId, AdminOnlyMessage, Tag);
+        messageAssistance.SendMessage(telegramId, appConfig.ChatConfigMessages.AdminOnlyMessage, Tag);
 
     private Task<Unit> SendInvalidIdMessage(long telegramId) =>
-        messageAssistance.SendMessage(telegramId, "Неверный формат ID чата. Отправьте число (например: 1234567890)",
-            Tag);
+        messageAssistance.SendMessage(telegramId, appConfig.ChatConfigMessages.InvalidIdMessage, Tag);
 
     private Task<Unit> SendToggleSuccessMessage(long chatId, long telegramId, bool enabled) =>
-        messageAssistance.SendMessage(telegramId, $"Конфиг для чата {chatId} " + (enabled ? "включен" : "выключен"),
+        messageAssistance.SendMessage(telegramId,
+            string.Format(appConfig.ChatConfigMessages.ToggleSuccessMessage, chatId, enabled ? "включен" : "выключен"),
             Tag);
 
     private Task<Unit> SendAlreadyExistsMessage(long telegramId, long chatId) =>
-        messageAssistance.SendMessage(telegramId, $"Конфиг для чата {chatId} уже существует", Tag);
+        messageAssistance.SendMessage(telegramId,
+            string.Format(appConfig.ChatConfigMessages.AlreadyExistsMessage, chatId), Tag);
 
     private Task<Message> SendTemplateErrorMessage(long telegramId) =>
-        botClient.SendMessage(telegramId, "Ошибка при чтении шаблона конфига",
+        botClient.SendMessage(telegramId, appConfig.ChatConfigMessages.TemplateErrorMessage,
             cancellationToken: cancelToken.Token);
 
     private Task<Unit> SendSuccessAddMessage(long telegramId, long chatId) =>
-        messageAssistance.SendMessage(telegramId, $"Конфиг для чата {chatId} успешно добавлен, всё выключено)", Tag);
+        messageAssistance.SendMessage(telegramId, string.Format(appConfig.ChatConfigMessages.SuccessAddMessage, chatId),
+            Tag);
 
     private Task<Unit> SendFailedAddMessage(long telegramId, long chatId) =>
-        messageAssistance.SendMessage(telegramId, $"Не удалось добавить конфиг для чата {chatId}", Tag);
+        messageAssistance.SendMessage(telegramId, string.Format(appConfig.ChatConfigMessages.FailedAddMessage, chatId),
+            Tag);
 
     private Task<Unit> SendSuccessDeleteMessage(long telegramId, long chatId) =>
-        messageAssistance.SendMessage(telegramId, $"Конфиг для чата {chatId} успешно удален", Tag);
+        messageAssistance.SendMessage(telegramId,
+            string.Format(appConfig.ChatConfigMessages.SuccessDeleteMessage, chatId), Tag);
 
     private Task<Unit> SendNotFoundMessage(long telegramId, long chatId) =>
-        messageAssistance.SendMessage(telegramId, $"Конфиг для чата {chatId} не найден", Tag);
-
-    private static long NormalizeChatId(long rawChatId) =>
-        rawChatId.ToString().StartsWith("-100") ? rawChatId : long.Parse($"-100{rawChatId}");
+        messageAssistance.SendMessage(telegramId, string.Format(appConfig.ChatConfigMessages.NotFoundMessage, chatId),
+            Tag);
 }

@@ -19,7 +19,7 @@ public class PrivateMessageHandler(
     MessageAssistance messageAssistance,
     InventoryService inventoryService,
     ProfileButtons profileButtons,
-    GlobalAdminButton globalAdminButton,
+    ChatConfigButton chatConfigButton,
     LoreHandler loreHandler,
     FilterRecordHandler filterRecordHandler,
     ChatConfigHandler chatConfigHandler,
@@ -132,11 +132,11 @@ public class PrivateMessageHandler(
         if (!appConfig.GlobalAdminConfig.AdminIds.Contains(telegramId))
         {
             Log.Information("User {TelegramId} is not a global admin", telegramId);
-            return TryAsync(botClient.SendMessage(telegramId, "You are not a global admin",
+            return TryAsync(botClient.SendMessage(telegramId, appConfig.ChatConfigMessages.AdminOnlyMessage,
                 cancellationToken: cancelToken.Token));
         }
 
-        var buttons = globalAdminButton.GetMarkup();
+        var buttons = chatConfigButton.GetMarkup();
 
         return TryAsync(botClient.SendMessage(chatId, GreetingsButtonText, replyMarkup: buttons,
             cancellationToken: cancelToken.Token));
