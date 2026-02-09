@@ -109,6 +109,12 @@ public class QuizGeneratorJob(
 
     private async Task GenerateNewQuestion(long chatId)
     {
+        if (appConfig.QuizConfig is not { Enabled: true })
+        {
+            Log.Information("Quiz feature is disabled, skipping Quiz generation");
+            return;
+        }
+        
         // Generate new question
         var quizData = await quizService.GenerateQuizQuestion();
 
