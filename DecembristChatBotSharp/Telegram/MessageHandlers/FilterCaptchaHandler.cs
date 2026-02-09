@@ -38,7 +38,7 @@ public class FilterCaptchaHandler(
         var text = filterConfig.FailedMessage;
         await Array(
             messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(FilterCaptchaHandler)),
-            messageAssistance.SendCommandResponse(chatId, text, nameof(FilterCaptchaHandler))).WhenAll();
+            messageAssistance.SendMessageExpired(chatId, text, nameof(FilterCaptchaHandler))).WhenAll();
         return false;
     }
 
@@ -46,7 +46,7 @@ public class FilterCaptchaHandler(
     {
         await Array(
             messageAssistance.DeleteCommandMessage(chatId, messageId, nameof(FilterCaptchaHandler)),
-            messageAssistance.SendCommandResponse(chatId, filterConfig.SuccessMessage, nameof(FilterCaptchaHandler))
+            messageAssistance.SendMessageExpired(chatId, filterConfig.SuccessMessage, nameof(FilterCaptchaHandler))
         ).WhenAll();
         return true;
     }

@@ -109,7 +109,7 @@ public class MinionHandler(
         var message = string.Format(appConfig.MinionConfig.MinionCreatedMessage, minionName, masterName);
         var expirationMinutes = DateTime.UtcNow.AddMinutes(appConfig.MinionConfig.MessageExpirationMinutes);
         Log.Information("Sending minion created message to chat {0}: {1} -> {2}", chatId, minionId, masterId);
-        return await messageAssistance.SendCommandResponse(chatId, message, nameof(MinionHandler), expirationMinutes);
+        return await messageAssistance.SendMessageExpired(chatId, message, nameof(MinionHandler), expirationMinutes);
     }
 
     /// <summary>

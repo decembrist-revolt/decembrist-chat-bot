@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Bson.Serialization.Options;
 
 namespace DecembristChatBotSharp.Entity.Configs;
 
@@ -324,6 +325,7 @@ public record DislikeConfig(
 ) : IConfig;
 
 public record ItemConfig(
+    [property: BsonDictionaryOptions(DictionaryRepresentation.ArrayOfDocuments)]
     Dictionary<MemberItemType, ItemDropConfig> ItemChance,
     [property: Required(AllowEmptyStrings = false)]
     string AmuletBrokenMessage,

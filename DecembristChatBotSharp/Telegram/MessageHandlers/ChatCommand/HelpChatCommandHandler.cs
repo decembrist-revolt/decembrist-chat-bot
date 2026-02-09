@@ -69,7 +69,7 @@ public class HelpChatCommandHandler(
             builder.AppendLine(MakeCommandHelpString(command, description));
         }
 
-        return await messageAssistance.SendCommandResponse(chatId, builder.ToString(), Command);
+        return await messageAssistance.SendMessageExpired(chatId, builder.ToString(), Command);
     }
 
     private async Task<Unit> GetSpecificHelp(long chatId, int messageId, string subject, HelpConfig helpConfig)
@@ -111,19 +111,19 @@ public class HelpChatCommandHandler(
     private Task<Unit> SendCommandHelp(long chatId, string command, string description, HelpConfig helpConfig)
     {
         var message = string.Format(helpConfig.CommandHelpTemplate, command, description);
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        return messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private Task<Unit> SendItemHelp(long chatId, MemberItemType item, string description, HelpConfig helpConfig)
     {
         var message = string.Format(helpConfig.ItemHelpTemplate, item, description);
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        return messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private Task<Unit> SendHelpNotFound(long chatId, string subject, HelpConfig helpConfig)
     {
         Log.Information("Help not found for: {0}", subject);
-        return messageAssistance.SendCommandResponse(chatId, helpConfig.FailedMessage, Command);
+        return messageAssistance.SendMessageExpired(chatId, helpConfig.FailedMessage, Command);
     }
 
     private string MakeCommandHelpString(string command, string description) => $"{command} - {description}";

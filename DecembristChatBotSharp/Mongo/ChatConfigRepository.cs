@@ -1,6 +1,5 @@
 ﻿using System.Linq.Expressions;
 using DecembristChatBotSharp.Entity.Configs;
-using MongoDB.Bson;
 using MongoDB.Driver;
 using Serilog;
 
@@ -39,6 +38,23 @@ public class ChatConfigRepository(MongoDatabase db, CancellationTokenSource canc
             {
                 Log.Error("Failed to get config from chatId: {chatId}", chatId);
                 return Option<ChatConfig>.None;
+            });
+    }
+
+    public Task<Option<bool>> IsChatConfigExist(long chatId)
+    {
+        var collection = GetCollection();
+        return collection
+            .CountDocumentsAsync(c => c.ChatId == chatId, cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .Match(x =>
+            {
+                Log.Information("Successfully check config from chatId: {chatId}", chatId);
+                return Some(x > 0);
+            }, ex =>
+            {
+                Log.Error("Failed to check config exist from chatId: {chatId}", chatId);
+                return Option<bool>.None;
             });
     }
 
@@ -95,6 +111,85 @@ public class ChatConfigRepository(MongoDatabase db, CancellationTokenSource canc
             .Match(
                 chatConfig => Some(chatConfig),
                 _ => Option<ChatConfig>.None);
+    }
+
+    public async Task<bool> InsertChatConfig(ChatConfig config)
+    {
+        return await GetCollection()
+            .InsertOneAsync(config, cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .Match(_ =>
+            {
+                Log.Information("Successfully inserted config for chatId: {chatId}", config.ChatId);
+                return true;
+            }, ex =>
+            {
+                Log.Error(ex, "Failed to insert config for chatId: {chatId}", config.ChatId);
+                return false;
+            });
+    }
+
+    public async Task<bool> ToggleChatConfig(long chatId, bool enabled)
+    {
+        var collection = GetCollection();
+        var update = Builders<ChatConfig>.Update
+            .Set(c => c.CommandConfig.Enabled, enabled)
+            .Set(c => c.LikeConfig.Enabled, enabled)
+            .Set(c => c.BanConfig.Enabled, enabled)
+            .Set(c => c.TelegramPostConfig.Enabled, enabled)
+            .Set(c => c.ProfileConfig.Enabled, enabled)
+            .Set(c => c.LoreConfig.Enabled, enabled)
+            .Set(c => c.ListConfig.Enabled, enabled)
+            .Set(c => c.FilterConfig.Enabled, enabled)
+            .Set(c => c.RestrictConfig.Enabled, enabled)
+            .Set(c => c.CurseConfig.Enabled, enabled)
+            .Set(c => c.MinaConfig.Enabled, enabled)
+            .Set(c => c.SlotMachineConfig.Enabled, enabled)
+            .Set(c => c.DislikeConfig.Enabled, enabled)
+            .Set(c => c.CharmConfig.Enabled, enabled)
+            .Set(c => c.ItemConfig.Enabled, enabled)
+            .Set(c => c.HelpConfig.Enabled, enabled)
+            .Set(c => c.GiveConfig.Enabled, enabled)
+            .Set(c => c.GiveawayConfig.Enabled, enabled)
+            .Set(c => c.DustConfig.Enabled, enabled)
+            .Set(c => c.CraftConfig.Enabled, enabled)
+            .Set(c => c.MazeConfig.Enabled, enabled);
+
+        return await collection
+            .UpdateOneAsync(c => c.ChatId == chatId, update, cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .Match(result =>
+            {
+                if (result.ModifiedCount <= 0) return false;
+                Log.Information("Successfully toggle config for chatId: {chatId}", chatId);
+                return true;
+            }, ex =>
+            {
+                Log.Error(ex, "Failed to toggle config for chatId: {chatId}", chatId);
+                return false;
+            });
+    }
+
+    public async Task<bool> DeleteChatConfig(long chatId)
+    {
+        return await GetCollection()
+            .DeleteOneAsync(c => c.ChatId == chatId, cancelToken.Token)
+            .ToTryAsync()
+            .Match(result =>
+            {
+                if (result.DeletedCount > 0)
+                {
+                    Log.Information("Successfully deleted config for chatId: {chatId}", chatId);
+                    return true;
+                }
+
+                Log.Warning("No config found to delete for chatId: {chatId}", chatId);
+                return false;
+            }, ex =>
+            {
+                Log.Error(ex, "Failed to delete config for chatId: {chatId}", chatId);
+                return false;
+            });
     }
 
     private IMongoCollection<ChatConfig> GetCollection() => db.GetCollection<ChatConfig>(nameof(ChatConfig));

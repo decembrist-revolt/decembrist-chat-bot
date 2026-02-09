@@ -75,7 +75,7 @@ public class MinaHandler(
         var expiration = DateTime.UtcNow.AddMinutes(curseConfig.DurationMinutes);
         Log.Information("Mine activation message sending ChatId: {0} VictimId: {1} OwnerId: {2}", chatId,
             victimTelegramId, trigger.Id.TelegramId);
-        return await messageAssistance.SendCommandResponse(chatId, message, nameof(MinaHandler), expiration);
+        return await messageAssistance.SendMessageExpired(chatId, message, nameof(MinaHandler), expiration);
     }
 
     private async Task SetReaction(ReactionSpamMember member, int messageId, long chatId)

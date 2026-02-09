@@ -109,18 +109,18 @@ public partial class CurseCommandHandler(
     private async Task<Unit> SendReceiverNotSet(long chatId, CurseConfig curseConfig)
     {
         var message = string.Format(curseConfig.ReceiverNotSetMessage, Command);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendDuplicateMessage(long chatId, CurseConfig curseConfig)
     {
         var message = curseConfig.DuplicateMessage;
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendDuplicateRedirectedMessage(long chatId)
     {
-        return await messageAssistance.SendCommandResponse(chatId,
+        return await messageAssistance.SendMessageExpired(chatId,
             "Миньон этого пользователя уже проклят, попробуйте позже", Command);
     }
 
@@ -132,7 +132,7 @@ public partial class CurseCommandHandler(
         }
 
         var message = string.Format(curseConfig.HelpMessage, Command, EmojisString);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendSuccessMessage(CompositeId id, string emoji, CurseConfig curseConfig)
@@ -143,7 +143,7 @@ public partial class CurseCommandHandler(
         var message = string.Format(curseConfig.SuccessMessage, username, emoji);
         Log.Information("Curse message sent ChatId: {chatId}, Emoji:{emoji} Receiver: {receiver}", chatId, emoji,
             receiverId);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command,
+        return await messageAssistance.SendMessageExpired(chatId, message, Command,
             DateTime.UtcNow.AddMinutes(expireAt));
     }
 
@@ -156,7 +156,7 @@ public partial class CurseCommandHandler(
         var exp = DateTime.UtcNow.AddMinutes(curseConfig.DurationMinutes);
         Log.Information("Curse redirected ChatId: {0}, Phrase:{1} Receiver: {2}", chatId, emoji, receiverId);
         await minionService.SendNegativeEffectRedirectMessage(chatId, originalReceiverId, receiverId);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command, exp);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command, exp);
     }
 
     private async Task<Unit> SendAmuletRedirected(CompositeId id, long originalReceiverId)

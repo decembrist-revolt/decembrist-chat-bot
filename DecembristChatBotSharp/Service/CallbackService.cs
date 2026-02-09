@@ -17,6 +17,9 @@ public class CallbackService(MessageAssistance messageAssistance)
     private static readonly System.Collections.Generic.HashSet<string> ParameterWhiteList =
         [ChatIdParameter, IndexStartParameter, StepsCountParameter];
 
+    public static string GetCallback<TEnum>(string prefix, TEnum suffix) where TEnum : Enum =>
+        new StringBuilder(prefix).Append(PathSeparator).Append(suffix).ToString();
+
     public static string GetCallback<TEnum, T>
         (string prefix, TEnum suffix, params ( string key, T value )[] parameters) where TEnum : Enum =>
         GetCallback(prefix, suffix.ToString(), parameters);

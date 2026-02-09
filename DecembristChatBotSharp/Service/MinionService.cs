@@ -97,21 +97,21 @@ public class MinionService(
         var (masterUsername, minionUsername) = await GetMasterMinionNames(chatId, masterId, minionId);
         var message = string.Format(appConfig.MinionConfig.MinionRevokedByPremiumLossMessage, minionUsername,
             masterUsername);
-        await messageAssistance.SendCommandResponse(chatId, message, nameof(MinionService));
+        await messageAssistance.SendMessageExpired(chatId, message, nameof(MinionService));
     }
 
     private async Task SendMinionRevokedByBecomingPremiumMessage(long chatId, long minionId)
     {
         var minionUsername = await botClient.GetUsernameOrId(minionId, chatId, cancelToken.Token);
         var message = string.Format(appConfig.MinionConfig.MinionRevokedByBecomingPremiumMessage, minionUsername);
-        await messageAssistance.SendCommandResponse(chatId, message, nameof(MinionService));
+        await messageAssistance.SendMessageExpired(chatId, message, nameof(MinionService));
     }
 
     public async Task SendMinionRevokedByDeleteMessage(long chatId, long minionId)
     {
         var minionUsername = await botClient.GetUsernameOrId(minionId, chatId, cancelToken.Token);
         var message = string.Format(appConfig.MinionConfig.MinionRevokedByDeleteMessage, minionUsername);
-        await messageAssistance.SendCommandResponse(chatId, message, nameof(MinionService));
+        await messageAssistance.SendMessageExpired(chatId, message, nameof(MinionService));
     }
 
     public async Task<Option<long>> GetRedirectTarget(long targetTelegramId, long chatId)
@@ -125,6 +125,6 @@ public class MinionService(
     {
         var (masterName, minionName) = await GetMasterMinionNames(chatId, masterTelegramId, minionTelegramId);
         var message = string.Format(appConfig.MinionConfig.NegativeEffectRedirectMessage, masterName, minionName);
-        return await messageAssistance.SendCommandResponse(chatId, message, nameof(MinionService));
+        return await messageAssistance.SendMessageExpired(chatId, message, nameof(MinionService));
     }
 }

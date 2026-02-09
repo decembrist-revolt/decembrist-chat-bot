@@ -106,7 +106,7 @@ public class MinaCommandHandler(
     private async Task<Unit> SendDuplicateMessage(long chatId, MinaConfig minaConfig)
     {
         var message = minaConfig.DuplicateMessage;
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendHelpMessageWithLock(long chatId, MinaConfig minaConfig)
@@ -117,7 +117,7 @@ public class MinaCommandHandler(
         }
 
         var message = string.Format(minaConfig.HelpMessage, Command, EmojisString);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendSuccessMessage(long chatId, string trigger, string emoji, MinaConfig minaConfig)

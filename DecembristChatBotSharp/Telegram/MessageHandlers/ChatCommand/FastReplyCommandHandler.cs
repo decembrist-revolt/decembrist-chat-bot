@@ -101,7 +101,8 @@ public class FastReplyCommandHandler(
                 UseFastReplyResult.NoItems => await messageAssistance.SendNoItems(chatId),
                 UseFastReplyResult.Blocked => await SendBlocked(chatId, commandConfig),
                 UseFastReplyResult.Duplicate => await SendDuplicateMessage(chatId, fastReply.Id.Message, commandConfig),
-                UseFastReplyResult.Success => await SendNewFastReply(chatId, fastReply.Id.Message, fastReply.Reply, commandConfig),
+                UseFastReplyResult.Success => await SendNewFastReply(chatId, fastReply.Id.Message, fastReply.Reply,
+                    commandConfig),
                 _ => unit
             };
         }).IfSome(identity);
@@ -141,7 +142,8 @@ public class FastReplyCommandHandler(
                 UseFastReplyResult.Duplicate => await Array(
                     expiredMessageRepository.QueueMessage(chatId, messageId),
                     SendDuplicateMessage(chatId, fastReply.Id.Message, commandConfig)).WhenAll(),
-                UseFastReplyResult.Success => await SendNewFastReply(chatId, fastReply.Id.Message, fastReply.Reply, commandConfig),
+                UseFastReplyResult.Success => await SendNewFastReply(chatId, fastReply.Id.Message, fastReply.Reply,
+                    commandConfig),
                 _ => unit
             };
         }).IfSome(identity);
@@ -258,26 +260,26 @@ public class FastReplyCommandHandler(
 
         var replyMessage = string.Format(commandConfig.NewFastReplyMessage, message, reply);
         var expireAt = DateTime.UtcNow.AddMinutes(ExpirationMinutesSuccess);
-        return await messageAssistance.SendCommandResponse(chatId, replyMessage, Command, expireAt);
+        return await messageAssistance.SendMessageExpired(chatId, replyMessage, Command, expireAt);
     }
 
     private async Task<Unit> SendFastReplyHelp(long chatId, CommandConfig commandConfig)
     {
         var message = commandConfig.FastReplyHelpMessage;
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
 
     private async Task<Unit> SendDuplicateMessage(long chatId, string text, CommandConfig commandConfig)
     {
         var message = string.Format(commandConfig.FastReplyDuplicateMessage, text);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private async Task<Unit> SendBlocked(long chatId, CommandConfig commandConfig)
     {
         var message = string.Format(commandConfig.FastReplyBlockedMessage);
-        return await messageAssistance.SendCommandResponse(chatId, message, Command);
+        return await messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private Option<(string, string)> ParseMessageAndReply(string[] args)
@@ -290,7 +292,7 @@ public class FastReplyCommandHandler(
         if (message.StartsWith(_botUsername)) message = message[_botUsername.Length..];
         message = message.Trim();
 
-        if (string.IsNullOrWhiteSpace(message) || string.IsNullOrWhiteSpace(reply))
+        if (string.IsNullOrWhiteSpace(message) || string.IsNullOrWhiteSpace(reply) || message.StartsWith('/'))
         {
             return None;
         }
@@ -306,7 +308,7 @@ public class FastReplyCommandHandler(
         if (message.StartsWith(_botUsername)) message = message[_botUsername.Length..];
         message = message.Trim();
 
-        if (string.IsNullOrWhiteSpace(message) || string.IsNullOrWhiteSpace(reply))
+        if (string.IsNullOrWhiteSpace(message) || string.IsNullOrWhiteSpace(reply) || message.StartsWith('/'))
         {
             return None;
         }

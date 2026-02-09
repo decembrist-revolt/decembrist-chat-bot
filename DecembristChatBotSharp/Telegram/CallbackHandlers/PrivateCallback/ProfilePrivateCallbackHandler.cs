@@ -32,7 +32,7 @@ public class ProfilePrivateCallbackHandler(
 
 
         var taskResult = maybeParameters.MatchAsync(
-            None: () => messageAssistance.SendCommandResponse(chatId, "OK", nameof(ProfilePrivateCallbackHandler)),
+            None: () => messageAssistance.SendMessageExpired(chatId, "OK", nameof(ProfilePrivateCallbackHandler)),
             Some: async parameters =>
             {
                 if (!callbackService.HasChatIdKey(parameters, out var targetChatId) &&

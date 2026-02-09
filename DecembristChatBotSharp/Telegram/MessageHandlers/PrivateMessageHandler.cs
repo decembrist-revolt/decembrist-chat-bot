@@ -19,8 +19,10 @@ public class PrivateMessageHandler(
     MessageAssistance messageAssistance,
     InventoryService inventoryService,
     ProfileButtons profileButtons,
+    ChatConfigButton chatConfigButton,
     LoreHandler loreHandler,
     FilterRecordHandler filterRecordHandler,
+    ChatConfigHandler chatConfigHandler,
     MazeGameJoinCommandHandler mazeGameJoinCommandHandler,
     ChatConfigService chatConfigService,
     CancellationTokenSource cancelToken)
@@ -33,6 +35,7 @@ public class PrivateMessageHandler(
 
     private const string MeCommand = "/me";
     private const string StatusCommand = "/status";
+    private const string ChatConfigCommand = "/chatconfig";
     private const string InventoryCommand = StartCommand + " " + InventoryCommandSuffix + SplitSymbol;
     private const string MazeGameInviteCommand = StartCommand + " " + MazeGameCommandSuffix + SplitSymbol;
     private const string GreetingsButtonText = "Добро пожаловать, нажмите на кнопку, чтобы продолжить";
@@ -49,7 +52,10 @@ public class PrivateMessageHandler(
             MessageType.Text when message.Text?.Contains(MazeGameInviteCommand) == true
                                   && message.Text.Split("=") is [_, var chatIdText]
                                   && long.TryParse(chatIdText, out var targetChatId) =>
-                await SendMazeGame(privateChatId, targetChatId),
+                await RedirectToMazeGame(privateChatId, targetChatId),
+            MessageType.Text when message is { Text: not null, ReplyToMessage.Text: { } replyText }
+                                  && replyText.Contains(ChatConfigHandler.Tag) =>
+                await RedirectToChatConfig(message),
             _ => false
         };
         if (isHandler) return unit;
@@ -58,6 +64,8 @@ public class PrivateMessageHandler(
         {
             MessageType.Sticker => SendStickerFileId(privateChatId, message.Sticker!.FileId),
             MessageType.Text when message.Text == MeCommand => SendMe(telegramId, privateChatId),
+            MessageType.Text when message.Text == ChatConfigCommand =>
+                await SendChatConfigButton(telegramId, privateChatId),
             MessageType.Text when message.Text == ProfileCommand => SendMenuButton(privateChatId),
             MessageType.Text when message.Text?.Contains(InventoryCommand) == true
                                   && message.Text.Split("=") is [_, var chatIdText]
@@ -119,6 +127,21 @@ public class PrivateMessageHandler(
             cancellationToken: cancelToken.Token));
     }
 
+    private async Task<TryAsync<Message>> SendChatConfigButton(long telegramId, long chatId)
+    {
+        if (!appConfig.GlobalAdminConfig.AdminIds.Contains(telegramId))
+        {
+            Log.Information("User {TelegramId} is not a global admin", telegramId);
+            return TryAsync(botClient.SendMessage(telegramId, appConfig.ChatConfigMessages.AdminOnlyMessage,
+                cancellationToken: cancelToken.Token));
+        }
+
+        var buttons = chatConfigButton.GetMarkup();
+
+        return TryAsync(botClient.SendMessage(chatId, GreetingsButtonText, replyMarkup: buttons,
+            cancellationToken: cancelToken.Token));
+    }
+
     private TryAsync<Message> SendStickerFileId(long chatId, string fileId)
     {
         var message = $"*Sticker fileId*\n\n`{FastReplyHandler.StickerPrefix}{fileId}`";
@@ -138,9 +161,15 @@ public class PrivateMessageHandler(
             cancellationToken: cancelToken.Token));
     }
 
-    private async Task<bool> SendMazeGame(long privateChatId, long chatId)
+    private async Task<bool> RedirectToMazeGame(long privateChatId, long chatId)
     {
         await mazeGameJoinCommandHandler.Do(chatId, privateChatId);
+        return true;
+    }
+
+    private async Task<bool> RedirectToChatConfig(Message message)
+    {
+        await chatConfigHandler.Do(message);
         return true;
     }
 

@@ -86,7 +86,7 @@ public partial class ListCommandHandler(
     private Task<Unit> SendNotFound(long chatId, ListType listType, ListConfig listConfig)
     {
         var message = string.Format(listConfig.NotFound, listType);
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        return messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private Task<Unit> SendListSuccess(long chatId, long telegramId, ListType listType, string keys, int totalCount,
@@ -118,7 +118,7 @@ public partial class ListCommandHandler(
     }
 
     private Task<Unit> SendHelpMessage(long chatId, ListConfig listConfig) => messageAssistance
-        .SendCommandResponse(chatId, string.Format(listConfig.HelpMessage, Command, _listOptions), Command);
+        .SendMessageExpired(chatId, string.Format(listConfig.HelpMessage, Command, _listOptions), Command);
 }
 
 public enum ListType

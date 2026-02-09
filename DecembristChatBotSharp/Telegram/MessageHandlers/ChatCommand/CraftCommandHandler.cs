@@ -66,7 +66,7 @@ public partial class CraftCommandHandler(
     {
         var message = string.Format(craftConfig.SuccessMessage, reward.Quantity, reward.Item);
         var expirationDate = DateTime.UtcNow.AddMinutes(craftConfig.SuccessExpiration);
-        return messageAssistance.SendCommandResponse(chatId, message, Command, expirationDate);
+        return messageAssistance.SendMessageExpired(chatId, message, Command, expirationDate);
     }
 
     private Task<Unit> SendPremiumSuccess(long chatId, ItemQuantity reward, CraftConfig craftConfig)
@@ -74,25 +74,25 @@ public partial class CraftCommandHandler(
         var successMessage = string.Format(craftConfig.SuccessMessage, reward.Quantity, reward.Item);
         var message = string.Format(craftConfig.PremiumSuccessMessage, successMessage, craftConfig.PremiumBonus);
         var expirationDate = DateTime.UtcNow.AddMinutes(craftConfig.SuccessExpiration);
-        return messageAssistance.SendCommandResponse(chatId, message, Command, expirationDate);
+        return messageAssistance.SendMessageExpired(chatId, message, Command, expirationDate);
     }
 
     private Task<Unit> SendNoRecipe(long chatId, CraftConfig craftConfig)
     {
         var message = craftConfig.NoRecipeMessage;
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        return messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private Task<Unit> SendHelp(long chatId, CraftConfig craftConfig)
     {
         var message = string.Format(craftConfig.HelpMessage, Command);
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        return messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private Task<Unit> SendFailed(long chatId, CraftConfig craftConfig)
     {
         var message = craftConfig.FailedMessage;
-        return messageAssistance.SendCommandResponse(chatId, message, Command);
+        return messageAssistance.SendMessageExpired(chatId, message, Command);
     }
 
     private List<ItemQuantity> GetCraftItems(string text)

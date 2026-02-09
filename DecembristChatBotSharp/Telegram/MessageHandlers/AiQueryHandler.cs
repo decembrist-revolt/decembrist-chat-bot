@@ -32,22 +32,22 @@ public class AiQueryHandler(
 
         // Remove bot mention from text if present
         var userQueryText = RemoveBotMention(text);
-        
+
         // Build the final query text based on reply message and user text
         string queryText;
-        
+
         // Check if we should include reply message in context
         // Don't include reply text if it's a reply to bot without bot mention
         var shouldIncludeReplyText = parameters.ReplyToMessageText.IsSome && parameters is not
         {
-            ReplyToBotMessage: true, 
+            ReplyToBotMessage: true,
             BotMentioned: false
         };
-        
+
         if (shouldIncludeReplyText)
         {
             var replyText = parameters.ReplyToMessageText.ValueUnsafe();
-            
+
             if (string.IsNullOrWhiteSpace(userQueryText))
             {
                 // Only bot mention, no additional text - analyze the reply message
@@ -68,6 +68,7 @@ public class AiQueryHandler(
             {
                 return false;
             }
+
             queryText = userQueryText;
         }
 
@@ -79,13 +80,9 @@ public class AiQueryHandler(
             var activeQuiz = await quizRepository.GetActiveQuestion(chatId);
             if (activeQuiz.IsSome)
             {
-                await botClient.SendMessageAndLog(
-                    chatId,
-                    appConfig.DeepSeekConfig!.ActiveQuizMessage,
-                    replyMessageId: messageId,
-                    _ => Log.Information("Sent active quiz message to user {UserId} in chat {ChatId}", telegramId, chatId),
-                    ex => Log.Error(ex, "Failed to send active quiz message to chat {ChatId}", chatId),
-                    cancelToken.Token);
+                Log.Information("Send Quiz Active Message");
+                await messageAssistance.SendMessageExpired(chatId, appConfig.DeepSeekConfig!.ActiveQuizMessage,
+                    nameof(AiQueryHandler), replyParameters: new ReplyParameters { MessageId = messageId });
                 return true;
             }
         }
@@ -117,7 +114,7 @@ public class AiQueryHandler(
         var maybeSent =
             from sentMessageId in SendThinkingMessage(chatId, messageId).ToTryOptionAsync()
             select SendToDeepSeek(chatId, telegramId, queryText, sentMessageId);
-        
+
         return await maybeSent.IfNoneOrFail(async () =>
         {
             await SendAiErrorMessage(chatId, messageId);
@@ -184,13 +181,9 @@ public class AiQueryHandler(
 
     private async Task<bool> SendNoItemsMessage(long chatId, int messageId)
     {
-        await botClient.SendMessageAndLog(
-            chatId,
-            appConfig.DeepSeekConfig!.NoTokensMessage,
-            replyMessageId: messageId,
-            _ => Log.Information("Sent no AI tokens message to chat {ChatId}", chatId),
-            ex => Log.Error(ex, "Failed to send no AI tokens message to chat {ChatId}", chatId),
-            cancelToken.Token);
+        Log.Information("Send No Ai Tokens Items Message");
+        await messageAssistance.SendMessageExpired(chatId, appConfig.DeepSeekConfig!.NoTokensMessage,
+            nameof(AiQueryHandler), replyParameters: new ReplyParameters { MessageId = messageId });
         return true;
     }
 
@@ -201,32 +194,24 @@ public class AiQueryHandler(
         {
             return false;
         }
-        
+
         // Otherwise, send no tokens message
         return await SendNoItemsMessage(chatId, messageId);
     }
 
     private async Task<bool> SendFailedMessage(long chatId, int messageId)
     {
-        await botClient.SendMessageAndLog(
-            chatId,
-            appConfig.DeepSeekConfig!.FailedToUseTokenMessage,
-            replyMessageId: messageId,
-            _ => Log.Information("Sent AI token failed message to chat {ChatId}", chatId),
-            ex => Log.Error(ex, "Failed to send AI token failed message to chat {ChatId}", chatId),
-            cancelToken.Token);
+        Log.Information("Send Failed To Use Ai Token Message");
+        await messageAssistance.SendMessageExpired(chatId, appConfig.DeepSeekConfig!.FailedToUseTokenMessage,
+            nameof(AiQueryHandler), replyParameters: new ReplyParameters { MessageId = messageId });
         return true;
     }
 
     private async Task<bool> SendAiErrorMessage(long chatId, int messageId)
     {
-        await botClient.SendMessageAndLog(
-            chatId,
-            appConfig.DeepSeekConfig!.AiErrorMessage,
-            replyMessageId: messageId,
-            _ => Log.Information("Sent AI error message to chat {ChatId}", chatId),
-            ex => Log.Error(ex, "Failed to send AI error message to chat {ChatId}", chatId),
-            cancelToken.Token);
+        Log.Information("Send Ai Error Message");
+        await messageAssistance.SendMessageExpired(chatId, appConfig.DeepSeekConfig!.AiErrorMessage,
+            nameof(AiQueryHandler), replyParameters: new ReplyParameters { MessageId = messageId });
         return true;
     }
 }
