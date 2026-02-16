@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using System.Text.RegularExpressions;
+using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
@@ -13,15 +14,30 @@ public class FilteredMessageHandler(
     WhiteListRepository whiteListRepository,
     FilterRecordRepository filterRecordRepository,
     FilteredMessageRepository filteredMessageRepository,
+    DeepSeekOpenAiService deepSeekOpenAiService,
     BotClient botClient,
     CancellationTokenSource cancelToken,
     ChatConfigService chatConfigService)
 {
+    private const int SmallMessageLength = 6;
+
+    private static readonly Regex LinkRegex = new(@"([^\s<>]+\.[^\s<>]{2,})",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
-        if (parameters.Payload is not TextPayload { Text: var text }) return false;
         var (messageId, telegramId, chatId) = parameters;
+        if (await whiteListRepository.IsWhiteListMember((telegramId, chatId))) return false;
+        if (parameters.Payload is StickerPayload) return await SendCaptchaMessage(chatId, messageId, telegramId);
+        if (parameters.Payload is not TextPayload { IsLink: var isLink, Text: var text }) return false;
 
+        if (isLink || LinkRegex.IsMatch(text) || !await IsFiltered(text, chatId))
+            return await SendCaptchaMessage(chatId, messageId, telegramId);
+        return await CheckAiModeration(chatId, telegramId, messageId, text);
+    }
+
+    private async Task<bool> SendCaptchaMessage(long chatId, int messageId, long telegramId)
+    {
         var maybeFilterConfig = await chatConfigService.GetConfig(chatId, config => config.FilterConfig);
         if (!maybeFilterConfig.TryGetSome(out var filterConfig))
         {
@@ -29,11 +45,8 @@ public class FilteredMessageHandler(
                 nameof(FilteredMessageHandler));
         }
 
-        if (!await IsFiltered(text, chatId) || await whiteListRepository.IsWhiteListMember((telegramId, chatId)))
-            return false;
         var messageText = string.Format(
             filterConfig.CaptchaMessage, filterConfig.CaptchaAnswer, filterConfig.CaptchaTimeSeconds);
-
         return await botClient.SendMessage(chatId, messageText,
                 replyParameters: new ReplyParameters { MessageId = messageId },
                 cancellationToken: cancelToken.Token)
@@ -53,6 +66,25 @@ public class FilteredMessageHandler(
                 });
     }
 
-    private async Task<bool> IsFiltered(string text, long chatId) =>
-        await filterRecordRepository.IsFilterRecordContain(chatId, text.ToLower());
+    private async Task<bool> CheckAiModeration(long chatId, long telegramId, int messageId, string text)
+    {
+        var maybeVerdict = await deepSeekOpenAiService.GetModerateVerdict(text, chatId, telegramId);
+        if (!maybeVerdict.TryGetSome(out var isScam))
+        {
+            Log.Error("Ai Moderation is fail, no action to user");
+            return false;
+        }
+
+        if (isScam) return await SendCaptchaMessage(chatId, messageId, telegramId);
+
+        await whiteListRepository.AddWhiteListMember(new WhiteListMember(new CompositeId(telegramId, chatId)));
+        return false;
+    }
+
+    private async Task<bool> IsFiltered(string text, long chatId)
+    {
+        var t = text.Split(" ");
+        if (t.Length > SmallMessageLength) return true;
+        return await filterRecordRepository.IsFilterRecordContain(chatId, text);
+    }
 }

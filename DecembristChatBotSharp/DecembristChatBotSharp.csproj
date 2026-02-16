@@ -35,6 +35,7 @@
         <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.3" />
         <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.3" />
         <PackageReference Include="MongoDB.Driver" Version="3.2.1" />
+        <PackageReference Include="OpenAI" Version="2.8.0" />
         <PackageReference Include="Quartz" Version="3.14.0" />
         <PackageReference Include="Quartz.Serialization.Json" Version="3.14.0" />
         <PackageReference Include="Quartz.Spi.MongoDbJobStore" Version="4.0.0-preview.9" />

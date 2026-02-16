@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Entity.Configs;
+﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
@@ -9,7 +10,8 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 public class FilterCaptchaHandler(
     FilteredMessageRepository filteredMessageRepository,
     MessageAssistance messageAssistance,
-    ChatConfigService chatConfigService)
+    ChatConfigService chatConfigService,
+    WhiteListRepository whiteListRepository)
 {
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
@@ -28,7 +30,7 @@ public class FilterCaptchaHandler(
             await filteredMessageRepository.DeleteFilteredMessage(m.Id);
 
             return IsCaptchaPassed(parameters.Payload, filterConfig)
-                ? await SendSuccessCaptcha(chatId, messageId, filterConfig)
+                ? await HandleSuccessCaptcha(chatId, telegramId, messageId, filterConfig)
                 : await SendFailedCaptcha(chatId, m.Id.MessageId, filterConfig);
         }, () => false);
     }
@@ -36,14 +38,17 @@ public class FilterCaptchaHandler(
     private async Task<bool> SendFailedCaptcha(long chatId, int suspiciousMessageId, FilterConfig filterConfig)
     {
         var text = filterConfig.FailedMessage;
-        await Array(
-            messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(FilterCaptchaHandler)),
-            messageAssistance.SendMessageExpired(chatId, text, nameof(FilterCaptchaHandler))).WhenAll();
+        var buttons =
+            await Array(
+                messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(FilterCaptchaHandler)),
+                messageAssistance.SendMessage(chatId, text, nameof(FilterCaptchaHandler))).WhenAll();
         return false;
     }
 
-    private async Task<bool> SendSuccessCaptcha(long chatId, int messageId, FilterConfig filterConfig)
+    private async Task<bool> HandleSuccessCaptcha(long chatId, long telegramId, int messageId,
+        FilterConfig filterConfig)
     {
+        await whiteListRepository.AddWhiteListMember(new WhiteListMember(new CompositeId(telegramId, chatId)));
         await Array(
             messageAssistance.DeleteCommandMessage(chatId, messageId, nameof(FilterCaptchaHandler)),
             messageAssistance.SendMessageExpired(chatId, filterConfig.SuccessMessage, nameof(FilterCaptchaHandler))
