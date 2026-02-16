@@ -14,7 +14,7 @@ public class FilteredMessageHandler(
     WhiteListRepository whiteListRepository,
     FilterRecordRepository filterRecordRepository,
     FilteredMessageRepository filteredMessageRepository,
-    DeepSeekOpenAiService deepSeekOpenAiService,
+    DeepSeekService deepSeekService,
     BotClient botClient,
     CancellationTokenSource cancelToken,
     ChatConfigService chatConfigService)
@@ -68,7 +68,7 @@ public class FilteredMessageHandler(
 
     private async Task<bool> CheckAiModeration(long chatId, long telegramId, int messageId, string text)
     {
-        var maybeVerdict = await deepSeekOpenAiService.GetModerateVerdict(text, chatId, telegramId);
+        var maybeVerdict = await deepSeekService.GetModerateVerdict(text, chatId, telegramId);
         if (!maybeVerdict.TryGetSome(out var isScam))
         {
             Log.Error("Ai Moderation is fail, no action to user");

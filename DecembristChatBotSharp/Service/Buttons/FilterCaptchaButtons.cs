@@ -22,7 +22,7 @@ public class FilterCaptchaButtons()
 
     private static InlineKeyboardButton GetChatConfigButton(string name, FilterAdminDecision suffix)
     {
-        var callback = CallbackService.GetCallback(ChatConfigCallbackHandler.PrefixKey, suffix);
+        var callback = CallbackService.GetCallback(FilterAdminCallbackHandler.PrefixKey, suffix);
         return InlineKeyboardButton.WithCallbackData(name, callback);
     }
 }

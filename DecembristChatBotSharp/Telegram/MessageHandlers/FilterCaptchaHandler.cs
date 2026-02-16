@@ -2,6 +2,7 @@
 using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
+using DecembristChatBotSharp.Service.Buttons;
 using Lamar;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
@@ -10,6 +11,7 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 public class FilterCaptchaHandler(
     FilteredMessageRepository filteredMessageRepository,
     MessageAssistance messageAssistance,
+    FilterCaptchaButtons filterCaptchaButtons,
     ChatConfigService chatConfigService,
     WhiteListRepository whiteListRepository)
 {
@@ -38,10 +40,11 @@ public class FilterCaptchaHandler(
     private async Task<bool> SendFailedCaptcha(long chatId, int suspiciousMessageId, FilterConfig filterConfig)
     {
         var text = filterConfig.FailedMessage;
-        var buttons =
-            await Array(
-                messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(FilterCaptchaHandler)),
-                messageAssistance.SendMessage(chatId, text, nameof(FilterCaptchaHandler))).WhenAll();
+        var buttons = filterCaptchaButtons.GetMarkup();
+        await Array(
+            messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(FilterCaptchaHandler)),
+            messageAssistance.SendMessage(chatId, text, replyMarkup: buttons,
+                commandName: nameof(FilterCaptchaHandler))).WhenAll();
         return false;
     }
 
