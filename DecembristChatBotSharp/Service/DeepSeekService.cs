@@ -33,6 +33,17 @@ public class DeepSeekService(
     IHttpClientFactory httpClientFactory,
     AppConfig appConfig)
 {
+    private readonly string _moderatorPrompt = appConfig.FilterJobConfig.DeepSeekPrompt +
+                                               string.Join("\n - ", appConfig.FilterJobConfig.ScamTraitors) +
+                                               $$"""
+                                                 Сообщение для проверки:
+                                                 "{0}"
+
+                                                 Ответь СТРОГО в формате JSON, без дополнительного текста:
+                                                 {"isScam": true} или {"isScam": false}
+                                                 Отвечай только JSON, ничего больше.
+                                                 """;
+
     public async Task<Option<string>> GetChatResponse(string userMessage, long chatId, long userId)
     {
         try
@@ -82,37 +93,17 @@ public class DeepSeekService(
         }
     }
 
-    public async Task<Option<bool>> GetModerateVerdict(string messageText, long chatId, long userId)
+    public async Task<Option<bool>> GetModerateVerdict(string messageText, long chatId, long userId,
+        string parentMessageText = "")
     {
-        var prompt = $$"""
-                       Ты - модератор чата. Твоя задача определить, является ли сообщение спамом, мошенничеством (скамом) или рекламой.
-
-                       Признаки скама/спама:
-                       - Предложения "лёгкого заработка", "работы на дому" с высокой оплатой
-                       - Упоминание конкретных сумм денег за простую работу
-                       - Призывы написать в личные сообщения для получения "выгодного предложения"
-                       - "Ежедневная оплата", "удалённая работа", "доход от X рублей/долларов"
-                       - Фразы типа "ищу N человек", "пиши +", "пиши сюда"
-                       - Обещания заработка с телефона или компьютера без специальных навыков
-                       - Реклама сторонних сервисов, каналов, ботов (кроме тематических обсуждений)
-
-                       Сообщение для проверки:
-                       "{messageText}"
-
-                       Ответь СТРОГО в формате JSON, без дополнительного текста:
-                       {"isScam": true}
-                       или
-                       {"isScam": false}
-
-                       Отвечай только JSON, ничего больше.
-                       """;
+        var prompt = string.Format(_moderatorPrompt, messageText);
         try
         {
             using var httpClient = httpClientFactory.CreateClient("DeepSeekClient");
 
             var requestData = new DeepSeekRequest(
                 Message: prompt,
-                ParentMessageId: ""
+                ParentMessageId: parentMessageText
             );
             var jsonRequest = JsonSerializer.Serialize(requestData);
             var request = new HttpRequestMessage(HttpMethod.Post, appConfig.DeepSeekConfig.ApiUrl);

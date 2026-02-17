@@ -155,8 +155,10 @@ public record LoreServiceConfig(
 
 public record FilterJobConfig(
     [property: Range(1, int.MaxValue)] int CheckCaptchaIntervalSeconds,
-    [property: Range(1, int.MaxValue)] int CaptchaTimeSeconds
-);
+    [property: Range(1, int.MaxValue)] int CaptchaTimeSeconds,
+    [property: Required(AllowEmptyStrings = false)]
+    string DeepSeekPrompt,
+    System.Collections.Generic.HashSet<string> ScamTraitors);
 
 public record RedditConfig(
     [property: Required(AllowEmptyStrings = false)]

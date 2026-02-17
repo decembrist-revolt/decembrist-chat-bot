@@ -1,5 +1,4 @@
 ﻿using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
-using DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
 using Lamar;
 using Telegram.Bot.Types.ReplyMarkups;
 
@@ -14,8 +13,8 @@ public class FilterCaptchaButtons()
         {
             InlineKeyboard =
             [
-                [GetChatConfigButton("Забанить", FilterAdminDecision.Bun)],
-                [GetChatConfigButton("Разбанить", FilterAdminDecision.UnBun)],
+                [GetChatConfigButton("Забанить", FilterAdminDecision.Ban)],
+                [GetChatConfigButton("Разбанить", FilterAdminDecision.UnBan)],
             ]
         };
     }

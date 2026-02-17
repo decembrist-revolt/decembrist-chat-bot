@@ -13,6 +13,7 @@ public class FilterCaptchaHandler(
     MessageAssistance messageAssistance,
     FilterCaptchaButtons filterCaptchaButtons,
     ChatConfigService chatConfigService,
+    BanService banService,
     WhiteListRepository whiteListRepository)
 {
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
@@ -33,14 +34,16 @@ public class FilterCaptchaHandler(
 
             return IsCaptchaPassed(parameters.Payload, filterConfig)
                 ? await HandleSuccessCaptcha(chatId, telegramId, messageId, filterConfig)
-                : await SendFailedCaptcha(chatId, m.Id.MessageId, filterConfig);
+                : await HandleFailedCaptcha(chatId, telegramId, m.Id.MessageId, filterConfig);
         }, () => false);
     }
 
-    private async Task<bool> SendFailedCaptcha(long chatId, int suspiciousMessageId, FilterConfig filterConfig)
+    private async Task<bool> HandleFailedCaptcha(long chatId, long telegramId, int suspiciousMessageId,
+        FilterConfig filterConfig)
     {
         var text = filterConfig.FailedMessage;
         var buttons = filterCaptchaButtons.GetMarkup();
+        await banService.RestrictChatMember(chatId, telegramId);
         await Array(
             messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(FilterCaptchaHandler)),
             messageAssistance.SendMessage(chatId, text, replyMarkup: buttons,

@@ -1,6 +1,8 @@
 ﻿using System.Runtime.CompilerServices;
 using Lamar;
 using Serilog;
+using Telegram.Bot;
+using Telegram.Bot.Types;
 
 namespace DecembristChatBotSharp.Service;
 
@@ -38,4 +40,52 @@ public class BanService(BotClient botClient, CancellationTokenSource cancelToken
         await BanChatMember(chatId, telegramId, callerName: callerName);
         return await UnbanChatMember(chatId, telegramId, callerName);
     }
+
+    public async Task<Unit> RestrictChatMember(long chatId, long telegramId)
+    {
+        var permissions = new ChatPermissions
+        {
+            CanSendMessages = false,
+        };
+
+        await botClient.RestrictChatMember(
+                chatId: chatId,
+                userId: telegramId,
+                permissions: permissions,
+                cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .Match(
+                _ =>
+                {
+                    Log.Information("Restriction for user {0} in chat {1}", telegramId, chatId);
+                    return true;
+                },
+                ex =>
+                {
+                    Log.Error(ex, "Failed to apply timeout restriction for user {0} in chat {1}",
+                        telegramId, chatId);
+                    return false;
+                });
+        return unit;
+    }
+
+    public async Task<Unit> UnRestrictChatMember(long chatId, long telegramId) =>
+        await botClient.RestrictChatMember(
+                chatId: chatId,
+                userId: telegramId,
+                permissions: new ChatPermissions { CanSendMessages = true },
+                cancellationToken: cancelToken.Token)
+            .ToTryAsync()
+            .Match(
+                _ =>
+                {
+                    Log.Information("UnRestriction for user {0} in chat {1}", telegramId, chatId);
+                    return unit;
+                },
+                ex =>
+                {
+                    Log.Error(ex, "Failed to apply timeout un restriction for user {0} in chat {1}",
+                        telegramId, chatId);
+                    return unit;
+                });
 }
