@@ -7,21 +7,24 @@ namespace DecembristChatBotSharp.Service.Buttons;
 [Singleton]
 public class FilterCaptchaButtons()
 {
-    public InlineKeyboardMarkup GetMarkup()
+    public InlineKeyboardMarkup GetMarkup(long telegramId)
     {
         return new InlineKeyboardMarkup
         {
             InlineKeyboard =
             [
-                [GetChatConfigButton("Забанить", FilterAdminDecision.Ban)],
-                [GetChatConfigButton("Разбанить", FilterAdminDecision.UnBan)],
+                [
+                    GetChatConfigButton("Забанить", telegramId, FilterAdminDecision.Ban),
+                    GetChatConfigButton("Разбанить", telegramId, FilterAdminDecision.UnBan)
+                ],
             ]
         };
     }
 
-    private static InlineKeyboardButton GetChatConfigButton(string name, FilterAdminDecision suffix)
+    private static InlineKeyboardButton GetChatConfigButton(string name, long telegramId, FilterAdminDecision suffix)
     {
-        var callback = CallbackService.GetCallback(FilterAdminCallbackHandler.PrefixKey, suffix);
+        var callback = CallbackService.GetCallback(
+            FilterCaptchaCallbackHandler.PrefixKey, suffix, (CallbackService.UserIdParameter, telegramId));
         return InlineKeyboardButton.WithCallbackData(name, callback);
     }
 }

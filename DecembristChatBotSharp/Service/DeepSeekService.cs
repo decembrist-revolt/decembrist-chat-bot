@@ -33,16 +33,20 @@ public class DeepSeekService(
     IHttpClientFactory httpClientFactory,
     AppConfig appConfig)
 {
-    private readonly string _moderatorPrompt = appConfig.FilterJobConfig.DeepSeekPrompt +
-                                               string.Join("\n - ", appConfig.FilterJobConfig.ScamTraitors) +
-                                               $$"""
-                                                 Сообщение для проверки:
-                                                 "{0}"
-
-                                                 Ответь СТРОГО в формате JSON, без дополнительного текста:
-                                                 {"isScam": true} или {"isScam": false}
-                                                 Отвечай только JSON, ничего больше.
-                                                 """;
+    private const string ModeratorPrompt = """
+                                           Ты - модератор чата. 
+                                           Твоя задача определить, является ли сообщение спамом, мошенничеством (скамом) или рекламой,
+                                           Достаточно одного признака скама:
+                                                - Предложения "лёгкого заработка", "работы на дому" с высокой оплатой,
+                                                - Упоминание конкретных сумм денег за простую работу,
+                                                - Призывы написать в личные сообщения для получения "выгодного предложения",
+                                                - Фразы типа "ищу N человек", "пиши +", "пиши сюда",
+                                                - Реклама сторонних сервисов, каналов, ботов (кроме тематических обсуждений)
+                                                
+                                           Ответь СТРОГО в формате JSON, без дополнительного текста:
+                                           {"isScam": true} или {"isScam": false}
+                                           Отвечай только JSON, ничего больше.
+                                           """;
 
     public async Task<Option<string>> GetChatResponse(string userMessage, long chatId, long userId)
     {
@@ -93,17 +97,33 @@ public class DeepSeekService(
         }
     }
 
-    public async Task<Option<bool>> GetModerateVerdict(string messageText, long chatId, long userId,
-        string parentMessageText = "")
+    public async Task<Option<bool>> GetModerateVerdict(string messageText, long chatId, long userId)
     {
-        var prompt = string.Format(_moderatorPrompt, messageText);
+        // var prompt = ModeratorPrompt + $"\n Сообщение для проверки: {messageText}";
+        var prompt = $$"""
+                       Ты - модератор чата. 
+                       Твоя задача определить, является ли сообщение спамом, мошенничеством (скамом) или рекламой,
+                       Достаточно одного признака скама:
+                            - Предложения "лёгкого заработка", "работы на дому" с высокой оплатой,
+                            - Упоминание конкретных сумм денег за простую работу,
+                            - Призывы написать в личные сообщения для получения "выгодного предложения",
+                            - Фразы типа "ищу N человек", "пиши +", "пиши сюда",
+                            - Реклама сторонних сервисов, каналов, ботов (кроме тематических обсуждений)
+                            
+                       Сообщение для проверки: 
+                       "{{messageText}}"
+                            
+                       Ответь СТРОГО в формате JSON, без дополнительного текста:
+                       если есть хоть один признак то {"isScam": true}, если нет то {"isScam": false}
+                       Отвечай только JSON, ничего больше.
+                       """;
         try
         {
             using var httpClient = httpClientFactory.CreateClient("DeepSeekClient");
 
             var requestData = new DeepSeekRequest(
                 Message: prompt,
-                ParentMessageId: parentMessageText
+                ParentMessageId: ""
             );
             var jsonRequest = JsonSerializer.Serialize(requestData);
             var request = new HttpRequestMessage(HttpMethod.Post, appConfig.DeepSeekConfig.ApiUrl);
@@ -123,7 +143,9 @@ public class DeepSeekService(
             ModerationResponse? moderation = null;
             try
             {
-                moderation = JsonSerializer.Deserialize<ModerationResponse>(responseContent);
+                var apiResponse = JsonSerializer.Deserialize<DeepSeekResponse>(responseContent);
+                moderation = JsonSerializer.Deserialize<ModerationResponse>(apiResponse?.Message ??
+                                                                            throw new NullReferenceException());
                 if (moderation == null)
                 {
                     var start = responseContent.IndexOf('{');

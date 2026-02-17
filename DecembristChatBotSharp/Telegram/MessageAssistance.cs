@@ -143,13 +143,14 @@ public class MessageAssistance(
         string commandName,
         ReplyMarkup? replyMarkup = null,
         ParseMode parseMode = ParseMode.None,
+        ReplyParameters? replyParameters = null,
         [CallerMemberName] string callerName = "UnknownCaller") =>
         await botClient.SendMessageAndLog(chatId, message, parseMode,
             message => Log.Information("Sent response to command:'{0}' from {1} to chat {2}", commandName, callerName,
                 chatId),
             ex => Log.Error(ex, "Failed to send response to command: {0} from {1} to chat {2}",
                 commandName, callerName, chatId),
-            cancelToken.Token, replyMarkup);
+            cancelToken.Token, replyMarkup, replyParameters);
 
     /// <summary>
     /// Send a message that will be deleted by timer

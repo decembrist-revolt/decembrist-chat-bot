@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
@@ -19,7 +20,7 @@ public class FilteredMessageHandler(
     CancellationTokenSource cancelToken,
     ChatConfigService chatConfigService)
 {
-    private const int SmallMessageLength = 6;
+    private const int MaxMessageLength = 6;
 
     private static readonly Regex LinkRegex = new(@"([^\s<>]+\.[^\s<>]{2,})",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -41,7 +42,7 @@ public class FilteredMessageHandler(
         var maybeFilterConfig = await chatConfigService.GetConfig(chatId, config => config.FilterConfig);
         if (!maybeFilterConfig.TryGetSome(out var filterConfig))
         {
-            return chatConfigService.LogNonExistConfig(false, nameof(Entity.Configs.FilterConfig),
+            return chatConfigService.LogNonExistConfig(false, nameof(FilterConfig),
                 nameof(FilteredMessageHandler));
         }
 
@@ -72,7 +73,7 @@ public class FilteredMessageHandler(
         if (!maybeVerdict.TryGetSome(out var isScam))
         {
             Log.Error("Ai Moderation is fail, no action to user");
-            return false;
+            return await SendCaptchaMessage(chatId, messageId, telegramId);
         }
 
         if (isScam) return await SendCaptchaMessage(chatId, messageId, telegramId);
@@ -83,8 +84,7 @@ public class FilteredMessageHandler(
 
     private async Task<bool> IsFiltered(string text, long chatId)
     {
-        var t = text.Split(" ");
-        if (t.Length > SmallMessageLength) return true;
+        if (text.Length > MaxMessageLength) return true;
         return await filterRecordRepository.IsFilterRecordContain(chatId, text);
     }
 }
