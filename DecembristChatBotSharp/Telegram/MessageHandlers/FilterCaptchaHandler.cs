@@ -2,21 +2,17 @@
 using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
-using DecembristChatBotSharp.Service.Buttons;
 using Lamar;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
 public class FilterCaptchaHandler(
-    BotClient botClient,
     FilteredMessageRepository filteredMessageRepository,
     MessageAssistance messageAssistance,
-    FilterCaptchaButtons filterCaptchaButtons,
     ChatConfigService chatConfigService,
     BanService banService,
-    WhiteListRepository whiteListRepository,
-    CancellationTokenSource cancelToken)
+    WhiteListRepository whiteListRepository)
 {
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
@@ -43,11 +39,8 @@ public class FilterCaptchaHandler(
     private async Task<bool> HandleFailedCaptcha(
         long chatId, long telegramId, int captchaMessageId, int suspiciousMessageId, FilterConfig filterConfig)
     {
-        var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
-        var text = string.Format(filterConfig.FailedMessage, username);
-        var buttons = filterCaptchaButtons.GetMarkup(telegramId);
-        await messageAssistance.SendMessage(chatId, text, replyMarkup: buttons, replyParameters: suspiciousMessageId,
-            commandName: nameof(FilterCaptchaHandler));
+        await messageAssistance.SendFilterRestrictMessage(chatId, telegramId, suspiciousMessageId, filterConfig,
+            nameof(FilterCaptchaHandler));
         await Array(
             banService.RestrictChatMember(chatId, telegramId),
             messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(FilterCaptchaHandler)),

@@ -33,21 +33,6 @@ public class DeepSeekService(
     IHttpClientFactory httpClientFactory,
     AppConfig appConfig)
 {
-    private const string ModeratorPrompt = """
-                                           Ты - модератор чата. 
-                                           Твоя задача определить, является ли сообщение спамом, мошенничеством (скамом) или рекламой,
-                                           Достаточно одного признака скама:
-                                                - Предложения "лёгкого заработка", "работы на дому" с высокой оплатой,
-                                                - Упоминание конкретных сумм денег за простую работу,
-                                                - Призывы написать в личные сообщения для получения "выгодного предложения",
-                                                - Фразы типа "ищу N человек", "пиши +", "пиши сюда",
-                                                - Реклама сторонних сервисов, каналов, ботов (кроме тематических обсуждений)
-                                                
-                                           Ответь СТРОГО в формате JSON, без дополнительного текста:
-                                           {"isScam": true} или {"isScam": false}
-                                           Отвечай только JSON, ничего больше.
-                                           """;
-
     public async Task<Option<string>> GetChatResponse(string userMessage, long chatId, long userId)
     {
         try
@@ -97,77 +82,19 @@ public class DeepSeekService(
         }
     }
 
-    public async Task<Option<bool>> GetModerateVerdict(string messageText, long chatId, long userId)
+    public async Task<Option<bool>> GetModerateVerdict(string prompt, long chatId, long userId)
     {
-        // var prompt = ModeratorPrompt + $"\n Сообщение для проверки: {messageText}";
-        var prompt = $$"""
-                       Ты - модератор чата. 
-                       Твоя задача определить, является ли сообщение спамом, мошенничеством (скамом) или рекламой,
-                       Достаточно одного признака скама:
-                            - Предложения "лёгкого заработка", "работы на дому" с высокой оплатой,
-                            - Упоминание конкретных сумм денег за простую работу,
-                            - Призывы написать в личные сообщения для получения "выгодного предложения",
-                            - Фразы типа "ищу N человек", "пиши +", "пиши сюда",
-                            - Реклама сторонних сервисов, каналов, ботов (кроме тематических обсуждений)
-                            
-                       Сообщение для проверки: 
-                       "{{messageText}}"
-                            
-                       Ответь СТРОГО в формате JSON, без дополнительного текста:
-                       если есть хоть один признак то {"isScam": true}, если нет то {"isScam": false}
-                       Отвечай только JSON, ничего больше.
-                       """;
+        var maybeResponse = await GetChatResponse(prompt, chatId, userId);
+        if (!maybeResponse.TryGetSome(out var message)) return None;
+
         try
         {
-            using var httpClient = httpClientFactory.CreateClient("DeepSeekClient");
-
-            var requestData = new DeepSeekRequest(
-                Message: prompt,
-                ParentMessageId: ""
-            );
-            var jsonRequest = JsonSerializer.Serialize(requestData);
-            var request = new HttpRequestMessage(HttpMethod.Post, appConfig.DeepSeekConfig.ApiUrl);
-            request.Content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
-            request.Headers.Authorization =
-                new AuthenticationHeaderValue("Bearer", appConfig.DeepSeekConfig.BearerToken);
-
-            using var response = await httpClient.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                Log.Error("DeepSeek moderation API error: {StatusCode}, {Content}", response.StatusCode, errorContent);
-                return None;
-            }
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            ModerationResponse? moderation = null;
-            try
-            {
-                var apiResponse = JsonSerializer.Deserialize<DeepSeekResponse>(responseContent);
-                moderation = JsonSerializer.Deserialize<ModerationResponse>(apiResponse?.Message ??
-                                                                            throw new NullReferenceException());
-                if (moderation == null)
-                {
-                    var start = responseContent.IndexOf('{');
-                    var end = responseContent.LastIndexOf('}');
-                    if (start >= 0 && end > start)
-                    {
-                        var json = responseContent.Substring(start, end - start + 1);
-                        moderation = JsonSerializer.Deserialize<ModerationResponse>(json);
-                    }
-                }
-            }
-            catch (JsonException ex)
-            {
-                Log.Error(ex, "Failed to parse moderation JSON response for chat {ChatId}: {Response}", chatId,
-                    responseContent);
-                return None;
-            }
+            var moderation = JsonSerializer.Deserialize<ModerationResponse>(message);
 
             if (moderation == null)
             {
                 Log.Warning("Failed to deserialize moderation response for chat {ChatId}: {Response}", chatId,
-                    responseContent);
+                    message);
                 return None;
             }
 

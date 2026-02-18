@@ -1,6 +1,9 @@
 ﻿using System.Runtime.CompilerServices;
 using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
+using DecembristChatBotSharp.Service.Buttons;
 using DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using Lamar;
@@ -16,6 +19,7 @@ namespace DecembristChatBotSharp.Telegram;
 public class MessageAssistance(
     AppConfig appConfig,
     BotClient botClient,
+    FilterCaptchaButtons filterCaptchaButtons,
     ExpiredMessageRepository expiredMessageRepository,
     ChatConfigRepository chatConfigRepository,
     CancellationTokenSource cancelToken)
@@ -133,6 +137,15 @@ public class MessageAssistance(
             SendMessageExpired(chatId, "Эта функция не доступна в этом чате", commandName),
             DeleteCommandMessage(chatId, messageId, commandName)
         ).WhenAll();
+
+    public async Task<Unit> SendFilterRestrictMessage(long chatId, long telegramId, int messageId,
+        FilterConfig filterConfig, string commandName)
+    {
+        var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
+        var text = string.Format(filterConfig.FailedMessage, username);
+        var buttons = filterCaptchaButtons.GetMarkup(telegramId);
+        return await SendMessage(chatId, text, commandName, buttons, replyParameters: messageId);
+    }
 
     /// <summary>
     /// Send a message
