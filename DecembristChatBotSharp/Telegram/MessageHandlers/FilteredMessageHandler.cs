@@ -58,7 +58,7 @@ public class FilteredMessageHandler(
         }
 
         var messageText = string.Format(
-            filterConfig.CaptchaMessage, filterConfig.CaptchaAnswer, filterConfig.CaptchaTimeSeconds);
+            filterConfig.CaptchaMessage, filterConfig.CaptchaAnswer, appConfig.FilterJobConfig.CaptchaTimeSeconds);
         return await botClient.SendMessage(chatId, messageText,
                 replyParameters: new ReplyParameters { MessageId = messageId },
                 cancellationToken: cancelToken.Token)

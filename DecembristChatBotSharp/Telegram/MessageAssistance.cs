@@ -141,10 +141,12 @@ public class MessageAssistance(
     public async Task<Unit> SendFilterRestrictMessage(long chatId, long telegramId, int messageId,
         FilterConfig filterConfig, string commandName)
     {
+        Log.Information("Sending filter restrict message to user {0} in chat {1}", telegramId, chatId);
         var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
         var text = string.Format(filterConfig.FailedMessage, username);
         var buttons = filterCaptchaButtons.GetMarkup(telegramId);
-        return await SendMessage(chatId, text, commandName, buttons, replyParameters: messageId);
+        var expired = DateTime.UtcNow.AddSeconds(appConfig.FilterJobConfig.RestrictExpirationSeconds);
+        return await SendMessageExpired(chatId, text, commandName, expired, buttons, replyParameters: messageId);
     }
 
     /// <summary>

@@ -59,6 +59,7 @@ public class CheckBlackListCaptchaJob(
             nameof(CheckBlackListCaptchaJob));
 
         return await Array(
+            banService.RestrictChatMember(chatId, telegramId),
             messageAssistance.DeleteCommandMessage(chatId, message.CaptchaMessageId, nameof(CheckBlackListCaptchaJob)),
             messageAssistance.DeleteCommandMessage(chatId, message.Id.MessageId, nameof(CheckBlackListCaptchaJob)),
             db.DeleteFilteredMessage(message.Id).UnitTask()).WhenAll();
