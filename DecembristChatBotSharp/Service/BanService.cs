@@ -40,22 +40,52 @@ public class BanService(BotClient botClient, CancellationTokenSource cancelToken
         return await UnbanChatMember(chatId, telegramId, callerName);
     }
 
-    public Task<Unit> RestrictChatMember(long chatId, long telegramId) =>
-        botClient.RestrictUserAndLog(
+    public Task<Unit> RestrictChatMember(long chatId, long telegramId)
+    {
+        var permissions = new ChatPermissions
+        {
+            CanSendMessages = false,
+            CanSendAudios = false,
+            CanSendDocuments = false,
+            CanSendPhotos = false,
+            CanSendVideos = false,
+            CanSendVideoNotes = false,
+            CanSendVoiceNotes = false,
+            CanSendOtherMessages = false,
+            CanAddWebPagePreviews = false,
+        };
+        return botClient.RestrictUserAndLog(
             chatId,
             telegramId,
-            permissions: new ChatPermissions(false),
+            permissions,
             _ => Log.Information("Restriction for user {0} in chat {1}", telegramId, chatId),
             ex => Log.Error(ex, "Failed to apply timeout restriction for user {0} in chat {1}",
                 telegramId, chatId), cancellationToken: cancelToken.Token);
+    }
 
-    public async Task<Unit> UnRestrictChatMember(long chatId, long telegramId) =>
-        await botClient.RestrictUserAndLog(
+    public async Task<Unit> UnRestrictChatMember(long chatId, long telegramId)
+    {
+        var permissions = new ChatPermissions
+        {
+            CanSendMessages = true,
+            CanSendAudios = true,
+            CanSendDocuments = true,
+            CanSendPhotos = true,
+            CanSendVideos = true,
+            CanSendVideoNotes = true,
+            CanSendVoiceNotes = true,
+            CanSendOtherMessages = true,
+            CanAddWebPagePreviews = true,
+            CanInviteUsers = true,
+        };
+
+        return await botClient.RestrictUserAndLog(
             chatId,
             telegramId,
-            new ChatPermissions(true),
+            permissions,
             _ => Log.Information("UnRestriction for user {0} in chat {1}", telegramId, chatId),
             ex => Log.Error(ex, "Failed to apply timeout unRestriction for user {0} in chat {1}",
                 telegramId, chatId),
             cancellationToken: cancelToken.Token);
+    }
 }
