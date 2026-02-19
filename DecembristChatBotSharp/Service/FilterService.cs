@@ -10,10 +10,12 @@ namespace DecembristChatBotSharp.Service;
 public class FilterService(
     MongoDatabase db,
     FilterRecordRepository filterRecordRepository,
-    CancellationTokenSource cancelToken)
+    CancellationTokenSource cancelToken,
+    AppConfig appConfig,
+    FilterRestrictUserRepository filterRestrictUserRepository)
 {
     private const int ExpiredAddMinutes = 15;
-    
+
     public async Task<FilterCreateResult> HandleFilterRecord(string messageText, long targetChatId, DateTime date)
     {
         if (IsExpired(date)) return FilterCreateResult.Expire;
@@ -73,6 +75,13 @@ public class FilterService(
                     result, callerName, record, chatId, telegramId);
                 break;
         }
+    }
+
+    public Task<Unit> CreateFilterRestrictUser(long chatId, long telegramId, int captchaMessageId)
+    {
+        var expired = DateTime.UtcNow.AddSeconds(appConfig.FilterJobConfig.RestrictExpirationSeconds);
+        var restrictUser = new FilterRestrictUser(new CompositeId(telegramId, chatId), expired, captchaMessageId);
+        return filterRestrictUserRepository.AddUser(restrictUser).ToUnit();
     }
 }
 

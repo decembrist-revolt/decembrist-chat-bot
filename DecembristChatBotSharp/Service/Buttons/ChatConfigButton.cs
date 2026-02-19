@@ -1,8 +1,10 @@
 ﻿using DecembristChatBotSharp.Telegram.CallbackHandlers.PrivateCallback;
+using Lamar;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace DecembristChatBotSharp.Service.Buttons;
 
+[Singleton]
 public class ChatConfigButton()
 {
     public InlineKeyboardMarkup GetMarkup()

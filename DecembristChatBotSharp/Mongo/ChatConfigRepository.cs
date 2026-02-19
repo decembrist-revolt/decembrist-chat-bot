@@ -81,7 +81,7 @@ public class ChatConfigRepository(MongoDatabase db, CancellationTokenSource canc
                 var compiledSelector = selector.Compile();
                 var config = compiledSelector(chatConfig);
 
-                Log.Information("Successfully got specific config {configName} from chatId: {chatId}", configName,
+                Log.Debug("Successfully got specific config {configName} from chatId: {chatId}", configName,
                     chatId);
                 return config;
             }, _ =>
