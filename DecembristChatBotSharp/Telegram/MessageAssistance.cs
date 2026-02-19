@@ -22,7 +22,8 @@ public class MessageAssistance(
     FilterCaptchaButtons filterCaptchaButtons,
     ExpiredMessageRepository expiredMessageRepository,
     ChatConfigRepository chatConfigRepository,
-    CancellationTokenSource cancelToken)
+    CancellationTokenSource cancelToken,
+    FilterService filterService)
 {
     public async Task<Unit> CommandNotReady(
         long chatId,
@@ -137,17 +138,6 @@ public class MessageAssistance(
             SendMessageExpired(chatId, "Эта функция не доступна в этом чате", commandName),
             DeleteCommandMessage(chatId, messageId, commandName)
         ).WhenAll();
-
-    public async Task<Unit> SendFilterRestrictMessage(long chatId, long telegramId, int messageId,
-        FilterConfig filterConfig, string commandName)
-    {
-        Log.Information("Sending filter restrict message to user {0} in chat {1}", telegramId, chatId);
-        var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
-        var text = string.Format(filterConfig.FailedMessage, username);
-        var buttons = filterCaptchaButtons.GetMarkup(telegramId);
-        var expired = DateTime.UtcNow.AddSeconds(appConfig.FilterJobConfig.RestrictExpirationSeconds);
-        return await SendMessageExpired(chatId, text, commandName, expired, buttons, replyParameters: messageId);
-    }
 
     /// <summary>
     /// Send a message
@@ -308,6 +298,27 @@ public class MessageAssistance(
             _ => Log.Information("Sent add premium message to chat {0}", chatId),
             ex => Log.Error(ex, "Failed to send add premium message to chat {0}", chatId),
             cancelToken.Token);
+    }
+
+    public async Task<Unit> SendFilterRestrictMessage(long chatId, long telegramId, int messageId,
+        FilterConfig filterConfig, string commandName)
+    {
+        Log.Information("Sending filter restrict message to user {0} in chat {1}", telegramId, chatId);
+        var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
+        var text = string.Format(filterConfig.FailedMessage, username);
+        var buttons = filterCaptchaButtons.GetMarkup(telegramId);
+
+        return await botClient.SendMessageAndLog(chatId, text, ParseMode.None,
+            async m =>
+            {
+                await filterService.CreateFilterRestrictUser(chatId, telegramId, m.Id);
+                Log.Information("Filter Restrict Message sent to chat: {chatId} for user: {telegramId}", chatId,
+                    telegramId);
+            },
+            e => Log.Error(
+                "Filter Restrict Message was not sent to chat: {chatId} for user: {telegramId}, Error: {error}",
+                chatId, telegramId, e.Message),
+            replyMarkup: buttons, replyParameters: messageId, cancelToken: cancelToken.Token);
     }
 
     public async Task<bool> IsAllowedChat(long chatId) => (await chatConfigRepository.GetChatIds()).Contains(chatId);

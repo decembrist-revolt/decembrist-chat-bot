@@ -13,6 +13,7 @@ public class FilterCaptchaCallbackHandler(
     WhiteListRepository whiteListRepository,
     MessageAssistance messageAssistance,
     CallbackService callbackService,
+    FilterRestrictUserRepository filterRestrictUserRepository,
     AppConfig appConfig)
     : IChatCallbackHandler
 {
@@ -31,24 +32,27 @@ public class FilterCaptchaCallbackHandler(
             if (!callbackService.TryGetUserIdKey(x, out var filterUserId)) return unit;
             var banTask = decision switch
             {
-                FilterAdminDecision.Ban => BanFilterUser(chatId, filterUserId, messageId),
-                FilterAdminDecision.UnBan => UnBanFilterUser(chatId, filterUserId, messageId),
+                FilterAdminDecision.Ban => BanFilterUser(chatId, filterUserId),
+                FilterAdminDecision.UnBan => UnBanFilterUser(chatId, filterUserId),
                 _ => throw new ArgumentOutOfRangeException()
             };
             return await Array(banTask, messageAssistance.DeleteCommandMessage(chatId, messageId, Prefix)).WhenAll();
         }).IfNone(() => Task.FromResult(unit));
     }
 
-    private Task<Unit> BanFilterUser(long chatId, long telegramId, int messageId)
+    private async Task<Unit> BanFilterUser(long chatId, long telegramId)
     {
         Log.Information("Ban user {0} in chat {1} by admin decision", telegramId, chatId);
-        return banService.BanChatMember(chatId, telegramId);
+        await filterRestrictUserRepository.DeleteUser(new CompositeId(telegramId, chatId));
+        return await banService.BanChatMember(chatId, telegramId);
     }
 
-    private Task<Unit> UnBanFilterUser(long chatId, long telegramId, int messageId)
+    private Task<Unit> UnBanFilterUser(long chatId, long telegramId)
     {
         Log.Information("Unban user {0} in chat {1} by admin decision", telegramId, chatId);
-        return Array(banService.UnRestrictChatMember(chatId, telegramId),
+        return Array(
+            filterRestrictUserRepository.DeleteUser(new CompositeId(telegramId, chatId)).ToUnit(),
+            banService.UnRestrictChatMember(chatId, telegramId),
             whiteListRepository.AddWhiteListMember(new WhiteListMember(new CompositeId(telegramId, chatId))).ToUnit()
         ).WhenAll();
     }

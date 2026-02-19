@@ -18,6 +18,7 @@ public class FilteredMessageHandler(
     DeepSeekService deepSeekService,
     BotClient botClient,
     AppConfig appConfig,
+    AdminUserRepository adminUserRepository,
     CancellationTokenSource cancelToken,
     ChatConfigService chatConfigService)
 {
@@ -35,11 +36,11 @@ public class FilteredMessageHandler(
                                            если скам: {"isScam": true}, иначе: {"isScam": false}
                                            """;
 
-
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
-        if (await whiteListRepository.IsWhiteListMember((telegramId, chatId))) return false;
+        if (await whiteListRepository.IsWhiteListMember((telegramId, chatId)) ||
+            await adminUserRepository.IsAdmin((telegramId, chatId))) return false;
         if (parameters.Payload is StickerPayload) return await SendCaptchaMessage(chatId, messageId, telegramId);
         if (parameters.Payload is not TextPayload { IsLink: var isLink, Text: var text }) return false;
 
