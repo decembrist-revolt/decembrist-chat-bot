@@ -1,6 +1,4 @@
-﻿using DecembristChatBotSharp.Entity;
-using DecembristChatBotSharp.Entity.Configs;
-using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram;
 using Lamar;
