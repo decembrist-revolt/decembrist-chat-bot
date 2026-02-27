@@ -64,7 +64,7 @@ public class ChatMessageHandler(
         var result = await captchaHandler.Do(parameters);
         if (result == Result.Captcha) return unit;
 
-        await filterCaptchaHandler.Do(parameters);
+        if (await filterCaptchaHandler.Do(parameters)) return unit;
         await filteredMessageHandler.Do(parameters);
 
         await curseHandler.Do(parameters);

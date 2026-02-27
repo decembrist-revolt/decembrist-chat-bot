@@ -29,7 +29,11 @@ public class WhiteListRepository(
             ? collection.InsertOneAsync(session, member, cancellationToken: cancelToken.Token)
             : collection.InsertOneAsync(member, cancellationToken: cancelToken.Token);
         return await query.ToTryAsync()
-            .Match(_ => true,
+            .Match(_ =>
+                {
+                    Log.Information("Added white list member {0}", member.Id);
+                    return true;
+                },
                 ex =>
                 {
                     Log.Error(ex, "Failed to add white list member {0}", member.Id);

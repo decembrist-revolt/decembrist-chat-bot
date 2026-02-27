@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram;
@@ -14,7 +15,8 @@ public class CheckBlackListCaptchaJob(
     BanService banService,
     MessageAssistance messageAssistance,
     FilteredMessageRepository db,
-    CancellationTokenSource cancelToken) : IRegisterJob
+    CancellationTokenSource cancelToken,
+    ChatConfigService chatConfigService) : IRegisterJob
 {
     public async Task Register(IScheduler scheduler)
     {
@@ -41,8 +43,25 @@ public class CheckBlackListCaptchaJob(
         await members.Select(HandleExpiredMember).WhenAll();
     }
 
-    private async Task<Unit> HandleExpiredMember(FilteredMessage message) => await Array(
-        messageAssistance.DeleteCommandMessage(message.Id.ChatId, message.CaptchaMessageId, nameof(CheckCaptchaJob)),
-        messageAssistance.DeleteCommandMessage(message.Id.ChatId, message.Id.MessageId, nameof(CheckCaptchaJob)),
-        db.DeleteFilteredMessage(message.Id).UnitTask()).WhenAll();
+    private async Task<Unit> HandleExpiredMember(FilteredMessage message)
+    {
+        var chatId = message.Id.ChatId;
+        var telegramId = message.OwnerId;
+        var messageId = message.Id.MessageId;
+
+        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.FilterConfig);
+        if (!maybeConfig.TryGetSome(out var filterConfig))
+        {
+            return chatConfigService.LogNonExistConfig(unit, nameof(FilterConfig));
+        }
+
+        await messageAssistance.SendFilterRestrictMessage(chatId, telegramId, messageId, filterConfig,
+            nameof(CheckBlackListCaptchaJob));
+
+        return await Array(
+            banService.RestrictChatMember(chatId, telegramId),
+            messageAssistance.DeleteCommandMessage(chatId, message.CaptchaMessageId, nameof(CheckBlackListCaptchaJob)),
+            messageAssistance.DeleteCommandMessage(chatId, message.Id.MessageId, nameof(CheckBlackListCaptchaJob)),
+            db.DeleteFilteredMessage(message.Id).UnitTask()).WhenAll();
+    }
 }

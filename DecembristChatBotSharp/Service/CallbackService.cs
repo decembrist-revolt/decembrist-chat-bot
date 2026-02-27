@@ -10,12 +10,13 @@ public class CallbackService(MessageAssistance messageAssistance)
     private const char ParamSeparator = '=';
     private const char PathSeparator = '/';
     public const string ChatIdParameter = "chatId";
+    public const string UserIdParameter = "userId";
     public const string IndexStartParameter = "indexStart";
     public const string StepsCountParameter = "mazeSteps";
     private const int MaxStepsCount = 3;
 
     private static readonly System.Collections.Generic.HashSet<string> ParameterWhiteList =
-        [ChatIdParameter, IndexStartParameter, StepsCountParameter];
+        [ChatIdParameter, IndexStartParameter, StepsCountParameter, UserIdParameter];
 
     public static string GetCallback<TEnum>(string prefix, TEnum suffix) where TEnum : Enum =>
         new StringBuilder(prefix).Append(PathSeparator).Append(suffix).ToString();
@@ -59,6 +60,13 @@ public class CallbackService(MessageAssistance messageAssistance)
         }
 
         return dict.Count > 0 ? dict.ToMap() : Option<Map<string, string>>.None;
+    }
+
+    public bool TryGetUserIdKey(Map<string, string> parameters, out long telegramId)
+    {
+        telegramId = 0;
+        return parameters.ContainsKey(UserIdParameter) &&
+               long.TryParse(parameters[UserIdParameter], out telegramId);
     }
 
     public bool HasChatIdKey(Map<string, string> parameters, out long chatId)

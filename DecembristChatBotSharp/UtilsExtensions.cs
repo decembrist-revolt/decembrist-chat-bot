@@ -30,7 +30,6 @@ public static class UtilsExtensions
         CancellationToken cancelToken) =>
         botClient.SendMessage(chatId, message, cancellationToken: cancelToken).ToTryAsync().Match(onSent, onError);
 
-
     public static Task<Unit> SendMessageAndLog(
         this BotClient botClient,
         long chatId,
@@ -160,6 +159,20 @@ public static class UtilsExtensions
         CancellationToken cancelToken,
         bool isRevokeMessages = false) =>
         botClient.BanChatMember(chatId, telegramId, DateTime.UtcNow, isRevokeMessages, cancelToken)
+            .ToTryAsync()
+            .Match(onSent, onError);
+
+    public static Task<Unit> RestrictUserAndLog(this BotClient botClient,
+        long chatId,
+        long userId,
+        ChatPermissions permissions,
+        Action<Unit> onSent,
+        Action<Exception> onError,
+        CancellationToken cancellationToken,
+        bool useIndependentChatPermissions = false,
+        DateTime untilDate = default) =>
+        botClient.RestrictChatMember( 
+                chatId, userId, permissions, useIndependentChatPermissions, untilDate, cancellationToken)
             .ToTryAsync()
             .Match(onSent, onError);
 
