@@ -41,11 +41,12 @@ public class FilteredMessageHandler(
         var (messageId, telegramId, chatId) = parameters;
         if (await whiteListRepository.IsWhiteListMember((telegramId, chatId)) ||
             await adminUserRepository.IsAdmin((telegramId, chatId))) return false;
-        if (parameters.Payload is StickerPayload) return await SendCaptchaMessage(chatId, messageId, telegramId);
-        if (parameters.Payload is not TextPayload { IsLink: var isLink, Text: var text }) return false;
-
+        
+        if (parameters.Payload is not TextPayload { IsLink: var isLink, Text: var text })
+            return await SendCaptchaMessage(chatId, messageId, telegramId);
         if (isLink || LinkRegex.IsMatch(text) || !await IsFiltered(text, chatId))
             return await SendCaptchaMessage(chatId, messageId, telegramId);
+        
         return await CheckAiModeration(chatId, telegramId, messageId, text, parameters.ReplyToMessageText);
     }
 
