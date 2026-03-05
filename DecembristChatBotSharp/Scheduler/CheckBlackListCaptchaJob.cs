@@ -46,8 +46,8 @@ public class CheckBlackListCaptchaJob(
     private async Task<Unit> HandleExpiredMember(FilteredMessage message)
     {
         var chatId = message.Id.ChatId;
-        var telegramId = message.OwnerId;
-        var messageId = message.Id.MessageId;
+        var telegramId = message.Id.TelegramId;
+        var messageId = message.MessageId;
 
         var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.FilterConfig);
         if (!maybeConfig.TryGetSome(out var filterConfig))
@@ -61,7 +61,7 @@ public class CheckBlackListCaptchaJob(
         return await Array(
             banService.RestrictChatMember(chatId, telegramId),
             messageAssistance.DeleteCommandMessage(chatId, message.CaptchaMessageId, nameof(CheckBlackListCaptchaJob)),
-            messageAssistance.DeleteCommandMessage(chatId, message.Id.MessageId, nameof(CheckBlackListCaptchaJob)),
-            db.DeleteFilteredMessage(message.Id).UnitTask()).WhenAll();
+            messageAssistance.DeleteCommandMessage(chatId, message.MessageId, nameof(CheckBlackListCaptchaJob)),
+            db.DeleteFilteredMessage(message.Id).ToUnit()).WhenAll();
     }
 }

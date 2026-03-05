@@ -158,6 +158,7 @@ public record FilterJobConfig(
     [property: Range(1, int.MaxValue)] int CaptchaTimeSeconds,
     [property: Range(1, int.MaxValue)] int RestrictExpirationSeconds,
     [property: Range(1, int.MaxValue)] int CheckFilterRestrictSeconds,
+    [property: Range(1, int.MaxValue)] int CaptchaTryCount,
     System.Collections.Generic.HashSet<string> ScamTraitors);
 
 public record RedditConfig(

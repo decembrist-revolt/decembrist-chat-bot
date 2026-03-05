@@ -41,12 +41,12 @@ public class FilteredMessageHandler(
         var (messageId, telegramId, chatId) = parameters;
         if (await whiteListRepository.IsWhiteListMember((telegramId, chatId)) ||
             await adminUserRepository.IsAdmin((telegramId, chatId))) return false;
-        
+
         if (parameters.Payload is not TextPayload { IsLink: var isLink, Text: var text })
             return await SendCaptchaMessage(chatId, messageId, telegramId);
         if (isLink || LinkRegex.IsMatch(text) || !await IsFiltered(text, chatId))
             return await SendCaptchaMessage(chatId, messageId, telegramId);
-        
+
         return await CheckAiModeration(chatId, telegramId, messageId, text, parameters.ReplyToMessageText);
     }
 
@@ -59,15 +59,18 @@ public class FilteredMessageHandler(
                 nameof(FilteredMessageHandler));
         }
 
+        var maybeMessage = await filteredMessageRepository.GetFilteredMessage((telegramId, chatId));
+        var tryCount = maybeMessage.Match(message => message.TryCount, () => 0);
         var messageText = string.Format(
-            filterConfig.CaptchaMessage, filterConfig.CaptchaAnswer, appConfig.FilterJobConfig.CaptchaTimeSeconds);
+            filterConfig.CaptchaMessage, filterConfig.CaptchaAnswer, appConfig.FilterJobConfig.CaptchaTimeSeconds,
+            appConfig.FilterJobConfig.CaptchaTryCount - tryCount);
         return await botClient.SendMessage(chatId, messageText,
                 replyParameters: new ReplyParameters { MessageId = messageId },
                 cancellationToken: cancelToken.Token)
             .ToTryAsync()
             .Match(async m =>
                 {
-                    var message = new FilteredMessage((chatId, messageId), telegramId, m.MessageId, DateTime.UtcNow);
+                    var message = new FilteredMessage((telegramId, chatId), messageId, m.MessageId, DateTime.UtcNow);
                     await filteredMessageRepository.AddFilteredMessage(message);
 
                     Log.Information("Success create filtered message {0}, author: {1}", message.Id, telegramId);

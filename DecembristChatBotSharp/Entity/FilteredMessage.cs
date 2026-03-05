@@ -3,13 +3,8 @@
 namespace DecembristChatBotSharp.Entity;
 
 public record FilteredMessage(
-    [property: BsonId] FilteredMessage.CompositeId Id,
-    long OwnerId,
+    [property: BsonId] CompositeId Id,
+    int MessageId,
     int CaptchaMessageId,
-    DateTime CreatedAt)
-{
-    public record CompositeId(long ChatId, int MessageId)
-    {
-        public static implicit operator CompositeId((long, int) tuple) => new(tuple.Item1, tuple.Item2);
-    }
-}
+    DateTime CreatedAt,
+    int TryCount = 0);
