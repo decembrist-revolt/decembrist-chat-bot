@@ -13,35 +13,35 @@ public class CaptchaButtons(Random random)
     public InlineKeyboardMarkup GetMarkup(long telegramId, CaptchaConfig captchaConfig)
     {
         var correctAnswer = captchaConfig.CaptchaAnswer;
-        var keyboardButtons = new List<InlineKeyboardButton>
+        var keyboardButtons = new List<InlineKeyboardButton[]>
         {
-            GetCaptchaButton(correctAnswer, telegramId, true),
-            GetCaptchaButton(GetWrongAnswer(correctAnswer), telegramId, false),
-            GetCaptchaButton(GetWrongAnswer(correctAnswer), telegramId, false),
+            new[] { GetCaptchaButton(correctAnswer, telegramId) },
+            new[] { GetCaptchaButton(GetWrongAnswer(correctAnswer), telegramId) },
+            new[] { GetCaptchaButton(GetWrongAnswer(correctAnswer), telegramId) },
         };
 
         var captchaButtons = keyboardButtons
             .OrderBy(_ => random.Next())
             .ToArray();
 
-        return new InlineKeyboardMarkup([captchaButtons]);
+        return new InlineKeyboardMarkup(captchaButtons);
     }
 
     private string GetWrongAnswer(string correctAnswer)
     {
         var chars = correctAnswer.ToCharArray();
         var attempts = 0;
-        string newWord;
+        string wrongAnswer;
         do
         {
             attempts++;
-            newWord = new string(chars.OrderBy(_ => random.Next()).ToArray());
-        } while (newWord == correctAnswer && attempts < Attempts);
+            wrongAnswer = new string(chars.OrderBy(_ => random.Next()).ToArray());
+        } while (wrongAnswer == correctAnswer && attempts < Attempts);
 
-        return newWord == correctAnswer ? newWord + Attempts : newWord;
+        return wrongAnswer == correctAnswer ? wrongAnswer + Attempts : wrongAnswer;
     }
 
-    private static InlineKeyboardButton GetCaptchaButton(string name, long telegramId, bool isCorrect)
+    private static InlineKeyboardButton GetCaptchaButton(string name, long telegramId)
     {
         var callback = CallbackService.GetCallback(
             CaptchaCallbackHandler.PrefixKey, name, (CallbackService.UserIdParameter, telegramId));

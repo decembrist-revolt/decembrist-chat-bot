@@ -4,7 +4,6 @@ using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
-using Telegram.Bot;
 
 namespace DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
 
@@ -27,7 +26,7 @@ public class CaptchaCallbackHandler(
         var (_, suffix, chatId, telegramId, messageId, queryId, maybeParameters) = queryParameters;
         var id = new CallbackPermission.CompositeId(chatId, telegramId, CallbackType.Captcha, messageId);
 
-        if (await callbackRepository.HasPermission(id)) return await SendNotAccess(chatId, queryId);
+        if (!await callbackRepository.HasPermission(id)) return await SendNotAccess(chatId, queryId);
 
         var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.CaptchaConfig);
         if (!maybeConfig.TryGetSome(out var captchaConfig))

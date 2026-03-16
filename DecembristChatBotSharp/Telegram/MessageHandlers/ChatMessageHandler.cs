@@ -44,7 +44,6 @@ public readonly struct UnknownPayload : IMessagePayload;
 [Singleton]
 public class ChatMessageHandler(
     CaptchaHandler captchaHandler,
-    ButtonCaptchaHandler buttonCaptchaHandler,
     FilteredMessageHandler filteredMessageHandler,
     FilterCaptchaHandler filterCaptchaHandler,
     ChatCommandHandler chatCommandHandler,
@@ -62,7 +61,7 @@ public class ChatMessageHandler(
 {
     public async Task<Unit> Do(ChatMessageHandlerParams parameters)
     {
-        if (await buttonCaptchaHandler.Do(parameters)) return unit;
+        if (await captchaHandler.Do(parameters)) return unit;
 
         if (await filterCaptchaHandler.Do(parameters)) return unit;
         await filteredMessageHandler.Do(parameters);
