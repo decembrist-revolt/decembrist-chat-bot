@@ -14,7 +14,8 @@ public class FilterCaptchaCallbackHandler(
     MessageAssistance messageAssistance,
     CallbackService callbackService,
     FilterRestrictUserRepository filterRestrictUserRepository,
-    AppConfig appConfig)
+    AppConfig appConfig,
+    FilteredMessageRepository filteredMessageRepository)
     : IChatCallbackHandler
 {
     public const string PrefixKey = "FilterAdmin";
@@ -42,18 +43,22 @@ public class FilterCaptchaCallbackHandler(
 
     private async Task<Unit> BanFilterUser(long chatId, long telegramId)
     {
+        var id = new CompositeId(telegramId, chatId);
         Log.Information("Ban user {0} in chat {1} by admin decision", telegramId, chatId);
-        await filterRestrictUserRepository.DeleteUser(new CompositeId(telegramId, chatId));
+        await filterRestrictUserRepository.DeleteUser(id);
+        await filteredMessageRepository.DeleteFilteredMessage(id);
         return await banService.BanChatMember(chatId, telegramId);
     }
 
     private Task<Unit> UnBanFilterUser(long chatId, long telegramId)
     {
+        var id = new CompositeId(telegramId, chatId);
         Log.Information("Unban user {0} in chat {1} by admin decision", telegramId, chatId);
         return Array(
-            filterRestrictUserRepository.DeleteUser(new CompositeId(telegramId, chatId)).ToUnit(),
+            filteredMessageRepository.DeleteFilteredMessage(id).ToUnit(),
+            filterRestrictUserRepository.DeleteUser(id).ToUnit(),
             banService.UnRestrictChatMember(chatId, telegramId),
-            whiteListRepository.AddWhiteListMember(new WhiteListMember(new CompositeId(telegramId, chatId))).ToUnit()
+            whiteListRepository.AddWhiteListMember(new WhiteListMember(id)).ToUnit()
         ).WhenAll();
     }
 

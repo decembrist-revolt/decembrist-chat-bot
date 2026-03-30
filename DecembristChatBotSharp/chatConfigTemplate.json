@@ -8,7 +8,7 @@
       "CaptchaTimeHours": 24,
       "CaptchaAnswer": "Хочу чтобы у моих ног тёк Нил",
       "JoinText": "{0} присоединяется к чату.",
-      "CaptchaRequestAgainText": "{0},чтобы ваши сообщения перестали удаляться, пройдите капчу, напишите \"{1}\"",
+      "CaptchaRequestAgainText": "{0},чтобы ваши сообщения перестали удаляться, пройдите капчу, нажмите \"{1}\"",
       "CaptchaRequestAgainExpiration": 15,
       "CaptchaRequestAgainCount": 5,
       "CaptchaRetryCount": 30,
@@ -250,7 +250,7 @@
       "Enabled": false
     },
     "FilterConfig": {
-      "CaptchaMessage": "\uD83D\uDEA8Ваше сообщение вызывает подозрение\uD83D\uDEA8,\nпройдите капчу, напишите \"{0}\",\nиначе оно будет удалено через {1} секунд",
+      "CaptchaMessage": "\uD83D\uDEA8Ваше сообщение вызывает подозрение\uD83D\uDEA8,\nпройдите капчу, напишите \"{0}\",\nиначе оно будет удалено через {1} секунд, а вы будете переведены в readonly, \n\nу вас {2} попыток",
       "CaptchaAnswer": "Соер лучший инженер",
       "SuccessMessage": "Сообщение оставлено, спасибо",
       "FailedMessage": "{0}, вы не прошли капчу, и переведены в readonly. Для обжалования обратитесь к администратору \n\n#whitelist",
