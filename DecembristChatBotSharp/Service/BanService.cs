@@ -2,6 +2,7 @@
 using Lamar;
 using Serilog;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Service;
 
@@ -36,6 +37,13 @@ public class BanService(BotClient botClient, CancellationTokenSource cancelToken
     public async Task<Unit> KickChatMember(
         long chatId, long telegramId, [CallerMemberName] string callerName = "UnknownCaller")
     {
+        var maybeMember = await botClient.GetChatMemberAndLog(telegramId, chatId, cancelToken.Token);
+        if (maybeMember.TryGetSome(out var member) && member.Status is ChatMemberStatus.Kicked)
+        {
+            Log.Information("User {0} is already banned in chat {1} (called from {2})", telegramId, chatId, callerName);
+            return unit;
+        }
+
         await BanChatMember(chatId, telegramId, callerName: callerName);
         return await UnbanChatMember(chatId, telegramId, callerName);
     }

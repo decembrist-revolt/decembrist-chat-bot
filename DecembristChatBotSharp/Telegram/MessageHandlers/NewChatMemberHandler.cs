@@ -1,6 +1,8 @@
-﻿using DecembristChatBotSharp.Entity.Configs;
+﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
+using DecembristChatBotSharp.Service.Buttons;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
@@ -30,6 +32,8 @@ public class NewMemberHandler(
     WhiteListRepository whiteListRepository,
     ExpiredMessageRepository expiredMessageRepository,
     ChatConfigService chatConfigService,
+    CaptchaButtons captchaButtons,
+    CallbackRepository callbackRepository,
     CancellationTokenSource cancelToken
 )
 {
@@ -69,14 +73,20 @@ public class NewMemberHandler(
         );
 
         var welcomeText = string.Format(captchaConfig.WelcomeMessage, username, captchaConfig.CaptchaAnswer);
+        var replyMarkup = captchaButtons.GetMarkup(user.Id, captchaConfig);
         var trySend = TryAsync(
-            botClient.SendMessage(chatId: chatId, text: welcomeText, cancellationToken: cancelToken.Token));
+            botClient.SendMessage(chatId: chatId, text: welcomeText, replyMarkup: replyMarkup,
+                cancellationToken: cancelToken.Token));
 
         return await trySend
-            .Bind(message =>
+            .BindAsync(async message =>
             {
                 var expireAt = DateTime.UtcNow.AddMinutes(captchaConfig.WelcomeMessageExpiration);
                 expiredMessageRepository.QueueMessage(chatId, message.MessageId, expireAt);
+                var permission = new CallbackPermission(
+                    new CallbackPermission.CompositeId(chatId, user.Id, CallbackType.Captcha, message.MessageId),
+                    expireAt);
+                await callbackRepository.AddCallbackPermission(permission);
                 return newMemberRepository.AddNewMember(user.Id, username, chatId, message.MessageId);
             })
             .ToEither()

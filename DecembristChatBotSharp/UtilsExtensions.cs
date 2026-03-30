@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using JasperFx.Core;
@@ -171,7 +172,7 @@ public static class UtilsExtensions
         CancellationToken cancellationToken,
         bool useIndependentChatPermissions = false,
         DateTime untilDate = default) =>
-        botClient.RestrictChatMember( 
+        botClient.RestrictChatMember(
                 chatId, userId, permissions, useIndependentChatPermissions, untilDate, cancellationToken)
             .ToTryAsync()
             .Match(onSent, onError);
@@ -273,6 +274,20 @@ public static class UtilsExtensions
         await botClient.GetUsername(chatId, telegramId, cancelToken)
             .ToAsync()
             .IfNone(telegramId.ToString);
+
+    public static Task<Option<ChatMember>> GetChatMemberAndLog(this BotClient botClient,
+        long telegramId,
+        long chatId,
+        CancellationToken cancelToken,
+        [CallerMemberName] string callerName = "unknown caller") =>
+        botClient.GetChatMember(chatId, telegramId, cancellationToken: cancelToken)
+            .ToTryAsync()
+            .Match(Some, ex =>
+            {
+                Log.Error(ex, "Failed to get chat member {0} in chat {1} (called from {2})", telegramId, chatId,
+                    callerName);
+                return None;
+            });
 
     public static async Task<string> GetChatTitleOrId(this BotClient botClient,
         long chatId,

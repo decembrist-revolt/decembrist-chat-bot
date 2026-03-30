@@ -13,5 +13,6 @@ public record CallbackPermission(
 public enum CallbackType
 {
     List,
+    Captcha,
     Giveaway
 }

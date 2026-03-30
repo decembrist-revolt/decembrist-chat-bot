@@ -12,6 +12,7 @@ public class FilterCaptchaHandler(
     MessageAssistance messageAssistance,
     ChatConfigService chatConfigService,
     BanService banService,
+    AppConfig appConfig,
     WhiteListRepository whiteListRepository)
 {
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
@@ -24,34 +25,40 @@ public class FilterCaptchaHandler(
             return chatConfigService.LogNonExistConfig(false, nameof(FilterConfig));
         }
 
-        var maybeMessage = filteredMessageRepository.GetFilteredMessage(chatId, telegramId);
-        return await maybeMessage.MatchAsync(async m =>
+        var maybeMessage = await filteredMessageRepository.GetFilteredMessage(new CompositeId(telegramId, chatId));
+        return await maybeMessage.MatchAsync(async message =>
         {
-            await messageAssistance.DeleteCommandMessage(chatId, m.CaptchaMessageId, nameof(FilterCaptchaHandler));
-            await filteredMessageRepository.DeleteFilteredMessage(m.Id);
-
+            await messageAssistance.DeleteCommandMessage(chatId, message.CaptchaMessageId,
+                nameof(FilterCaptchaHandler));
             return IsCaptchaPassed(parameters.Payload, filterConfig)
-                ? await HandleSuccessCaptcha(chatId, telegramId, messageId, filterConfig)
-                : await HandleFailedCaptcha(chatId, telegramId, messageId, m.Id.MessageId, filterConfig);
+                ? await HandleSuccessCaptcha(chatId, telegramId, messageId, message, filterConfig)
+                : await HandleFailedCaptcha(chatId, telegramId, messageId, message, filterConfig);
         }, () => false);
     }
 
     private async Task<bool> HandleFailedCaptcha(
-        long chatId, long telegramId, int captchaMessageId, int suspiciousMessageId, FilterConfig filterConfig)
+        long chatId, long telegramId, int suspiciousMessageId, FilteredMessage message, FilterConfig filterConfig)
     {
-        await messageAssistance.SendFilterRestrictMessage(chatId, telegramId, suspiciousMessageId, filterConfig,
-            nameof(FilterCaptchaHandler));
+        var prevSuspiciousMessage = message.MessageId;
+        var isFinalTry = message.TryCount >= appConfig.FilterJobConfig.CaptchaTryCount;
+        if (isFinalTry)
+        {
+            await Task.WhenAll(banService.RestrictChatMember(chatId, telegramId),
+                messageAssistance.SendFilterRestrictMessage(chatId, telegramId, suspiciousMessageId, filterConfig,
+                    nameof(FilterCaptchaHandler)));
+            await messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(FilterCaptchaHandler));
+        }
+
         await Array(
-            banService.RestrictChatMember(chatId, telegramId),
-            messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, nameof(FilterCaptchaHandler)),
-            messageAssistance.DeleteCommandMessage(chatId, captchaMessageId, nameof(FilterCaptchaHandler))
+            messageAssistance.DeleteCommandMessage(chatId, prevSuspiciousMessage, nameof(FilterCaptchaHandler))
         ).WhenAll();
-        return true;
+        return isFinalTry;
     }
 
-    private async Task<bool> HandleSuccessCaptcha(long chatId, long telegramId, int messageId,
+    private async Task<bool> HandleSuccessCaptcha(long chatId, long telegramId, int messageId, FilteredMessage message,
         FilterConfig filterConfig)
     {
+        await filteredMessageRepository.DeleteFilteredMessage(message.Id);
         await Array(
             whiteListRepository.AddWhiteListMember(new WhiteListMember(new CompositeId(telegramId, chatId))).ToUnit(),
             messageAssistance.DeleteCommandMessage(chatId, messageId, nameof(FilterCaptchaHandler)),
