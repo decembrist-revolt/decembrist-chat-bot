@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Entity;
+using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
@@ -8,69 +9,70 @@ namespace DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
 
 [Singleton]
 public class FilterCaptchaCallbackHandler(
-    BanService banService,
-    AdminUserRepository adminUserRepository,
+    FilteredMessageRepository filteredMessageRepository,
     WhiteListRepository whiteListRepository,
     MessageAssistance messageAssistance,
-    CallbackService callbackService,
-    FilterRestrictUserRepository filterRestrictUserRepository,
-    AppConfig appConfig,
-    FilteredMessageRepository filteredMessageRepository)
-    : IChatCallbackHandler
+    ChatConfigService chatConfigService,
+    CallbackRepository callbackRepository,
+    CancellationTokenSource cancelToken,
+    BanService banService) : IChatCallbackHandler
 {
-    public const string PrefixKey = "FilterAdmin";
+    public const string PrefixKey = "Captcha";
+
     public string Prefix => PrefixKey;
 
     public async Task<Unit> Do(CallbackQueryParameters queryParameters)
     {
         var (_, suffix, chatId, telegramId, messageId, queryId, maybeParameters) = queryParameters;
-        if (!Enum.TryParse(suffix, true, out FilterAdminDecision decision)) return unit;
-        if (!await adminUserRepository.IsAdmin(new CompositeId(telegramId, chatId)))
-            return await SendNotAccess(queryId, chatId);
+        var id = new CallbackPermission.CompositeId(chatId, telegramId, CallbackType.Captcha, messageId);
 
-        return await maybeParameters.Map(async x =>
+        if (!await callbackRepository.HasPermission(id)) return await SendNotAccess(chatId, queryId);
+
+        var maybeConfig = await chatConfigService.GetConfig(chatId, config => config.FilterConfig);
+        if (!maybeConfig.TryGetSome(out var filterConfig))
         {
-            if (!callbackService.TryGetUserIdKey(x, out var filterUserId)) return unit;
-            var banTask = decision switch
-            {
-                FilterAdminDecision.Ban => BanFilterUser(chatId, filterUserId),
-                FilterAdminDecision.UnBan => UnBanFilterUser(chatId, filterUserId),
-                _ => throw new ArgumentOutOfRangeException()
-            };
-            return await Array(banTask, messageAssistance.DeleteCommandMessage(chatId, messageId, Prefix)).WhenAll();
-        }).IfNone(() => Task.FromResult(unit));
+            return chatConfigService.LogNonExistConfig(unit, nameof(FilterConfig), Prefix);
+        }
+
+        var maybeMessage = await filteredMessageRepository.GetFilteredMessage(new CompositeId(telegramId, chatId));
+        if (!maybeMessage.TryGetSome(out var message)) return unit;
+
+        await messageAssistance.DeleteCommandMessage(chatId, message.CaptchaMessageId, PrefixKey);
+
+        if (string.Equals(suffix, filterConfig.CaptchaAnswer, StringComparison.OrdinalIgnoreCase))
+        {
+            return await HandleCorrect(chatId, telegramId, message, filterConfig);
+        }
+
+        return await HandleWrongAnswer(chatId, telegramId, message, filterConfig);
     }
 
-    private async Task<Unit> BanFilterUser(long chatId, long telegramId)
+    private async Task<Unit> HandleCorrect(long chatId, long telegramId, FilteredMessage message,
+        FilterConfig filterConfig)
     {
-        var id = new CompositeId(telegramId, chatId);
-        Log.Information("Ban user {0} in chat {1} by admin decision", telegramId, chatId);
-        await filterRestrictUserRepository.DeleteUser(id);
-        await filteredMessageRepository.DeleteFilteredMessage(id);
-        return await banService.BanChatMember(chatId, telegramId);
-    }
-
-    private Task<Unit> UnBanFilterUser(long chatId, long telegramId)
-    {
-        var id = new CompositeId(telegramId, chatId);
-        Log.Information("Unban user {0} in chat {1} by admin decision", telegramId, chatId);
-        return Array(
-            filteredMessageRepository.DeleteFilteredMessage(id).ToUnit(),
-            filterRestrictUserRepository.DeleteUser(id).ToUnit(),
-            banService.UnRestrictChatMember(chatId, telegramId),
-            whiteListRepository.AddWhiteListMember(new WhiteListMember(id)).ToUnit()
+        Log.Information("User {0} passed filter captcha in chat {1}", telegramId, chatId);
+        await filteredMessageRepository.DeleteFilteredMessage(message.Id);
+        return await Array(
+            whiteListRepository.AddWhiteListMember(new WhiteListMember(new CompositeId(telegramId, chatId))).ToUnit(),
+            messageAssistance.SendMessageExpired(chatId, filterConfig.SuccessMessage, Prefix)
         ).WhenAll();
     }
 
-    private async Task<Unit> SendNotAccess(string queryId, long chatId)
+    private async Task<Unit> HandleWrongAnswer(long chatId, long telegramId, FilteredMessage message,
+        FilterConfig filterConfig)
     {
-        var message = appConfig.CommandAssistanceConfig.AdminOnlyMessage;
+        Log.Information("User {0} failed filter captcha in chat {1}, user kicked", telegramId, chatId);
+        var suspiciousMessageId = message.MessageId;
+        await Task.WhenAll(banService.RestrictChatMember(chatId, telegramId),
+            messageAssistance.SendFilterRestrictMessage(chatId, telegramId, suspiciousMessageId, filterConfig,
+                Prefix));
+        await messageAssistance.DeleteCommandMessage(chatId, suspiciousMessageId, Prefix);
+        return unit;
+    }
+
+    private async Task<Unit> SendNotAccess(long chatId, string queryId)
+    {
+        var message = "Это сообщение для проходящего капчу";
         return await messageAssistance.AnswerCallbackQuery(queryId, chatId, Prefix, message);
     }
-}
-
-public enum FilterAdminDecision
-{
-    Ban,
-    UnBan
 }

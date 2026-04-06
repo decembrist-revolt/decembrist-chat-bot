@@ -73,7 +73,7 @@ public class NewMemberHandler(
         );
 
         var welcomeText = string.Format(captchaConfig.WelcomeMessage, username, captchaConfig.CaptchaAnswer);
-        var replyMarkup = captchaButtons.GetMarkup(user.Id, captchaConfig);
+        var replyMarkup = captchaButtons.GetMarkup(user.Id, captchaConfig.CaptchaAnswer);
         var trySend = TryAsync(
             botClient.SendMessage(chatId: chatId, text: welcomeText, replyMarkup: replyMarkup,
                 cancellationToken: cancelToken.Token));

@@ -30,9 +30,7 @@ public class FilterCaptchaHandler(
         {
             await messageAssistance.DeleteCommandMessage(chatId, message.CaptchaMessageId,
                 nameof(FilterCaptchaHandler));
-            return IsCaptchaPassed(parameters.Payload, filterConfig)
-                ? await HandleSuccessCaptcha(chatId, telegramId, messageId, message, filterConfig)
-                : await HandleFailedCaptcha(chatId, telegramId, messageId, message, filterConfig);
+            return await HandleFailedCaptcha(chatId, telegramId, messageId, message, filterConfig);
         }, () => false);
     }
 
@@ -54,20 +52,4 @@ public class FilterCaptchaHandler(
         ).WhenAll();
         return isFinalTry;
     }
-
-    private async Task<bool> HandleSuccessCaptcha(long chatId, long telegramId, int messageId, FilteredMessage message,
-        FilterConfig filterConfig)
-    {
-        await filteredMessageRepository.DeleteFilteredMessage(message.Id);
-        await Array(
-            whiteListRepository.AddWhiteListMember(new WhiteListMember(new CompositeId(telegramId, chatId))).ToUnit(),
-            messageAssistance.DeleteCommandMessage(chatId, messageId, nameof(FilterCaptchaHandler)),
-            messageAssistance.SendMessageExpired(chatId, filterConfig.SuccessMessage, nameof(FilterCaptchaHandler))
-        ).WhenAll();
-        return false;
-    }
-
-    private bool IsCaptchaPassed(IMessagePayload payload, FilterConfig filterConfig) =>
-        payload is TextPayload { Text: var text } &&
-        string.Equals(filterConfig.CaptchaAnswer, text, StringComparison.CurrentCultureIgnoreCase);
 }

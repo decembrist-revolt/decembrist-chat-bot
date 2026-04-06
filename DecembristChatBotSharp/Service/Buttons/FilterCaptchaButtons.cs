@@ -24,7 +24,7 @@ public class FilterCaptchaButtons()
     private static InlineKeyboardButton GetChatConfigButton(string name, long telegramId, FilterAdminDecision suffix)
     {
         var callback = CallbackService.GetCallback(
-            FilterCaptchaCallbackHandler.PrefixKey, suffix, (CallbackService.UserIdParameter, telegramId));
+            FilterBanCallbackHandler.PrefixKey, suffix, (CallbackService.UserIdParameter, telegramId));
         return InlineKeyboardButton.WithCallbackData(name, callback);
     }
 }

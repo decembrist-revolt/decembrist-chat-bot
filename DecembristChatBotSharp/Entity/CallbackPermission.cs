@@ -14,5 +14,6 @@ public enum CallbackType
 {
     List,
     Captcha,
+    Filter,
     Giveaway
 }

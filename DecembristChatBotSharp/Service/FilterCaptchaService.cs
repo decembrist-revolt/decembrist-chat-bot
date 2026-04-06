@@ -10,6 +10,7 @@ public class FilterCaptchaService(
     AppConfig appConfig,
     WhiteListRepository whiteListRepository,
     FilterRecordRepository filterRecordRepository,
+    FilteredMessageRepository filteredMessageRepository,
     AdminUserRepository adminUserRepository,
     DeepSeekService deepSeekService)
 {
@@ -38,10 +39,21 @@ public class FilterCaptchaService(
         if (isLink || LinkRegex.IsMatch(text) || !await IsFiltered(text, chatId))
             return true;
 
-        return await IsSuspectFromAiModeration(chatId, telegramId, messageId, text, parameters.ReplyToMessageText);
+        var isScam = await GetAiModerationVerdict(chatId, telegramId, messageId, text, parameters.ReplyToMessageText);
+
+        if (!isScam) await HandleClearMessage(telegramId, chatId);
+
+        return isScam;
     }
 
-    private async Task<bool> IsSuspectFromAiModeration(long chatId, long telegramId, int messageId, string text,
+    private async Task HandleClearMessage(long telegramId, long chatId)
+    {
+        await whiteListRepository.AddWhiteListMember(new WhiteListMember(new CompositeId(telegramId, chatId)));
+        var maybeMessage = await filteredMessageRepository.GetFilteredMessage((telegramId, chatId));
+        if (maybeMessage.TryGetSome(out var message)) await filteredMessageRepository.DeleteFilteredMessage(message.Id);
+    }
+
+    private async Task<bool> GetAiModerationVerdict(long chatId, long telegramId, int messageId, string text,
         Option<string> maybeReplyText)
     {
         var messageToCheck = $"Сообщение для проверки:\n\"{text}\"";
@@ -63,10 +75,7 @@ public class FilterCaptchaService(
             return true;
         }
 
-        if (isScam) return true;
-
-        await whiteListRepository.AddWhiteListMember(new WhiteListMember(new CompositeId(telegramId, chatId)));
-        return false;
+        return isScam;
     }
 
     private async Task<bool> IsFiltered(string text, long chatId)

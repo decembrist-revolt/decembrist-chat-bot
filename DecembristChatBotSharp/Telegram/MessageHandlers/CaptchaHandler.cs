@@ -93,7 +93,7 @@ public class CaptchaHandler(
         var telegramId = newMember.Id.TelegramId;
         var username = newMember.Username;
         var text = string.Format(captchaConfig.CaptchaRequestAgainText, username, captchaConfig.CaptchaAnswer);
-        var replyMarkup = captchaButtons.GetMarkup(telegramId, captchaConfig);
+        var replyMarkup = captchaButtons.GetMarkup(telegramId, captchaConfig.CaptchaAnswer);
 
         await messageAssistance.DeleteCommandMessage(chatId, newMember.WelcomeMessageId, nameof(CaptchaHandler));
 

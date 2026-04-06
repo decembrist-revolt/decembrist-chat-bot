@@ -1,5 +1,4 @@
-﻿using DecembristChatBotSharp.Entity.Configs;
-using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
+﻿using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
 using Lamar;
 using Telegram.Bot.Types.ReplyMarkups;
 
@@ -10,9 +9,8 @@ public class CaptchaButtons(Random random)
 {
     private const int Attempts = 5;
 
-    public InlineKeyboardMarkup GetMarkup(long telegramId, CaptchaConfig captchaConfig)
+    public InlineKeyboardMarkup GetMarkup(long telegramId, string correctAnswer)
     {
-        var correctAnswer = captchaConfig.CaptchaAnswer;
         var keyboardButtons = new List<InlineKeyboardButton[]>
         {
             new[] { GetCaptchaButton(correctAnswer, telegramId) },
@@ -32,13 +30,21 @@ public class CaptchaButtons(Random random)
         var chars = correctAnswer.ToCharArray();
         var attempts = 0;
         string wrongAnswer;
+        bool isEqual;
         do
         {
             attempts++;
-            wrongAnswer = new string(chars.OrderBy(_ => random.Next()).ToArray());
-        } while (wrongAnswer == correctAnswer && attempts < Attempts);
+            for (var i = chars.Length - 1; i > 0; i--)
+            {
+                var j = random.Next(i + 1);
+                (chars[i], chars[j]) = (chars[j], chars[i]);
+            }
 
-        return wrongAnswer == correctAnswer ? wrongAnswer + Attempts : wrongAnswer;
+            wrongAnswer = new string(chars);
+            isEqual = wrongAnswer == correctAnswer;
+        } while (isEqual && attempts < Attempts);
+
+        return isEqual ? wrongAnswer + Attempts : wrongAnswer;
     }
 
     private static InlineKeyboardButton GetCaptchaButton(string name, long telegramId)

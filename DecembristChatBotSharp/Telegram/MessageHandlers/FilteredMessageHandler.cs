@@ -2,6 +2,7 @@
 using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
+using DecembristChatBotSharp.Service.Buttons;
 using Lamar;
 using Serilog;
 using Telegram.Bot;
@@ -11,6 +12,8 @@ namespace DecembristChatBotSharp.Telegram.MessageHandlers;
 
 [Singleton]
 public class FilteredMessageHandler(
+    CaptchaButtons captchaButtons,
+    CallbackRepository callbackRepository,
     FilteredMessageRepository filteredMessageRepository,
     BotClient botClient,
     AppConfig appConfig,
@@ -21,7 +24,7 @@ public class FilteredMessageHandler(
     public async Task<bool> Do(ChatMessageHandlerParams parameters)
     {
         var (messageId, telegramId, chatId) = parameters;
-        if(!await filterCaptchaService.IsSuspectMessage(parameters)) return false;
+        if (!await filterCaptchaService.IsSuspectMessage(parameters)) return false;
         return await SendCaptchaMessage(chatId, messageId, telegramId);
     }
 
@@ -39,13 +42,19 @@ public class FilteredMessageHandler(
         var messageText = string.Format(
             filterConfig.CaptchaMessage, filterConfig.CaptchaAnswer, appConfig.FilterJobConfig.CaptchaTimeSeconds,
             appConfig.FilterJobConfig.CaptchaTryCount - tryCount);
-        
-        return await botClient.SendMessage(chatId, messageText,
-                replyParameters: new ReplyParameters { MessageId = messageId },
-                cancellationToken: cancelToken.Token)
+        var replyMarkup = captchaButtons.GetMarkup(telegramId, filterConfig.CaptchaAnswer);
+
+        return await botClient.SendMessage(chatId, messageText, replyMarkup: replyMarkup,
+                replyParameters: new ReplyParameters { MessageId = messageId }, cancellationToken: cancelToken.Token)
             .ToTryAsync()
             .Match(async m =>
                 {
+                    var expireAt = DateTime.UtcNow.AddSeconds(appConfig.FilterJobConfig.CaptchaTimeSeconds);
+                    var permission = new CallbackPermission(
+                        new CallbackPermission.CompositeId(chatId, telegramId, CallbackType.Filter, m.MessageId),
+                        expireAt);
+                    await callbackRepository.AddCallbackPermission(permission);
+                    
                     var message = new FilteredMessage((telegramId, chatId), messageId, m.MessageId, DateTime.UtcNow);
                     await filteredMessageRepository.AddFilteredMessage(message);
 
