@@ -1,4 +1,5 @@
-﻿using DecembristChatBotSharp.Entity;
+﻿using System.Text.Json;
+using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Entity.Configs;
 using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
@@ -17,14 +18,14 @@ public class FilterCaptchaCallbackHandler(
     CancellationTokenSource cancelToken,
     BanService banService) : IChatCallbackHandler
 {
-    public const string PrefixKey = "Captcha";
+    public const string PrefixKey = "FilterCaptcha";
 
     public string Prefix => PrefixKey;
 
     public async Task<Unit> Do(CallbackQueryParameters queryParameters)
     {
         var (_, suffix, chatId, telegramId, messageId, queryId, maybeParameters) = queryParameters;
-        var id = new CallbackPermission.CompositeId(chatId, telegramId, CallbackType.Captcha, messageId);
+        var id = new CallbackPermission.CompositeId(chatId, telegramId, CallbackType.Filter, messageId);
 
         if (!await callbackRepository.HasPermission(id)) return await SendNotAccess(chatId, queryId);
 
@@ -39,7 +40,7 @@ public class FilterCaptchaCallbackHandler(
 
         await messageAssistance.DeleteCommandMessage(chatId, message.CaptchaMessageId, PrefixKey);
 
-        if (string.Equals(suffix, filterConfig.CaptchaAnswer, StringComparison.OrdinalIgnoreCase))
+        if (Enum.TryParse(suffix, out FilterCaptchaResult @case) && @case == FilterCaptchaResult.Correct)
         {
             return await HandleCorrect(chatId, telegramId, message, filterConfig);
         }
@@ -75,4 +76,10 @@ public class FilterCaptchaCallbackHandler(
         var message = "Это сообщение для проходящего капчу";
         return await messageAssistance.AnswerCallbackQuery(queryId, chatId, Prefix, message);
     }
+}
+
+public enum FilterCaptchaResult
+{
+    Correct,
+    Wrong
 }

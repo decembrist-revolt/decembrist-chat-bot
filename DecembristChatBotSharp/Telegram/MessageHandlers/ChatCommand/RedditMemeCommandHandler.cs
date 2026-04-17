@@ -1,7 +1,10 @@
-﻿using DecembristChatBotSharp.Mongo;
+﻿using DecembristChatBotSharp.DI;
+using DecembristChatBotSharp.Mongo;
 using DecembristChatBotSharp.Service;
 using Lamar;
 using Serilog;
+using Telegram.Bot;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
 namespace DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
@@ -14,6 +17,7 @@ public class RedditMemeCommandHandler(
     MessageAssistance messageAssistance,
     BotClient botClient,
     ExpiredMessageRepository expiredMessageRepository,
+    MemeDownloadService memeDownloadService,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public const string CommandKey = "/redditmeme";
@@ -59,11 +63,15 @@ public class RedditMemeCommandHandler(
 
     private async Task<Unit> SendMeme(long chatId, RedditRandomMeme meme)
     {
-        var message = $"{meme.Url.EscapeMarkdown()}\n[Источник]({meme.Permalink.EscapeMarkdown()})";
-        return await botClient.SendMessageAndLog(chatId, message, ParseMode.MarkdownV2,
-            _ => Log.Information("Sent random meme to chat {0}", chatId),
-            ex => Log.Error(ex, "Failed to send random meme {0} to chat {1}", message, chatId),
-            cancelToken.Token);
+        var caption = $"[Источник]({meme.Permalink.EscapeMarkdown()})";
+        await memeDownloadService.SendMeme(
+            chatId,
+            meme.Url,
+            HttpClientConfiguration.RedditClient,
+            caption,
+            parseMode: ParseMode.MarkdownV2,
+            logMessage: "Sent random reddit meme");
+        return unit;
     }
 
     private async Task<Unit> SendRedditErrorMessage(long chatId)
