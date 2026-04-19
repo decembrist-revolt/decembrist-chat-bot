@@ -14,7 +14,6 @@ public static class HttpClientConfiguration
         registry.AddHttpClient(RedditClient, client =>
         {
             client.DefaultRequestHeaders.Add("User-Agent", appConfig.RedditConfig.UserAgent);
-            client.Timeout = TimeSpan.FromSeconds(30);
         });
         
         registry.AddHttpClient(DeepSeekClient, client =>
