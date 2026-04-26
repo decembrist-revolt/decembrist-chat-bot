@@ -40,8 +40,12 @@ public class PollPaymentJob(
 
     public async Task Register(IScheduler scheduler)
     {
-        if (appConfig.PollPaymentConfig == null) return;
-        
+        if (appConfig.PollPaymentConfig is not { Enabled: true })
+        {
+            Log.Information("Poll payment feature is disabled, skipping PollPaymentJob registration");
+            return;
+        }
+
         var triggerKey = new TriggerKey(nameof(PollPaymentJob));
 
         var job = JobBuilder.Create<PollPaymentJob>()
@@ -56,7 +60,7 @@ public class PollPaymentJob(
                 .RepeatForever()
                 .WithMisfireHandlingInstructionNextWithExistingCount())
             .Build();
-        
+
         var existingTrigger = await scheduler.GetTrigger(triggerKey);
 
         if (existingTrigger != null)
@@ -71,6 +75,7 @@ public class PollPaymentJob(
 
     public async Task Execute(IJobExecutionContext context)
     {
+        if (appConfig.PollPaymentConfig is not { Enabled: true }) return;
         await PollPayment();
         // context.Scheduler...
     }
@@ -189,7 +194,8 @@ public class PollPaymentJob(
     }
 
     private async Task<bool> HandleProduct(
-        string token, string userId, string userProductId, ProductType type, BsonDocument metaInfo, IMongoSession session)
+        string token, string userId, string userProductId, ProductType type, BsonDocument metaInfo,
+        IMongoSession session)
     {
         var maybeUser = await keycloakService.GetUserById(token, userId);
         if (maybeUser.IsNone)

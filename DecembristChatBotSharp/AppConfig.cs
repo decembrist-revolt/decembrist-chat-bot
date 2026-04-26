@@ -295,6 +295,7 @@ public record HttpConfig(
 );
 
 public record PollPaymentConfig(
+    bool Enabled,
     [property: Required(AllowEmptyStrings = false)]
     string ServiceUrl,
     [property: Required] int PollIntervalSeconds,
