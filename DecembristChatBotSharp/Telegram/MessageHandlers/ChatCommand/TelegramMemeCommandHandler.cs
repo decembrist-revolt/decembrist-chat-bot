@@ -78,7 +78,7 @@ public class TelegramMemeCommandHandler(
             meme.PhotoLink,
             HttpClientConfiguration.TelegramMemeClient,
             StolenMemeCaption,
-            logMessage: "Sent random telegram meme");
+            Command);
         return unit;
     }
 

@@ -1,4 +1,5 @@
-﻿using Lamar;
+﻿using System.Runtime.CompilerServices;
+using Lamar;
 using Serilog;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -17,8 +18,8 @@ public class MemeDownloadService(
         string imageUrl,
         string clientName,
         string caption,
-        ParseMode? parseMode = null,
-        string logMessage = "Sent meme")
+        string commandName,
+        ParseMode? parseMode = null)
     {
         try
         {
@@ -40,7 +41,7 @@ public class MemeDownloadService(
                 parseMode: parseMode ?? ParseMode.None,
                 cancellationToken: cancelToken.Token);
 
-            Log.Information("{LogMessage} to chat {chatId}", logMessage, chatId);
+            Log.Information("{commandName}: send meme {imageUrl} to chat {chatId} ", commandName, imageUrl, chatId);
             return true;
         }
         catch (Exception ex)
