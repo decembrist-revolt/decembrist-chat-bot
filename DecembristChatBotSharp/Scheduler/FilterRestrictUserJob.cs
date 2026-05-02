@@ -13,8 +13,11 @@ public class FilterRestrictUserJob(
     BanService banService,
     MessageAssistance messageAssistance,
     FilterRestrictUserRepository db,
-    CancellationTokenSource cancelToken) : IRegisterJob
+    CancellationTokenSource cancelToken,
+    SchedulerService schedulerService) : IRegisterJob
 {
+    public TriggerKey TriggerKey => new(nameof(FilterRestrictUserJob));
+
     public async Task Register(IScheduler scheduler)
     {
         var job = JobBuilder.Create<FilterRestrictUserJob>()
@@ -22,14 +25,14 @@ public class FilterRestrictUserJob(
             .Build();
 
         var trigger = TriggerBuilder.Create()
-            .WithIdentity(nameof(FilterRestrictUserJob))
+            .WithIdentity(TriggerKey)
             .StartNow()
             .WithSimpleSchedule(x => x
                 .WithIntervalInSeconds(appConfig.FilterJobConfig.CheckFilterRestrictSeconds)
                 .RepeatForever())
             .Build();
 
-        await scheduler.ScheduleJob(job, trigger);
+        await schedulerService.RegisterOrRescheduleJob(scheduler, TriggerKey, job, trigger);
     }
 
     public async Task Execute(IJobExecutionContext context)

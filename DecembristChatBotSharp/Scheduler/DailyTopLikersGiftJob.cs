@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Quartz;
 using Serilog;
@@ -18,35 +19,26 @@ public class DailyTopLikersGiftJob(
     MemberItemRepository memberItemRepository,
     HistoryLogRepository historyLogRepository,
     BotClient botClient,
-    CancellationTokenSource cancelToken) : IRegisterJob
+    CancellationTokenSource cancelToken,
+    SchedulerService schedulerService) : IRegisterJob
 {
+    public TriggerKey TriggerKey => new(nameof(DailyTopLikersGiftJob));
+
     public async Task Register(IScheduler scheduler)
     {
-        var jobKey = new JobKey(nameof(DailyTopLikersGiftJob));
-        var triggerKey = new TriggerKey(nameof(DailyTopLikersGiftJob));
-
         var job = JobBuilder.Create<DailyTopLikersGiftJob>()
-            .WithIdentity(jobKey)
+            .WithIdentity(TriggerKey.Name)
             .Build();
 
         var newTrigger = TriggerBuilder.Create()
-            .WithIdentity(triggerKey)
+            .WithIdentity(TriggerKey)
             .StartNow()
             .WithCronSchedule(
                 appConfig.CommandAssistanceConfig.LikeJobConfig.DailyTopLikersGiftCronUtc,
                 x => x.InTimeZone(TimeZoneInfo.Utc))
             .Build();
 
-        var existingTrigger = await scheduler.GetTrigger(triggerKey);
-
-        if (existingTrigger != null)
-        {
-            await scheduler.RescheduleJob(triggerKey, newTrigger);
-        }
-        else
-        {
-            await scheduler.ScheduleJob(job, newTrigger);
-        }
+        await schedulerService.RegisterOrRescheduleJob(scheduler, TriggerKey, job, newTrigger);
     }
 
     public async Task Execute(IJobExecutionContext context)

@@ -12,6 +12,7 @@ public class CraftService(
     MongoDatabase db,
     HistoryLogRepository historyLogRepository,
     MemberItemRepository memberItemRepository,
+    MemberItemService memberItemService,
     CancellationTokenSource cancelToken,
     PremiumMemberRepository premiumMemberRepository)
 {
@@ -45,6 +46,21 @@ public class CraftService(
         }
 
         var result = isGetPremiumBonus ? CraftResult.PremiumSuccess : CraftResult.Success;
+
+        if (craftItem.Item is MemberItemType.Amulet)
+        {
+            var existAmulet = await memberItemService.HandleAmuletItem(new CompositeId(telegramId, chatId), session);
+            if (existAmulet)
+            {
+                Log.Information("The amulet is used in crafting for user {0} in chat {1}", telegramId, chatId);
+                craftItem = craftItem with { Quantity = craftItem.Quantity - 1 };
+                if (craftItem.Quantity <= 0)
+                {
+                    await LogInHistory(recipe.Inputs, chatId, telegramId, craftItem, session);
+                    return await CommitWithResult(session, new CraftOperationResult(result, craftItem));
+                }
+            }
+        }
 
         var isAdd = await AddCraftItems(chatId, telegramId, craftItem, session);
 

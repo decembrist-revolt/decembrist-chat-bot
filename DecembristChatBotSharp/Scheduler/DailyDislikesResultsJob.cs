@@ -20,35 +20,26 @@ public class DailyDislikesResultsJob(
     HistoryLogRepository historyLogRepository,
     BotClient botClient,
     Random random,
-    CancellationTokenSource cancelToken) : IRegisterJob
+    CancellationTokenSource cancelToken,
+    SchedulerService schedulerService) : IRegisterJob
 {
+    public TriggerKey TriggerKey => new(nameof(DailyDislikesResultsJob));
+
     public async Task Register(IScheduler scheduler)
     {
-        var jobKey = new JobKey(nameof(DailyDislikesResultsJob));
-        var triggerKey = new TriggerKey(nameof(DailyDislikesResultsJob));
-
         var job = JobBuilder.Create<DailyDislikesResultsJob>()
-            .WithIdentity(jobKey)
+            .WithIdentity(TriggerKey.Name)
             .Build();
 
         var newTrigger = TriggerBuilder.Create()
-            .WithIdentity(triggerKey)
+            .WithIdentity(TriggerKey)
             .StartNow()
             .WithCronSchedule(
                 appConfig.DislikeJobConfig.DailyResultCronUtc,
                 x => x.InTimeZone(TimeZoneInfo.Utc))
             .Build();
 
-        var existingTrigger = await scheduler.GetTrigger(triggerKey);
-
-        if (existingTrigger != null)
-        {
-            await scheduler.RescheduleJob(triggerKey, newTrigger);
-        }
-        else
-        {
-            await scheduler.ScheduleJob(job, newTrigger);
-        }
+        await schedulerService.RegisterOrRescheduleJob(scheduler, TriggerKey, job, newTrigger);
     }
 
     public async Task Execute(IJobExecutionContext context)

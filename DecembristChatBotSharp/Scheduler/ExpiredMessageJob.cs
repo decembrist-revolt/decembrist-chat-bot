@@ -1,4 +1,5 @@
 ﻿using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using Lamar;
 using Quartz;
 using Serilog;
@@ -11,8 +12,11 @@ public class ExpiredMessageJob(
     AppConfig appConfig,
     ExpiredMessageRepository repository,
     BotClient botClient,
-    CancellationTokenSource cancelToken) : IRegisterJob
+    CancellationTokenSource cancelToken,
+    SchedulerService schedulerService) : IRegisterJob
 {
+    public TriggerKey TriggerKey => new(nameof(ExpiredMessageJob));
+
     public async Task Register(IScheduler scheduler)
     {
         var job = JobBuilder.Create<ExpiredMessageJob>()
@@ -20,14 +24,14 @@ public class ExpiredMessageJob(
             .Build();
 
         var trigger = TriggerBuilder.Create()
-            .WithIdentity(nameof(ExpiredMessageJob))
+            .WithIdentity(TriggerKey)
             .StartNow()
             .WithSimpleSchedule(x => x
                 .WithIntervalInSeconds(appConfig.CommandAssistanceConfig.CommandIntervalSeconds)
                 .RepeatForever())
             .Build();
 
-        await scheduler.ScheduleJob(job, trigger);
+        await schedulerService.RegisterOrRescheduleJob(scheduler, TriggerKey, job, trigger);
     }
 
     public async Task Execute(IJobExecutionContext context)
