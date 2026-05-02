@@ -42,14 +42,6 @@ public class MinaHandler(
     private async Task<bool> ActivateMine(MineTrigger trigger, int messageId, long victimTelegramId, long chatId,
         CurseConfig curseConfig, MinaConfig minaConfig)
     {
-        var redirectTarget = await minionService.GetRedirectTarget(victimTelegramId, chatId);
-        if (redirectTarget.TryGetSome(out var redirectedId))
-        {
-            var originalVictimId = victimTelegramId;
-            victimTelegramId = redirectedId;
-            await minionService.SendNegativeEffectRedirectMessage(chatId, originalVictimId, victimTelegramId);
-        }
-
         var expireAt = DateTime.UtcNow.AddMinutes(curseConfig.DurationMinutes);
         var curseMember = new ReactionSpamMember(new CompositeId(victimTelegramId, chatId), trigger.Emoji, expireAt);
 

@@ -8,8 +8,11 @@ namespace DecembristChatBotSharp.Scheduler;
 [Singleton]
 public class QuizValidatorJob(
     AppConfig appConfig,
-    QuizService quizService) : IRegisterJob
+    QuizService quizService,
+    SchedulerService schedulerService) : IRegisterJob
 {
+    public TriggerKey TriggerKey => new(nameof(QuizValidatorJob));
+
     public async Task Register(IScheduler scheduler)
     {
         if (appConfig.QuizConfig is not { Enabled: true })
@@ -18,15 +21,12 @@ public class QuizValidatorJob(
             return;
         }
 
-        var triggerKey = new TriggerKey(nameof(QuizValidatorJob));
-
         var job = JobBuilder.Create<QuizValidatorJob>()
             .WithIdentity(nameof(QuizValidatorJob))
             .Build();
 
-        // Run every minute
         var trigger = TriggerBuilder.Create()
-            .WithIdentity(triggerKey)
+            .WithIdentity(TriggerKey)
             .StartNow()
             .WithSimpleSchedule(x => x
                 .WithIntervalInMinutes(1)
@@ -34,18 +34,7 @@ public class QuizValidatorJob(
                 .WithMisfireHandlingInstructionNextWithExistingCount())
             .Build();
 
-        var existingTrigger = await scheduler.GetTrigger(triggerKey);
-
-        if (existingTrigger != null)
-        {
-            await scheduler.RescheduleJob(triggerKey, trigger);
-            Log.Information("QuizValidatorJob rescheduled to run every minute");
-        }
-        else
-        {
-            await scheduler.ScheduleJob(job, trigger);
-            Log.Information("QuizValidatorJob registered to run every minute");
-        }
+        await schedulerService.RegisterOrRescheduleJob(scheduler, TriggerKey, job, trigger);
     }
 
     public async Task Execute(IJobExecutionContext context)

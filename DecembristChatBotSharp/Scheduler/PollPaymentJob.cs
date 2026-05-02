@@ -27,7 +27,8 @@ public class PollPaymentJob(
     IHttpClientFactory httpClientFactory,
     PollPaymentOffsetRepository pollPaymentOffsetRepository,
     MongoDatabase db,
-    CancellationTokenSource cancelToken
+    CancellationTokenSource cancelToken,
+    SchedulerService schedulerService
 ) : IRegisterJob
 {
     private const string UserProductUri = "/api/user-product";
@@ -38,6 +39,8 @@ public class PollPaymentJob(
         PropertyNameCaseInsensitive = true,
     };
 
+    public TriggerKey TriggerKey => new(nameof(PollPaymentJob));
+
     public async Task Register(IScheduler scheduler)
     {
         if (appConfig.PollPaymentConfig is not { Enabled: true })
@@ -46,14 +49,12 @@ public class PollPaymentJob(
             return;
         }
 
-        var triggerKey = new TriggerKey(nameof(PollPaymentJob));
-
         var job = JobBuilder.Create<PollPaymentJob>()
             .WithIdentity(nameof(PollPaymentJob))
             .Build();
 
         var trigger = TriggerBuilder.Create()
-            .WithIdentity(triggerKey)
+            .WithIdentity(TriggerKey)
             .StartNow()
             .WithSimpleSchedule(x => x
                 .WithIntervalInSeconds(appConfig.PollPaymentConfig.PollIntervalSeconds)
@@ -61,16 +62,7 @@ public class PollPaymentJob(
                 .WithMisfireHandlingInstructionNextWithExistingCount())
             .Build();
 
-        var existingTrigger = await scheduler.GetTrigger(triggerKey);
-
-        if (existingTrigger != null)
-        {
-            await scheduler.RescheduleJob(triggerKey, trigger);
-        }
-        else
-        {
-            await scheduler.ScheduleJob(job, trigger);
-        }
+        await schedulerService.RegisterOrRescheduleJob(scheduler, TriggerKey, job, trigger);
     }
 
     public async Task Execute(IJobExecutionContext context)

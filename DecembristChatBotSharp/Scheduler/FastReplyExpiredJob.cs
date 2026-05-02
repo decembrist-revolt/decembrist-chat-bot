@@ -1,5 +1,6 @@
 using DecembristChatBotSharp.Entity;
 using DecembristChatBotSharp.Mongo;
+using DecembristChatBotSharp.Service;
 using DecembristChatBotSharp.Telegram.MessageHandlers;
 using DecembristChatBotSharp.Telegram.MessageHandlers.ChatCommand;
 using Lamar;
@@ -15,8 +16,11 @@ public class FastReplyExpiredJob(
     MongoDatabase db,
     BotClient botClient,
     FastReplyRepository repository,
-    CancellationTokenSource cancelToken) : IRegisterJob
+    CancellationTokenSource cancelToken,
+    SchedulerService schedulerService) : IRegisterJob
 {
+    public TriggerKey TriggerKey => new(nameof(FastReplyExpiredJob));
+
     public async Task Register(IScheduler scheduler)
     {
         var job = JobBuilder.Create<FastReplyExpiredJob>()
@@ -24,14 +28,14 @@ public class FastReplyExpiredJob(
             .Build();
 
         var trigger = TriggerBuilder.Create()
-            .WithIdentity(nameof(FastReplyExpiredJob))
+            .WithIdentity(TriggerKey)
             .StartNow()
             .WithCronSchedule(
                 appConfig.CommandAssistanceConfig.FastReplyCheckExpireCronUtc,
                 x => x.InTimeZone(TimeZoneInfo.Utc))
             .Build();
 
-        await scheduler.ScheduleJob(job, trigger);
+        await schedulerService.RegisterOrRescheduleJob(scheduler, TriggerKey, job, trigger);
     }
 
     public async Task Execute(IJobExecutionContext context)

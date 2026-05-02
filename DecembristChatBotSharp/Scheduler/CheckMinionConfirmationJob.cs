@@ -15,31 +15,24 @@ public class CheckMinionConfirmationJob(
     AppConfig appConfig,
     CancellationTokenSource cancelToken,
     MinionService minionService,
-    object messageAssistance) : IRegisterJob
+    object messageAssistance,
+    SchedulerService schedulerService) : IRegisterJob
 {
+    public TriggerKey TriggerKey => new(nameof(CheckMinionConfirmationJob));
+
     public async Task Register(IScheduler scheduler)
     {
-        var triggerKey = new TriggerKey(nameof(CheckMinionConfirmationJob));
         var job = JobBuilder.Create<CheckMinionConfirmationJob>()
             .WithIdentity(nameof(CheckMinionConfirmationJob))
             .Build();
 
         var trigger = TriggerBuilder.Create()
-            .WithIdentity(triggerKey)
+            .WithIdentity(TriggerKey)
             .StartNow()
             .WithCronSchedule(appConfig.MinionConfig.ConfirmationCheckCron)
             .Build();
 
-        var existingTrigger = await scheduler.GetTrigger(triggerKey);
-
-        if (existingTrigger != null)
-        {
-            await scheduler.RescheduleJob(triggerKey, trigger);
-        }
-        else
-        {
-            await scheduler.ScheduleJob(job, trigger);
-        }
+        await schedulerService.RegisterOrRescheduleJob(scheduler, TriggerKey, job, trigger);
     }
 
     public async Task Execute(IJobExecutionContext context)

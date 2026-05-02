@@ -10,8 +10,11 @@ namespace DecembristChatBotSharp.Scheduler;
 public class QuizGeneratorJob(
     AppConfig appConfig,
     QuizService quizService,
-    QuizRepository quizRepository) : IRegisterJob
+    QuizRepository quizRepository,
+    SchedulerService schedulerService) : IRegisterJob
 {
+    public TriggerKey TriggerKey => new(nameof(QuizGeneratorJob));
+
     public async Task Register(IScheduler scheduler)
     {
         if (appConfig.QuizConfig is not { Enabled: true })
@@ -20,31 +23,16 @@ public class QuizGeneratorJob(
             return;
         }
 
-        var triggerKey = new TriggerKey(nameof(QuizGeneratorJob));
-
         var job = JobBuilder.Create<QuizGeneratorJob>()
             .WithIdentity(nameof(QuizGeneratorJob))
             .Build();
 
         var trigger = TriggerBuilder.Create()
-            .WithIdentity(triggerKey)
+            .WithIdentity(TriggerKey)
             .WithCronSchedule(appConfig.QuizConfig.QuestionGenerationCronUtc)
             .Build();
 
-        var existingTrigger = await scheduler.GetTrigger(triggerKey);
-
-        if (existingTrigger != null)
-        {
-            await scheduler.RescheduleJob(triggerKey, trigger);
-            Log.Information("QuizGeneratorJob rescheduled with schedule: {Cron}",
-                appConfig.QuizConfig.QuestionGenerationCronUtc);
-        }
-        else
-        {
-            await scheduler.ScheduleJob(job, trigger);
-            Log.Information("QuizGeneratorJob registered with schedule: {Cron}",
-                appConfig.QuizConfig.QuestionGenerationCronUtc);
-        }
+        await schedulerService.RegisterOrRescheduleJob(scheduler, TriggerKey, job, trigger);
     }
 
     public async Task Execute(IJobExecutionContext context)

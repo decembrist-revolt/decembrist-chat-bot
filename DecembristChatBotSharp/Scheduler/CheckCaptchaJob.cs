@@ -15,8 +15,11 @@ public class CheckCaptchaJob(
     BanService banService,
     MessageAssistance messageAssistance,
     NewMemberRepository db,
-    CancellationTokenSource cancelToken) : IRegisterJob
+    CancellationTokenSource cancelToken,
+    SchedulerService schedulerService) : IRegisterJob
 {
+    public TriggerKey TriggerKey => new(nameof(CheckCaptchaJob));
+
     public async Task Register(IScheduler scheduler)
     {
         var job = JobBuilder.Create<CheckCaptchaJob>()
@@ -24,14 +27,14 @@ public class CheckCaptchaJob(
             .Build();
 
         var trigger = TriggerBuilder.Create()
-            .WithIdentity(nameof(CheckCaptchaJob))
+            .WithIdentity(TriggerKey)
             .StartNow()
             .WithSimpleSchedule(x => x
                 .WithIntervalInSeconds(appConfig.CaptchaJobConfig.CheckCaptchaIntervalSeconds)
                 .RepeatForever())
             .Build();
 
-        await scheduler.ScheduleJob(job, trigger);
+        await schedulerService.RegisterOrRescheduleJob(scheduler, TriggerKey, job, trigger);
     }
 
     public async Task Execute(IJobExecutionContext context)
