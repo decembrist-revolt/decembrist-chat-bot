@@ -15,7 +15,8 @@ public readonly record struct ChatMessageHandlerParams(
     bool ReplyToBotMessage,
     Option<string> ReplyToMessageText,
     Option<string> ReplyFileId,
-    MessageType MessageType = MessageType.Unknown
+    MessageType MessageType = MessageType.Unknown,
+    Option<string> ViaBotUsername = default
 )
 {
     public void Deconstruct(out int messageId, out long telegramId, out long chatId)
@@ -49,6 +50,7 @@ public class ChatMessageHandler(
     ChatCommandHandler chatCommandHandler,
     FastReplyHandler fastReplyHandler,
     RestrictHandler restrictHandler,
+    InlineBotRestrictionHandler inlineBotRestrictionHandler,
     MessageAssistance messageAssistance,
     CharmHandler charmHandler,
     CurseHandler curseHandler,
@@ -65,6 +67,8 @@ public class ChatMessageHandler(
 
         if (await filterCaptchaHandler.Do(parameters)) return unit;
         await filteredMessageHandler.Do(parameters);
+
+        if (await inlineBotRestrictionHandler.Do(parameters)) return unit;
 
         await curseHandler.Do(parameters);
         if (await minaHandler.Do(parameters)) return unit;

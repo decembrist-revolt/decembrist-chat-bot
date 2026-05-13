@@ -150,6 +150,7 @@ public class BotHandler(
         var replyToMessageText = Optional(message.ReplyToMessage?.Text ?? message.ReplyToMessage?.Caption);
         var replyToMessageId = Optional(message.ReplyToMessage?.MessageId);
         var replyToTelegramId = Optional(message.ReplyToMessage?.From?.Id);
+        var viaBotUsername = Optional(message.ViaBot?.Username);
 
         Option<string> replyToFileId = None;
         var type = MessageType.Unknown;
@@ -162,7 +163,7 @@ public class BotHandler(
             payload, messageId, telegramId, chatId,
             replyToTelegramId, replyToMessageId,
             botMentioned, replyToBotMessage, replyToMessageText,
-            replyToFileId, type);
+            replyToFileId, type, viaBotUsername);
         return parameters;
     }
 
