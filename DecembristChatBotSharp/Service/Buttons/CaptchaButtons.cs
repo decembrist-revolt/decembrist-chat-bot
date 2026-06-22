@@ -1,23 +1,20 @@
-﻿using DecembristChatBotSharp.Entity.Configs;
-using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
+﻿using DecembristChatBotSharp.Telegram.CallbackHandlers.ChatCallback;
 using Lamar;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace DecembristChatBotSharp.Service.Buttons;
 
 [Singleton]
-public class CaptchaButtons(Random random)
+public class CaptchaButtons(Random random, CaptchaService captchaService)
 {
-    private const int Attempts = 5;
-
-    public InlineKeyboardMarkup GetMarkup(long telegramId, CaptchaConfig captchaConfig)
+    public InlineKeyboardMarkup GetMarkup(long telegramId, string correctAnswer,
+        string callbackPrefix = CaptchaCallbackHandler.PrefixKey)
     {
-        var correctAnswer = captchaConfig.CaptchaAnswer;
         var keyboardButtons = new List<InlineKeyboardButton[]>
         {
-            new[] { GetCaptchaButton(correctAnswer, telegramId) },
-            new[] { GetCaptchaButton(GetWrongAnswer(correctAnswer), telegramId) },
-            new[] { GetCaptchaButton(GetWrongAnswer(correctAnswer), telegramId) },
+            new[] { GetCaptchaCorrectButton(correctAnswer, telegramId) },
+            new[] { GetCaptchaWrongButton(captchaService.GetWrongAnswer(correctAnswer), telegramId) },
+            new[] { GetCaptchaWrongButton(captchaService.GetWrongAnswer(correctAnswer), telegramId) },
         };
 
         var captchaButtons = keyboardButtons
@@ -27,24 +24,17 @@ public class CaptchaButtons(Random random)
         return new InlineKeyboardMarkup(captchaButtons);
     }
 
-    private string GetWrongAnswer(string correctAnswer)
+    private static InlineKeyboardButton GetCaptchaCorrectButton(string name, long telegramId)
     {
-        var chars = correctAnswer.ToCharArray();
-        var attempts = 0;
-        string wrongAnswer;
-        do
-        {
-            attempts++;
-            wrongAnswer = new string(chars.OrderBy(_ => random.Next()).ToArray());
-        } while (wrongAnswer == correctAnswer && attempts < Attempts);
-
-        return wrongAnswer == correctAnswer ? wrongAnswer + Attempts : wrongAnswer;
+        var callback = CallbackService.GetCallback(CaptchaCallbackHandler.PrefixKey, CaptchaResult.Correct,
+            (CallbackService.UserIdParameter, telegramId));
+        return InlineKeyboardButton.WithCallbackData(name, callback);
     }
 
-    private static InlineKeyboardButton GetCaptchaButton(string name, long telegramId)
+    private static InlineKeyboardButton GetCaptchaWrongButton(string name, long telegramId)
     {
-        var callback = CallbackService.GetCallback(
-            CaptchaCallbackHandler.PrefixKey, name, (CallbackService.UserIdParameter, telegramId));
+        var callback = CallbackService.GetCallback(CaptchaCallbackHandler.PrefixKey, CaptchaResult.Wrong,
+            (CallbackService.UserIdParameter, telegramId));
         return InlineKeyboardButton.WithCallbackData(name, callback);
     }
 }

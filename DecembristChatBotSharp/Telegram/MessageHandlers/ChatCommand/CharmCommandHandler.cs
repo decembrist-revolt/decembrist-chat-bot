@@ -18,11 +18,15 @@ public partial class CharmCommandHandler(
     MinionService minionService,
     ChatConfigService chatConfigService,
     BotClient botClient,
+    AppConfig appConfig,
     CancellationTokenSource cancelToken) : ICommandHandler
 {
     public const string CommandKey = "/charm";
     public string Command => CommandKey;
-    public string Description => "Mutes a user with a phrase, they can’t chat until the charm wears off";
+
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+        "Mutes a user with a phrase, they can’t chat until the charm wears off");
+
     public CommandLevel CommandLevel => CommandLevel.Item;
 
     [GeneratedRegex(@"\s+")]

@@ -46,7 +46,7 @@ public class CaptchaCallbackHandler(
 
         await messageAssistance.DeleteCommandMessage(chatId, messageId, PrefixKey);
 
-        if (string.Equals(suffix, captchaConfig.CaptchaAnswer, StringComparison.OrdinalIgnoreCase))
+        if (Enum.TryParse(suffix, out CaptchaResult @case) && @case == CaptchaResult.Correct)
         {
             return await HandleCorrect(chatId, telegramId, newMember, captchaConfig);
         }
@@ -78,4 +78,10 @@ public class CaptchaCallbackHandler(
         var message = "Это сообщение для проходящего капчу";
         return await messageAssistance.AnswerCallbackQuery(queryId, chatId, Prefix, message);
     }
+}
+
+public enum CaptchaResult
+{
+    Correct,
+    Wrong
 }

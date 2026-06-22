@@ -7,6 +7,7 @@ public static class HttpClientConfiguration
 {
     public const string RedditClient = nameof(RedditClient);
     public const string DeepSeekClient = nameof(DeepSeekClient);
+    public const string TelegramMemeClient = nameof(TelegramMemeClient);
     
     public static void AddHttpClients(this ServiceRegistry registry, AppConfig appConfig)
     {
@@ -18,6 +19,11 @@ public static class HttpClientConfiguration
         registry.AddHttpClient(DeepSeekClient, client =>
         {
             client.Timeout = TimeSpan.FromMinutes(3);
+        });
+        
+        registry.AddHttpClient(TelegramMemeClient, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
         });
     }
 }

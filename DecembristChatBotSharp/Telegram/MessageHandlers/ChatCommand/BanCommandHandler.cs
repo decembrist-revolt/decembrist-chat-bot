@@ -15,11 +15,16 @@ public partial class BanCommandHandler(
     MemberItemRepository memberItemRepository,
     BotClient botClient,
     Random random,
+    AppConfig appConfig,
     CancellationTokenSource cancelToken,
     ChatConfigService chatConfigService) : ICommandHandler
 {
-    public string Command => "/ban";
-    public string Description => "Ban user in reply. Set reason in format /ban This is ban reason";
+    public const string CommandKey = "/ban";
+    public string Command => CommandKey;
+
+    public string Description => appConfig.CommandAssistanceConfig.CommandDescriptions.GetValueOrDefault(CommandKey,
+        "Ban user in reply. Set reason in format /ban This is ban reason");
+
     public CommandLevel CommandLevel => CommandLevel.User;
 
     [GeneratedRegex(@"\s+")]

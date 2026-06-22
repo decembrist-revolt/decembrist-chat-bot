@@ -104,7 +104,7 @@ public class MinionHandler(
 
     private async Task<Unit> SendMinionCreatedMessage(long chatId, long minionId, long masterId)
     {
-        var (minionName, masterName) = await minionService.GetMasterMinionNames(chatId, masterId, minionId);
+        var (masterName, minionName) = await minionService.GetMasterMinionNames(chatId, masterId, minionId);
 
         var message = string.Format(appConfig.MinionConfig.MinionCreatedMessage, minionName, masterName);
         var expirationMinutes = DateTime.UtcNow.AddMinutes(appConfig.MinionConfig.MessageExpirationMinutes);

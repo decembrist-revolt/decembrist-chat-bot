@@ -19,7 +19,7 @@ namespace DecembristChatBotSharp.Telegram;
 public class MessageAssistance(
     AppConfig appConfig,
     BotClient botClient,
-    FilterCaptchaButtons filterCaptchaButtons,
+    FilterBanButtons filterBanButtons,
     ExpiredMessageRepository expiredMessageRepository,
     ChatConfigRepository chatConfigRepository,
     CancellationTokenSource cancelToken,
@@ -306,7 +306,7 @@ public class MessageAssistance(
         Log.Information("Sending filter restrict message to user {0} in chat {1}", telegramId, chatId);
         var username = await botClient.GetUsernameOrId(telegramId, chatId, cancelToken.Token);
         var text = string.Format(filterConfig.FailedMessage, username);
-        var buttons = filterCaptchaButtons.GetMarkup(telegramId);
+        var buttons = filterBanButtons.GetMarkup(telegramId);
 
         return await botClient.SendMessageAndLog(chatId, text, ParseMode.None,
             async m =>

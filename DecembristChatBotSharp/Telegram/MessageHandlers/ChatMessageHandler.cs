@@ -46,7 +46,6 @@ public readonly struct UnknownPayload : IMessagePayload;
 public class ChatMessageHandler(
     CaptchaHandler captchaHandler,
     FilteredMessageHandler filteredMessageHandler,
-    FilterCaptchaHandler filterCaptchaHandler,
     ChatCommandHandler chatCommandHandler,
     FastReplyHandler fastReplyHandler,
     RestrictHandler restrictHandler,
@@ -65,8 +64,7 @@ public class ChatMessageHandler(
     {
         if (await captchaHandler.Do(parameters)) return unit;
 
-        if (await filterCaptchaHandler.Do(parameters)) return unit;
-        await filteredMessageHandler.Do(parameters);
+        if (await filteredMessageHandler.Do(parameters)) return unit;
 
         if (await inlineBotRestrictionHandler.Do(parameters)) return unit;
 
