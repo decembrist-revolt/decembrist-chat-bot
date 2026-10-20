@@ -62,7 +62,7 @@ public class CaptchaCallbackHandler(
 
         await newMemberRepository.RemoveNewMember(newMember.Id);
         return await Array(
-            whiteListRepository.AddWhiteListMember(new WhiteListMember(new CompositeId(telegramId, chatId))).ToUnit(),
+            // whiteListRepository.AddWhiteListMember(new WhiteListMember(new CompositeId(telegramId, chatId))).ToUnit(),
             messageAssistance.SendMessageExpired(chatId, joinMessage, PrefixKey)
         ).WhenAll();
     }
